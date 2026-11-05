@@ -21,6 +21,8 @@ import { CustomIconsService } from './core/icons/custom-icons.service';
 import { NoticeInboxService } from './core/notices/notice-inbox.service';
 import { CardDueService } from './core/cards/card-due.service';
 import { RemindersService } from './core/reminders/reminders.service';
+import { MonthSummaryService } from './core/summary/month-summary.service';
+import { ReviewEveningService } from './core/proposals/review-evening.service';
 import { ShortcutsService } from './core/shortcuts/shortcuts.service';
 import { MarqueeService } from './core/ui/marquee.service';
 import { TabBarComponent } from './shared/ui/tab-bar.component';
@@ -92,6 +94,10 @@ export class AppComponent {
 
   /** Reminders, read and rung from the first screen on. */
   private readonly reminders = inject(RemindersService);
+
+  /** The month's summary on the 1st, and what still waits at 8 p.m. */
+  private readonly monthSummary = inject(MonthSummaryService);
+  private readonly reviewEvening = inject(ReviewEveningService);
 
   /** The shortcuts of the app's icon, handed to Android and answered. */
   private readonly shortcuts = inject(ShortcutsService);

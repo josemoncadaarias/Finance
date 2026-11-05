@@ -23,6 +23,7 @@
 
 import type { SqlDriver } from './sql-driver';
 import type { Language } from '../i18n/translations';
+import { foldText } from '../text/fold-text';
 
 export interface StarterCategory {
   kind: 'income' | 'expense';
@@ -109,5 +110,62 @@ export async function seedStarterCategories(
     );
     added++;
   }
+  return added;
+}
+
+/** The settings key saying how many of the starter list a database was offered. */
+export const STARTERS_OFFERED_KEY = 'categories.starters.offered';
+
+/** A name compared without case, accents, spaces or its plural. */
+function sameName(name: string): string {
+  return foldText(name).replace(/\s+/g, ' ').trim().split(' ')
+    .map(word => word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word)
+    .map(word => word.length > 4 && word.endsWith('e') ? word.slice(0, -1) : word)
+    .join(' ');
+}
+
+/**
+ * Every starter category for everybody, not only a new install (Jose,
+ * 2026-11-05: "todas las categorías por defecto de una app vacía deben estar
+ * disponibles para todo el mundo"). Adds, once, each one the database has no
+ * category for on that side - compared without case, accents or plural, and
+ * against archived ones too, so "Mercados" keeps "Mercado" out and one the
+ * person put away is not brought back. Remembers how many of the list it
+ * offered, so a category the person deletes afterwards never returns, and
+ * one added to the list later is offered once too.
+ */
+export async function addMissingStarters(
+  driver: SqlDriver,
+  language: Language,
+  now: () => string = () => new Date().toISOString(),
+): Promise<number> {
+  const offered = Number((await driver.queryOne<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?', [STARTERS_OFFERED_KEY]))?.value ?? 0);
+  if (offered >= STARTER_CATEGORIES.length) return 0;
+
+  const taken = new Set(
+    (await driver.query<{ name: string; kind: string }>('SELECT name, kind FROM categories'))
+      .map(row => `${row.kind}:${sameName(row.name)}`),
+  );
+  let order = ((await driver.queryOne<{ top: number | null }>('SELECT MAX(sort_order) AS top FROM categories'))?.top ?? 0) + 1;
+  const at = now();
+  let added = 0;
+  for (const category of STARTER_CATEGORIES.slice(offered)) {
+    const name = language === 'en' ? category.en : category.es;
+    const other = language === 'en' ? category.es : category.en;
+    if (taken.has(`${category.kind}:${sameName(name)}`) || taken.has(`${category.kind}:${sameName(other)}`)) continue;
+    await driver.run(
+      `INSERT INTO categories (name, kind, builtin_icon, archived, sort_order,
+                               counts_as_return, created_at, updated_at)
+       VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+      [name, category.kind, category.icon, order++, category.isReturn ? 1 : 0, at, at],
+    );
+    taken.add(`${category.kind}:${sameName(name)}`);
+    added++;
+  }
+  await driver.run(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    [STARTERS_OFFERED_KEY, String(STARTER_CATEGORIES.length), at]);
   return added;
 }

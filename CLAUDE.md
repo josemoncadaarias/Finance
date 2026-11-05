@@ -6997,6 +6997,44 @@ with testers runs; the paywall is finished after them.
   usual note in. Checked in a browser on the sample data: opened with
   "Retiro", turned around "Recarga", back "Retiro" (the build before stayed on
   "Retiro").
+- **From Jose's questions of 2026-11-05** (built the same day):
+  - **A shop named after a second "compra" is read** ("Compra exitosa - Tu
+    compra en I P S SALUD EN CASA ME por $ 44.400"): `readNotice` took the
+    shop only after the FIRST direction word, so the merchant came empty and
+    no category was looked for. Now every place a direction word is said is
+    tried (`allOf`); "Salud" then comes as a suggestion. Only messages read
+    after the update change. Test in `read-notice.test.mjs`.
+  - **The "Guardado" banner after EVERY save of the movement form**: a
+    correction ("Gasto corregido", `mode: 'edited'`, no Deshacer, a tap
+    opens it again) and a loan's payment ("Pago de la cuota guardado",
+    `mode: 'payment'`); a save whose rows cannot be pointed at (a correction
+    in a new shape) says the form's own figures (`bannerFromForm`). A
+    transfer says "De {cuenta} a {cuenta}" and its products ("Sale de X y
+    llega a Y"; between one account's products "Entre los productos de
+    {cuenta}", "De X a Y"), its title wrapping rather than cut.
+  - **Every starter category for everybody**: `addMissingStarters` adds,
+    once (`categories.starters.offered` in settings), each starter a
+    database lacks on that side - compared without case, accents or plural,
+    archived ones included - so a used app gets them too; one deleted later
+    never returns. Test in `starter-categories.test.mjs`.
+  - **The month's summary** (`MonthSummaryService`, `core/summary/`): Más →
+    Tus finanzas has "Reporte" always (no longer listed again under "No
+    están en tu barra"); on the 1st at 9:00 the phone says "📊 Tu resumen de
+    {mes} está listo", and until the Reporte is opened on that month the row
+    and Más's dot say so (`finance.monthSummary.seen`). It opens the
+    existing Reporte on that month (both faces and the spreadsheet): no
+    second report. Más tour step `since: 6`.
+  - **At 8 p.m. what still waits in Por revisar rings**
+    (`ReviewEveningService`): one movement opens itself (`/review?proposal=`),
+    several open the list unfolded (`?open=pending`); saving the last takes
+    the notice back. It counts what the app has read; a message arriving with
+    the app closed rings as "Movimiento detectado" and joins on next opening.
+    Both notices only with notifications already allowed. Checked in a
+    browser (Más, the banners); the notices themselves only on the phone.
+  - **Not built, waiting for Jose**: built-in logos for banks and
+    categories matched by name - the images are in his backup, not in the
+    repository, and shipping banks' logos needs his word on trademarks; the
+    "Intereses de CDT" image that does not appear - not reproduced yet.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

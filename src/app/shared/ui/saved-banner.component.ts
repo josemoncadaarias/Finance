@@ -90,7 +90,8 @@ import { SAVED_BANNER_MS, SavedBannerService } from '../../core/ui/saved-banner.
     .amount.in { color: var(--app-grn); }
     .amount.move { color: var(--app-move); }
     .what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-    .title { font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Two names in a transfer's title: it wraps rather than cutting the second. */
+    .title { font-size: 15.5px; line-height: 1.25; text-wrap: pretty; overflow-wrap: anywhere; }
     .what small { color: var(--app-mu); font-size: 12.5px; line-height: 1.35; margin-top: 1px; text-wrap: pretty; }
     .act {
       flex: none;

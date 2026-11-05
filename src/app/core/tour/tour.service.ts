@@ -102,6 +102,7 @@ const TOUR_LIST = {
       { target: 'more-finances', title: 'tour.more.8.title', text: 'tour.more.8.text', since: 4 },
       // 2026-10-22: reporting a fault or an idea, under Ayuda.
       { target: 'more-help', title: 'tour.more.9.title', text: 'tour.more.9.text', since: 5 },
+      { target: 'more-report', title: 'tour.more.10.title', text: 'tour.more.10.text', since: 6 },
     ],
   },
   reminders: {

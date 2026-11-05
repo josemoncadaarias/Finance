@@ -13,7 +13,8 @@
 
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
-import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { MonthSummaryService } from '../../core/summary/month-summary.service';
 import { IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -65,6 +66,7 @@ export class ReportPage {
   private readonly yieldsReport = inject(YieldsReportService);
   readonly privacy = inject(PrivacyService);
   readonly filter = inject(FilterService);
+  private readonly summary = inject(MonthSummaryService);
   private readonly toast = inject(ToastService);
   private readonly accent = inject(AccentService);
   readonly accentColor = computed(() => this.accent.accent().color);
@@ -168,6 +170,9 @@ export class ReportPage {
 
   constructor() {
     addIcons(allIcons);
+
+    // The month's summary waiting in Más is seen once the Reporte shows that month.
+    effect(() => { const period = this.filter.period(); untracked(() => this.summary.seenIfShown(period)); });
 
     /*
      * Rebuilt whenever the question changes: another period or account picked
