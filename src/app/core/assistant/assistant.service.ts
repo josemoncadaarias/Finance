@@ -68,9 +68,19 @@ export interface Picture {
 
 export interface SpentIn {
   category: CategoryRow;
-  /** This month up to today, and last month up to the same day, in pesos. */
+  /** The period up to today, and the same days of the one before, in pesos. */
   nowMinor: number;
   beforeMinor: number;
+  /** The month that is running ("este mes"), as asked when no period is said. */
+  thisMonth: boolean;
+  /** The period's name, and the one it is set against (null with nothing before). */
+  label: string;
+  beforeLabel: string | null;
+  /** The period is still running: it is set against the same days of the one before. */
+  partial: boolean;
+  /** Several categories added together ("¿y los dos juntos?", 55b): each one's figure. */
+  parts: { category: CategoryRow; minor: number }[];
+  /** The category's cap, only for one category over the month running. */
   cap: LimitView | null;
 }
 
@@ -480,22 +490,43 @@ export class AssistantService {
     return this.limits.current().limits.find(l => l.terms.categoryIds.includes(categoryId)) ?? null;
   }
 
-  async spentIn(category: CategoryRow): Promise<SpentIn> {
+  /**
+   * What went to one category, or several added together, over a period
+   * (the month running when none is said), against the same days of the one
+   * before (55a, 55b).
+   */
+  async spentIn(categories: CategoryRow | readonly CategoryRow[], asked: Period | null = null): Promise<SpentIn> {
+    const list = Array.isArray(categories) ? [...categories] : [categories as CategoryRow];
     const today = isoDay(new Date());
-    const month = monthOf(today);
-    const day = Number(today.slice(8, 10));
-    const last = shiftMonth(month, -1);
-    const lastDay = Math.min(day, daysInMonth(last));
-    const sum = async (from: string, to: string) => (await this.db.queryOne<{ total: number | null }>(
-      `SELECT SUM(amount_base_minor) AS total FROM transactions
-        WHERE category_id = ? AND transfer_id IS NULL AND occurred_on BETWEEN ? AND ?`,
-      [category.id, from, to]))?.total ?? 0;
-    const sign = category.kind === 'expense' ? -1 : 1;
+    const month = periodContaining('month', new Date());
+    const period = asked ?? month;
+    const thisMonth = period.from === month.from && period.to === month.to;
+    const from = period.from ?? '0000-01-01';
+    const to = period.to !== null && period.to < today ? period.to : today;
+    const earlier = period.from ? equivalentBefore(period, daysBetween(from, to) + 1) : null;
+    const sum = async (category: CategoryRow, a: string, b: string) => (category.kind === 'expense' ? -1 : 1)
+      * ((await this.db.queryOne<{ total: number | null }>(
+        `SELECT SUM(amount_base_minor) AS total FROM transactions
+          WHERE category_id = ? AND transfer_id IS NULL AND occurred_on BETWEEN ? AND ?`,
+        [category.id, a, b]))?.total ?? 0);
+    const parts: SpentIn['parts'] = [];
+    let beforeMinor = 0;
+    for (const category of list) {
+      parts.push({ category, minor: await sum(category, from, to) });
+      if (earlier?.from && earlier.to) beforeMinor += await sum(category, earlier.from, earlier.to);
+    }
+    const locale = this.i18n.dateLocale();
+    const all = this.i18n.t('period.all');
     return {
-      category,
-      nowMinor: sign * await sum(`${month}-01`, today),
-      beforeMinor: sign * await sum(`${last}-01`, `${last}-${String(lastDay).padStart(2, '0')}`),
-      cap: this.capOf(category.id),
+      category: list[0],
+      nowMinor: parts.reduce((total, p) => total + p.minor, 0),
+      beforeMinor,
+      thisMonth,
+      label: periodLabel(period, locale, all),
+      beforeLabel: earlier?.from && earlier.to ? periodLabel(earlier, locale, all) : null,
+      partial: period.to === null || period.to >= today,
+      parts,
+      cap: list.length === 1 && thisMonth ? this.capOf(list[0].id) : null,
     };
   }
 
