@@ -38,6 +38,9 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { SaveShareService } from '../../core/assistant/save-share.service';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { fold, readPhrase, type Reading } from '../../core/assistant/read-phrase';
+import { nearQuestions } from '../../core/assistant/near-question';
+import { noteMissed } from '../../core/assistant/missed';
+import { FeedbackService } from '../../core/feedback/feedback.service';
 import { FOLLOWABLE, followUp, type Asked, type FollowUp, type Piece } from '../../core/assistant/follow-up';
 import { termsOf } from '../../core/assistant/note-search';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
@@ -233,6 +236,8 @@ const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color
     { key: 'ai.example.remind', icon: 'notifications-outline', cls: 'ui-y' }] },
   { title: 'ai.group.month', sub: 'ai.group.month.sub', icon: 'pie-chart-outline', color: '#5ab8f0', rows: [
     { key: 'ai.example.howAmI', icon: 'pulse-outline', cls: 'ui-p' },
+    { key: 'ai.example.paid', icon: 'receipt-outline', cls: 'ui-r' },
+    { key: 'ai.example.incomeQ', icon: 'arrow-down', cls: 'ui-g' },
     { key: 'ai.example.top', icon: 'pie-chart-outline', cls: 'ui-p' },
     { key: 'ai.example.recurring', icon: 'repeat-outline', cls: 'ui-p' },
     { key: 'ai.example.fixedLeft', icon: 'checkbox-outline', cls: 'ui-y' },
@@ -284,6 +289,7 @@ export class AssistantPage {
   private readonly filter = inject(FilterService);
   private readonly pro = inject(PaywallService);
   private readonly reminders = inject(RemindersService);
+  private readonly feedback = inject(FeedbackService);
   readonly i18n = inject(I18nService);
 
   private readonly content = viewChild(IonContent);
@@ -690,6 +696,8 @@ export class AssistantPage {
       case 'unsure': return this.askShape(reading, text);
       case 'lastTime': return this.give(A.lastTime(this.speech(), this.termsIn(text), await this.assistant.findInNotes(this.termsIn(text), reading.period)));
       case 'biggest': return this.give(A.biggest(this.speech(), await this.assistant.biggest(reading.period)));
+      case 'paid': return this.give(A.paid(this.speech(), await this.assistant.paid(reading.period)));
+      case 'income': return this.give(A.income(this.speech(), await this.assistant.periodPicture(reading.period)));
       case 'saveMore': return this.give(A.saveMore(this.speech(), await this.assistant.periodPicture(null),
         await this.assistant.smallRepeated(), (await this.assistant.recurring()).fixed));
       case 'openProducts': return this.give(A.openProducts(this.speech(), this.accountNamed(reading), this.earning()));
@@ -706,6 +714,12 @@ export class AssistantPage {
         if (await this.plansAnswer(text, true)) return;
         return this.notUnderstood(reading, text);
     }
+  }
+
+  /** Every question the assistant offers, in words: what "¿Te referías a...?" looks among. */
+  private catalog(): string[] {
+    return [...this.forYou().map(f => f.text),
+      ...WELCOME.flatMap(g => g.rows.map(r => this.i18n.t(r.key).replace(/[«»“”]/g, '')))];
   }
 
   /** The account a sentence named, with its name. */
@@ -732,25 +746,40 @@ export class AssistantPage {
    * sentence; with none, examples.
    */
   private notUnderstood(reading: Reading, text: string): void {
-    const terms = this.termsIn(text);
-    if (terms.length === 0 || terms.length > 4) {
-      this.say('ai.unknown', {}, { chips: this.examples.slice(0, 4).map(key => ({ label: this.i18n.t(key).replace(/[«»“”]/g, ''), act: () => this.example(key) })),
-        chipsTitle: this.i18n.t('ai.ideas.more') });
-      return;
-    }
-    const words = terms.join(' ');
+    // Kept on the device, to be sent with "Reportar un fallo" so the app learns it (missed.ts).
+    noteMissed(text);
     const choose = (question: string) => () => {
       if (reading.phraseKey) void this.assistant.learnAsked(reading.phraseKey, question);
       void this.send(question);
     };
+    // The questions it knows that share most words with what was said (near-question.ts).
+    const near = nearQuestions(text, this.catalog(), 3).map(q => ({ label: q, act: choose(q) }));
+    const teach = { label: this.i18n.t('ai.missed.report'),
+      act: () => this.feedback.open('idea', false, `${this.i18n.t('feedback.missed.text')}\n«${text}»`) };
+    const terms = this.termsIn(text);
+    // A long sentence that resembles a known question: those, without guesses about its words.
+    if (near.length > 0 && terms.length >= 3) {
+      this.say('ai.meant.ask', {}, { chips: [...near, { label: this.i18n.t('ai.ideas.open'), act: () => this.ideas.set(true) }, teach],
+        chipsTitle: this.i18n.t('ai.meant.title') });
+      return;
+    }
+    if (terms.length === 0 || terms.length > 4) {
+      const examples = this.examples.slice(0, 4).map(key => ({ label: this.i18n.t(key).replace(/[«»“”]/g, ''), act: () => this.example(key) }));
+      this.say(near.length > 0 ? 'ai.meant.ask' : 'ai.unknown', {}, { chips: [...(near.length > 0 ? near : examples), teach],
+        chipsTitle: this.i18n.t(near.length > 0 ? 'ai.meant.title' : 'ai.ideas.more') });
+      return;
+    }
+    const words = terms.join(' ');
     const cost = this.i18n.t('ai.meant.cost', { words });
     const last = this.i18n.t('ai.meant.last', { words });
     this.say('ai.meant.ask', {}, {
       chips: [
+        ...near,
         { label: cost, act: choose(cost) },
         { label: last, act: choose(last) },
         { label: this.i18n.t('ai.meant.register', { words }), act: () => this.compose.open('expense', { start: { amountMinor: 0, onDate: isoDay(new Date()), note: this.cap1(words) } }) },
         { label: this.i18n.t('ai.ideas.open'), act: () => this.ideas.set(true) },
+        teach,
       ],
       chipsTitle: this.i18n.t('ai.meant.title'),
     });
@@ -1162,6 +1191,8 @@ export class AssistantPage {
           case 'howAmI': return this.howAmI(as);
           case 'topSpending': return this.topSpending(as);
           case 'biggest': return this.give(A.biggest(this.speech(), await this.assistant.biggest(a.period)));
+          case 'paid': return this.give(A.paid(this.speech(), await this.assistant.paid(a.period)));
+          case 'income': return this.give(A.income(this.speech(), await this.assistant.periodPicture(a.period)));
           case 'whyMore': return this.give(A.whyMore(this.speech(), await this.assistant.periodPicture(a.period)));
           case 'yields': return this.give(A.yieldsAnswer(this.speech(), await this.assistant.yieldsPicture(a.period, a.accountId)));
           case 'have': return this.haveAnswer(as);
@@ -1233,6 +1264,8 @@ export class AssistantPage {
         case 'topSpending': return t('ai.got.topSpending', { period: when });
         case 'biggest': return t('ai.got.biggest', { period: when });
         case 'whyMore': return t('ai.got.whyMore', { period: when });
+        case 'paid': return t('ai.got.paid', { period: when });
+        case 'income': return t('ai.got.income', { period: when });
         case 'yields': return t('ai.got.yields', { account, period: when });
         default: return t('ai.got.have', { account });
       }

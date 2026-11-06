@@ -22,6 +22,8 @@ export interface FeedbackWords {
   reading: string;
   /** Heading of the app's last errors. */
   errors?: string;
+  /** Heading of the sentences the assistant did not understand. */
+  missed?: string;
 }
 
 export interface FeedbackInput {
@@ -35,6 +37,8 @@ export interface FeedbackInput {
   reading?: string | null;
   /** The app's last errors, as text, when kept in. */
   errors?: string | null;
+  /** The sentences the assistant did not understand, as text, when kept in. */
+  missed?: string | null;
 }
 
 export interface FeedbackMail {
@@ -51,6 +55,7 @@ export function feedbackMail(input: FeedbackInput, words: FeedbackWords): Feedba
   if (input.device && input.device.length > 0) parts.push(`— ${words.device} —\n${input.device.join('\n')}`);
   if (input.reading) parts.push(`— ${words.reading} —\n${input.reading}`);
   if (input.errors) parts.push(`— ${words.errors ?? 'Errors'} —\n${input.errors}`);
+  if (input.missed) parts.push(`— ${words.missed ?? 'Not understood'} —\n${input.missed}`);
   const body = parts.join('\n\n');
   const href = `mailto:${FEEDBACK_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   return { to: FEEDBACK_TO, subject, body, href };

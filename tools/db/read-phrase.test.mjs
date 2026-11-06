@@ -617,3 +617,27 @@ test('opening a category, a goal or a cap, said any way (Jose, 2026-10-28)', () 
   // How much is still the question about the goal or the cap.
   assert.notEqual(readPhrase('muéstrame cuánto me falta para la meta del viaje', ctx()).intent, 'openGoal');
 });
+
+test('what was paid, what came in, said the ways people say it (Jose, 2026-11-06: not understood on the phone)', () => {
+  const cases = [
+    ['Que cosas pague este mes?', 'paid'], ['Que pague este mes?', 'paid'], ['Que he pagado este mes?', 'paid'],
+    ['Qué compré esta semana?', 'paid'], ['Mis gastos de este mes', 'paid'], ['Muéstrame mis gastos', 'paid'],
+    ['Cuánto gasté este mes?', 'paid'], ['Cuánto llevo gastado?', 'paid'], ['Qué movimientos tengo hoy?', 'paid'],
+    ['Lista de gastos de octubre', 'paid'], ['Cuáles fueron mis gastos de la semana pasada?', 'paid'],
+    ['Cuántos gastos tengo este mes?', 'paid'], ['Ultimos movimientos', 'paid'], ['Cuál fue mi último gasto?', 'paid'],
+    ['Qué compré ayer?', 'paid'], ['what did I pay this month?', 'paid'],
+    ['Cuanto me entró este mes?', 'income'], ['Cuánto gané este mes?', 'income'], ['Cuánto me pagaron este mes?', 'income'],
+    ['Cuales son mis ingresos de este mes?', 'income'], ['how much did I earn this month?', 'income'],
+    ['Cuánto ahorré este mes?', 'howAmI'], ['Estoy gastando mucho?', 'howAmI'], ['Dame un resumen', 'howAmI'],
+    ['Ingresos vs gastos', 'howAmI'], ['Gasté más que el mes pasado?', 'whyMore'], ['Cuándo pago la tarjeta?', 'due'],
+    ['Me pasé de algún tope?', 'plans'], ['Qué fue lo más caro que compré?', 'biggest'],
+    ['Tengo plata para salir este fin de semana?', 'perDay'], ['Cuántas veces fui a restaurante este mes?', 'spentIn'],
+    // What it already knew stays as it was.
+    ['cuáles son mis mayores gastos', 'topSpending'], ['mis gastos fijos', 'recurring'], ['Cuánto tengo ahorrado?', 'have'],
+    ['Cuanto gane de intereses este mes', 'yields'], ['¿cuándo fue la última vez que pagué el mantenimiento de la moto?', 'lastTime'],
+  ];
+  for (const [said, intent] of cases) assert.equal(readPhrase(said, ctx()).intent, intent, said);
+  // The period said is kept.
+  assert.equal(readPhrase('Lista de gastos de octubre', ctx()).period.from, '2026-10-01');
+  assert.equal(readPhrase('Qué compré ayer?', ctx()).period.from, '2026-10-18');
+});

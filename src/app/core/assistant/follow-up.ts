@@ -19,7 +19,7 @@ import { fold, type Intent, type Reading, type Side } from './read-phrase';
 
 /** The questions a follow-up can go on from. */
 export const FOLLOWABLE: ReadonlySet<Intent> = new Set<Intent>([
-  'spentIn', 'howAmI', 'topSpending', 'biggest', 'whyMore', 'yields', 'have',
+  'spentIn', 'howAmI', 'topSpending', 'biggest', 'whyMore', 'yields', 'have', 'paid', 'income',
 ]);
 
 /** What a question or a movement asked, kept to answer the next sentence. */
@@ -85,7 +85,7 @@ export function followUp(text: string, fresh: Reading, history: readonly Asked[]
 
   // "¿Por qué?" after a summary: why the spending moved, over the same period.
   if (WHY.test(said)) {
-    if (!['howAmI', 'spentIn', 'topSpending', 'biggest', 'whyMore'].includes(last.intent)) return { kind: 'none' };
+    if (!['howAmI', 'spentIn', 'topSpending', 'biggest', 'whyMore', 'paid'].includes(last.intent)) return { kind: 'none' };
     return {
       kind: 'ask',
       asked: { intent: 'whyMore', said: text, categoryIds: [], accountId: null, period: last.period },
