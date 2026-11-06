@@ -267,7 +267,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1191 on 2026-11-06, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1200 on 2026-11-06, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5897,6 +5897,22 @@ with testers runs; the paywall is finished after them.
   Read when the sheet opens, once per data change and month
   (`ComposeHostComponent.dueFixed`). Home tour's "+" step says it (`since: 7`).
   Checked in a browser.
+- **"¿Qué pagos fijos me faltan este mes?" is its own question** (Jose,
+  2026-11-06, two screenshots: the "+" listed the fixed payments not seen
+  yet this month and sent "the other 2" to the assistant, which answered
+  "¿Qué pago cada mes?" - every fixed payment, Claro hogar already paid
+  included). One rule for both, `stillToPay` in `core/assistant/recurring.ts`
+  (not seen this month, with an account, by usual day). New intent
+  `fixedLeft` (`FIXED_LEFT` in `read-phrase.ts`: "qué me falta por pagar",
+  "pagos pendientes", "qué no he pagado"...; tested) answered by
+  `A.fixedLeft`: only those, their sum, how many were already paid, and each
+  row opens the one movement form filled in as the "+" does
+  (`RichBlock.fixed`, `registerFixed` in the assistant page). The "+" link is
+  now "Ver los otros N pagos que te faltan" and asks that question;
+  "¿Qué pago cada mes?" still lists every one and now says how many are left,
+  with the new question as a chip. Card statements and loan installments stay
+  "¿Qué pagos tengo este mes?" (offered as a chip). Checked in a browser on
+  the sample data; not on the phone.
 - **Reminders** (Jose, 2026-10-22: "arranca con los recordatorios, todo lo
   que se te ocurra"). `reminders` (migration 060, travels in the backup): a
   title, an optional amount, account and category, a note, `repeat` monthly

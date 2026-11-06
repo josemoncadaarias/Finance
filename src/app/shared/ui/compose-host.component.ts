@@ -29,7 +29,7 @@ import { ToastService } from './toast.service';
 import { AccentService } from '../../core/theme/accent.service';
 import { MOVE_COLOR } from '../../core/theme/palette';
 import { AssistantService } from '../../core/assistant/assistant.service';
-import type { FixedPayment } from '../../core/assistant/recurring';
+import { stillToPay, type FixedPayment } from '../../core/assistant/recurring';
 import { isoDay } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
 import type { Frequent } from '../../core/compose/frequent';
@@ -231,8 +231,7 @@ export class ComposeHostComponent {
           const [r, accounts] = await Promise.all([this.assistant.recurring(), new AccountsRepository(db).list()]);
           this.accountNames = new Map(accounts.map(a => [a.id, a.name]));
           this.accountCurrency = new Map(accounts.map(a => [a.id, a.currency_code]));
-          this.dueFixed.set(r.fixed.filter(f => f.thisMonthMinor === 0 && f.accountId !== null)
-            .sort((a, b) => (a.day ?? 99) - (b.day ?? 99)));
+          this.dueFixed.set(stillToPay(r.fixed));
           // A fixed payment has its own row above (or is paid): never twice.
           const skip = new Set(r.fixed.map(f => merchantKeyOf(f.name)).filter(Boolean));
           const habits = await this.habits.read({ skip });
@@ -283,7 +282,7 @@ export class ComposeHostComponent {
 
   async seeAllFixed(): Promise<void> {
     this.compose.sheet.set(false);
-    await this.router.navigate(['/assistant'], { queryParams: { ask: this.i18n.t('ai.next.recurring') } });
+    await this.router.navigate(['/assistant'], { queryParams: { ask: this.i18n.t('ai.next.fixedLeft') } });
   }
 
   async openAssistant(): Promise<void> {

@@ -47,6 +47,7 @@ export type Intent =
   | 'plans'
   /** "¿Qué pago cada mes?", "¿cuánto se me va en gastos fijos?" */
   | 'recurring'
+  | 'fixedLeft'
   /** "¿Cuánto me han dado mis cuentas?", "¿cuánto llevo de intereses?" */
   | 'yields'
   /** "¿Por qué gasté más este mes?" */
@@ -297,6 +298,9 @@ const DUE = /\b(que|cuales|cuantos)\b.*\b(pagos|cuotas|facturas|cuentas por paga
 const PLANS = /\b(como|que tal)\b.*\b(van?|voy|estan?|llevo|vamos)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(cuanto|que)\b.*\b(falta|queda|llevo)\b.*\b(topes?|metas?|presupuestos?)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
 const HOW_AM_I = /\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|quincena|trimestre|semestre|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|quarter|year|week|going|go)\b/;
 const TOP_SPENDING = /\b(en que|en donde|donde|a que|que)\b.*\b(gast\w*|se me va\w*|se me fue|se fue|se me esta yendo|se va)\b|\b(mayores?|mas grandes?|principales)\b.*\bgastos?\b|\b(en que|que)\b.*\bcategorias?\b|\bwhat did i spend\b.*\bmost\b|\bwhere\b.*\bmoney\b.*\bgo\w*\b/;
+// "¿Qué pagos fijos me faltan este mes?" (Jose, 2026-11-06): what is still to
+// pay, apart from "¿qué pago cada mes?", which lists them all, paid or not.
+const FIXED_LEFT = /\b(que|cuales|cuantos)\b.*\b(falta\w*|queda\w*)\b.*\bpag\w*|\b(que|cuales|cuantos|mis)\b.*\bpag(o|os|ar)\b.*\b(pendientes?|me faltan|faltan|me quedan|quedan|no he (hecho|pagado|registrado))\b|\bpagos?( fijos?)? pendientes\b|\b(que|cuales)\b.*\bno he pagado\b|\b(what|which)\b.*\b(left to pay|still (have )?to pay|not paid|haven'?t paid)\b|\bunpaid\b|\bpending (bills|payments)\b/;
 const RECURRING = /\b(que|cuales|cuanto|cuanta plata|cuanto dinero)\b.*\b(pago|pagamos|gasto|gastamos|se me va|se nos va|se va|tengo|hay)\b.*\b(cada mes|todos los meses|mes a mes|al mes|mensual\w*|fij[oa]s?)\b|\b(gastos?|pagos?|cuentas?|cobros?)\s+(fij[oa]s?|mensuales|recurrentes|que se repiten|de cada mes)\b|\bsuscripci\w*\b|\b(que|cuales)\b.*\bse (me )?repite\w*\b|\b(every month|each month|monthly bills|recurring|subscriptions?|fixed (costs|expenses|bills))\b/;
 const YIELDS = /\b(rendimient\w*|rentabilidad|rindi\w*|rendid\w*|rinden|rinde|intereses? (que )?(me )?(gan\w*|pag\w*|dier\w*|han dado|dan))\b|\bcuanto\b.*\b(gane|he ganado|ganado|me han dado|me dieron|me pagaron|me paga|me pagan|me dan|me da|produc\w*)\b.*\b(cuentas?|bancos?|ahorros?|bolsillos?|alcancias?|cdts?|productos?|intereses?)\b|\b(yields?|interest (earned|i earned|paid to me)|how much\b.*\b(earn\w*|interest))\b/;
 const WHY_MORE = /\bpor ?que\b.*\b(gast\w*|se me (fue|va|esta yendo)|subi\w*|aument\w*|tanta plata|tanto dinero)\b|\b(en que|que)\b.*\b(gaste|gastado|gastamos) (de mas|mas que|mas de la cuenta)\b|\bque (fue lo que )?(subio|aumento)\b|\bwhy\b.*\b(spen[dt]|more)\b/;
@@ -747,7 +751,7 @@ function understood(reading: Reading): boolean {
 let vocabulary: Vocabulary | null = null;
 function assistantWords(): Vocabulary {
   vocabulary ??= vocabularyOf([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
-    TOP_SPENDING, RECURRING, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
+    TOP_SPENDING, RECURRING, FIXED_LEFT, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
     OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
     TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST],
   [...Object.keys(UNITS), ...Object.keys(TIMES), ...FILLER, ...DAYS_ES, ...DAYS_EN, ...MONTHS, ...MONTHS_EN,
@@ -814,6 +818,7 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
   else if (has(folded, HOW_GOALS)) intent = 'howGoals';
   else if (amount && has(folded, PAY_MORE)) intent = 'payMore';
   else if (has(folded, PAY_FIRST)) intent = 'payFirst';
+  else if (!amount && has(folded, FIXED_LEFT)) intent = 'fixedLeft';
   else if (!amount && has(folded, RECURRING)) intent = 'recurring';
   else if (has(folded, AFFORD) && amount) intent = 'afford';
   else if (has(folded, PER_DAY) || has(folded, FREE_NOW) || (!amount && has(folded, AFFORD))) intent = 'perDay';
