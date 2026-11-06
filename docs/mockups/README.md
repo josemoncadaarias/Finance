@@ -258,3 +258,11 @@ Jose: con una cuenta elegida arriba, "Puedes gastar hoy" mostraba la cifra de to
 - `54e` una cuenta de ahorro a la que no le entra dinero cada mes: no da cifra por día, dice cuánto tiene. **Cambiado** por Jose (2026-11-01): una cuenta que solo recibe transferencias también se gasta; su cifra sale de su saldo, menos lo de sus metas y sus pagos (así se construyó, también para la billetera de `54c`).
 - `54f` y `54g` una tarjeta: lo que sueles gastar con ella al mes, menos lo gastado; el cupo no cuenta como dinero tuyo.
 - `54h` qué cambia, por tipo de cuenta.
+
+## 55 - Preguntas de seguimiento en el asistente (2026-11-06, propuesta)
+
+Lo que la persona no dice se toma de su pregunta anterior, y cada respuesta a un seguimiento dice en una línea la pregunta completa que se entendió ("Entendí: ...", con "Cambiar"). Sin IA.
+
+- `55a` cambia el periodo ("¿y el mes pasado?"). `55b` cambia la categoría ("¿y en mercado?") y suma dos ("¿y los dos juntos?"). `55c` cambia la cuenta ("¿y en Ahorro Verde?", "¿y en total?").
+- `55d` "¿por qué?" después de "¿Cómo voy?". `55e` registrar seguido ("y 12 mil en la panadería" con la cuenta y el día del anterior; "con la Coral" cambia solo el que aún no se guarda).
+- `55f` "Cambiar": cada pieza dice si vino de la pregunta anterior o se dijo ahora, y "preguntar de cero". `55g` un seguimiento que no se puede ubicar pregunta con cuál sigue.
