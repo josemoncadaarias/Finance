@@ -86,8 +86,12 @@ test('an account needs exactly one icon, on update as well as on insert', async 
   assert.equal(withBuiltin.builtin_icon, 'business');
   assert.equal(withBuiltin.custom_icon_id, null);
 
-  await assert.rejects(() => accounts.update(ids.bancolombia, { builtin_icon: 'card', custom_icon_id: 1 }),
-    /exactly one/);
+  // Both handed (the face editor remembers the icon behind a picture): the
+  // picture wins, never a refusal (Jose, 2026-11-06, "Nueva cuenta" failed).
+  await accounts.update(ids.bancolombia, { builtin_icon: 'card', custom_icon_id: 1 });
+  const both = await accounts.findById(ids.bancolombia);
+  assert.equal(both.custom_icon_id, 1);
+  assert.equal(both.builtin_icon, null);
   await db.close();
 });
 

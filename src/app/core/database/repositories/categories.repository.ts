@@ -1,6 +1,7 @@
 /** Categories. Same icon rule as accounts: exactly one of the two columns. */
 
 import type { SqlDriver } from '../sql-driver';
+import { iconColumns } from '../../icons/icon-columns';
 import type { CategoryKind, CategoryRow, IsoDate } from '../types';
 
 /** A category plus how often it has been used, for ordering by habit. */
@@ -109,6 +110,7 @@ export class CategoriesRepository {
     // The flag is named only when set, so a repair running against a schema
     // from before migration 047 creates its categories as it always did.
     const flag = category.counts_as_return ? ', counts_as_return' : '';
+    const icon = iconColumns(category.builtin_icon, category.custom_icon_id, 'pricetag');
     const result = await this.db.run(
       `INSERT INTO categories (name, kind, builtin_icon, custom_icon_id, color, parent_id,
          sort_order, created_at, updated_at${flag})
@@ -116,8 +118,8 @@ export class CategoriesRepository {
       [
         category.name,
         category.kind,
-        category.builtin_icon ?? null,
-        category.custom_icon_id ?? null,
+        icon.builtin_icon,
+        icon.custom_icon_id,
         category.color ?? '#607D8B',
         category.parent_id ?? null,
         category.sort_order ?? 0,
@@ -152,13 +154,9 @@ export class CategoriesRepository {
     if (changes.counts_as_return !== undefined) set('counts_as_return', changes.counts_as_return ? 1 : 0);
 
     if (changes.builtin_icon !== undefined || changes.custom_icon_id !== undefined) {
-      const builtin = changes.builtin_icon ?? null;
-      const custom = changes.custom_icon_id ?? null;
-      if ((builtin === null) === (custom === null)) {
-        throw new Error('A category needs exactly one of builtin_icon or custom_icon_id');
-      }
-      set('builtin_icon', builtin);
-      set('custom_icon_id', custom);
+      const icon = iconColumns(changes.builtin_icon, changes.custom_icon_id, 'pricetag');
+      set('builtin_icon', icon.builtin_icon);
+      set('custom_icon_id', icon.custom_icon_id);
     }
 
     if (columns.length === 0) return;
