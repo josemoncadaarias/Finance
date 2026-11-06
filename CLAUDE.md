@@ -185,7 +185,7 @@ brought up to date (#296); the Reporte changes month without flicker (#297,
 Store bundle run 178, version 1178 on the internal track - see "An async call
 inside an effect" under "How to work"); a picture of one's own saves (#299);
 "¿Qué pagos fijos me faltan este mes?", the same list as the "+" (#300); the assistant follows the conversation ("¿y el mes pasado?", mockups
-`55a`-`55g`, 2026-11-06, see "The assistant").
+`55a`-`55g`, 2026-11-06, #302, see "The assistant").
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
