@@ -193,11 +193,14 @@ test('deleting a group leaves its accounts and their history alone', async () =>
   await db.close();
 });
 
-test('group names are unique and groups need exactly one icon', async () => {
+test('group names are unique and a group always gets exactly one icon', async () => {
   const { db, groups } = await setup();
 
   await groups.create({ name: 'Global66', builtin_icon: 'globe' });
   await assert.rejects(() => groups.create({ name: 'Global66', builtin_icon: 'globe' }));
-  await assert.rejects(() => groups.create({ name: 'ARQ' }), /icon|NOT NULL|CHECK/i);
+  // With no icon handed, the repository gives it one rather than failing.
+  const arq = await groups.create({ name: 'ARQ' });
+  const [row] = await db.query('SELECT builtin_icon, custom_icon_id FROM account_groups WHERE id = ?', [arq]);
+  assert.deepEqual({ ...row }, { builtin_icon: 'wallet', custom_icon_id: null });
   await db.close();
 });

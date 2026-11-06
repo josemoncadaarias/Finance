@@ -8,6 +8,7 @@
  */
 
 import type { SqlDriver } from '../sql-driver';
+import { iconColumns } from '../../icons/icon-columns';
 import type { AccountBalance, AccountGroupRow, AccountRow, GroupedBalance, IsoDate } from '../types';
 import type { Anchor } from '../../statements/anchor';
 import { RatesRepository, convertAt, type Rate } from './rates.repository';
@@ -166,8 +167,7 @@ export class AccountsRepository {
       type: account.type,
       currency_code: account.currency_code,
       group_id: account.group_id ?? null,
-      builtin_icon: account.builtin_icon ?? null,
-      custom_icon_id: account.custom_icon_id ?? null,
+      ...iconColumns(account.builtin_icon, account.custom_icon_id, 'wallet'),
       color: account.color ?? '#607D8B',
       credit_limit_minor: account.credit_limit_minor ?? null,
       include_in_net_worth: account.include_in_net_worth === false ? 0 : 1,
@@ -370,13 +370,9 @@ export class AccountsRepository {
     // The two icon columns move together: setting one clears the other, so the
     // schema's "exactly one" rule cannot be broken by a partial update.
     if (changes.builtin_icon !== undefined || changes.custom_icon_id !== undefined) {
-      const builtin = changes.builtin_icon ?? null;
-      const custom = changes.custom_icon_id ?? null;
-      if ((builtin === null) === (custom === null)) {
-        throw new Error('An account needs exactly one of builtin_icon or custom_icon_id');
-      }
-      set('builtin_icon', builtin);
-      set('custom_icon_id', custom);
+      const icon = iconColumns(changes.builtin_icon, changes.custom_icon_id, 'wallet');
+      set('builtin_icon', icon.builtin_icon);
+      set('custom_icon_id', icon.custom_icon_id);
     }
 
     if (columns.length === 0) {

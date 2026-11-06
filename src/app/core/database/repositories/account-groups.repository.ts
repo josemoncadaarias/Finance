@@ -8,6 +8,7 @@
  */
 
 import type { SqlDriver } from '../sql-driver';
+import { iconColumns } from '../../icons/icon-columns';
 import type { AccountGroupRow, AccountRow } from '../types';
 
 export interface NewAccountGroup {
@@ -52,8 +53,8 @@ export class AccountGroupsRepository {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         group.name,
-        group.builtin_icon ?? null,
-        group.custom_icon_id ?? null,
+        iconColumns(group.builtin_icon, group.custom_icon_id, 'wallet').builtin_icon,
+        iconColumns(group.builtin_icon, group.custom_icon_id, 'wallet').custom_icon_id,
         group.color ?? '#607D8B',
         group.sort_order ?? 0,
         timestamp,
@@ -77,13 +78,9 @@ export class AccountGroupsRepository {
     if (changes.sort_order !== undefined) set('sort_order', changes.sort_order);
 
     if (changes.builtin_icon !== undefined || changes.custom_icon_id !== undefined) {
-      const builtin = changes.builtin_icon ?? null;
-      const custom = changes.custom_icon_id ?? null;
-      if ((builtin === null) === (custom === null)) {
-        throw new Error('An account group needs exactly one of builtin_icon or custom_icon_id');
-      }
-      set('builtin_icon', builtin);
-      set('custom_icon_id', custom);
+      const icon = iconColumns(changes.builtin_icon, changes.custom_icon_id, 'wallet');
+      set('builtin_icon', icon.builtin_icon);
+      set('custom_icon_id', icon.custom_icon_id);
     }
 
     if (columns.length === 0) return;

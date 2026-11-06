@@ -240,6 +240,20 @@ could not prove.
   "Pending from Jose" list. A future session on any machine knows only what
   is written here and in the commits. Done in the same PR as the change, or
   in a PR right after it - never left for "later".
+- **An account, a category or a group with a picture of its own saves**
+  (2026-11-06, Jose's screenshot: "Nueva cuenta" with its own logo failed
+  with "CHECK constraint failed: (builtin_icon IS NULL) <> (custom_icon_id IS
+  NULL)"). The face editor hands back the last built-in icon beside the
+  picture; `create` wrote both and `update` threw "exactly one". Every writer
+  now goes through `iconColumns` (`core/icons/icon-columns.ts`): a picture
+  wins and clears the icon, neither gives the fallback. Two old tests
+  required the refusal that broke the app and were changed;
+  `icon-columns.test.mjs` fails on the code before. **Why 1188 tests missed
+  it**: they checked the repository alone with one column handed, never what
+  the form really hands - test the shape a screen sends, not a tidy one.
+  Also "O escribe la tasa a mano" over the account form (a wrong word left by
+  #282) is "O llena los datos a mano". Proved with the tests on a real
+  SQLite engine; not clicked in a browser nor on the phone.
 - **An async call inside an `effect` is tracked up to its first `await`**
   (2026-11-05, the Reporte's flicker when changing month, seen in Jose's
   screen recording). `effect(() => { ...; void this.build(); })` made every
@@ -253,7 +267,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1188 on 2026-11-05, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1191 on 2026-11-06, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
