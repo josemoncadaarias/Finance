@@ -30,6 +30,7 @@ import { EA_SCALE } from '../../core/loans/schedule';
 import type { Movement } from '../../features/movements/group-movements';
 import { everyMonths, monthsBetween, nextInMonths, type NoteMatches, type NoteRow } from '../../core/assistant/note-search';
 import { fold } from '../../core/assistant/read-phrase';
+import { stillToPay, type FixedPayment } from '../../core/assistant/recurring';
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'plain';
 
@@ -47,6 +48,8 @@ export interface RichBlock {
   fold?: { title: string; blocks: RichBlock[]; open?: boolean };
   /** The row is a category: tapping it lists that category's movements on Inicio. */
   open?: OpenCategory;
+  /** A fixed payment still to pay: tapping the row opens the one movement form filled in, as the "+" does. */
+  fixed?: FixedPayment;
 }
 
 /** A category's movements over a period, every account: what a category row opens. */
@@ -679,14 +682,53 @@ export function recurring(s: Speech, r: RecurringPicture): Answer {
   }
   blocks.push({ note: s.t('ai.recurring.how', { needed: r.needed, every: r.neededEvery, count: r.looked }) });
   blocks.push({ note: s.t('ai.open.hint') });
+  const left = stillToPay(r.fixed).length;
   return {
     said: { key: 'ai.recurring.saidTotal', values: {}, text: [
       r.fixed.length > 0 ? s.t(r.fixed.length === 1 ? 'ai.recurring.saidFixedOne' : 'ai.recurring.saidFixed', { count: r.fixed.length, amount: s.pesos(r.fixedMinor) }) : '',
       r.everyMonth.length > 0 ? s.t(r.everyMonth.length === 1 ? 'ai.recurring.saidEveryOne' : 'ai.recurring.saidEvery', { count: r.everyMonth.length, amount: s.pesos(r.everyMonthMinor) }) : '',
       s.t('ai.recurring.saidTotal', { total: s.pesos(total), share: Math.min(100, share) }),
+      // This answer lists every one, paid or not; what is still to pay is its own question.
+      r.fixed.length > 0 ? s.t(left === 0 ? 'ai.recurring.saidNoneLeft' : left === 1 ? 'ai.recurring.saidLeftOne' : 'ai.recurring.saidLeft', { count: left }) : '',
     ].filter(Boolean).join(' ') },
     card: card(blocks, r.fixed.length > 0 ? [{ label: s.t('ai.recurring.remind'), ghost: true, route: ['/reminders'] }] : []),
-    next: ['ai.next.top', 'ai.next.howAmI'],
+    next: left > 0 ? ['ai.next.fixedLeft', 'ai.next.top'] : ['ai.next.top', 'ai.next.howAmI'],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "¿Qué pagos fijos me faltan este mes?" (Jose, 2026-11-06)
+// ---------------------------------------------------------------------------
+
+/**
+ * Only the fixed payments not seen yet this month - the same list, by the same
+ * rule (`stillToPay`), as "Pagos de este mes" in the "+". A row opens the form
+ * filled in; nothing is saved by itself.
+ */
+export function fixedLeft(s: Speech, r: RecurringPicture, accountName: (id: number) => string): Answer {
+  if (r.looked < 3) return { said: { key: 'ai.recurring.tooSoon', values: { count: r.looked } }, card: null, next: ['ai.next.due'] };
+  if (r.fixed.length === 0) return { said: { key: 'ai.fixedLeft.noFixed', values: {} }, card: null, next: ['ai.next.recurring', 'ai.next.due'] };
+  const left = stillToPay(r.fixed);
+  if (left.length === 0) {
+    return { said: { key: 'ai.fixedLeft.allPaid', values: { count: r.fixed.length } }, card: null, next: ['ai.next.due', 'ai.next.recurring'] };
+  }
+  const sum = left.reduce((t, f) => t + f.averageMinor, 0);
+  const face = (label: string) => r.faces.get(label);
+  const blocks: RichBlock[] = [{ lab: s.t('ai.fixedLeft.title') }];
+  for (const f of left) {
+    const when = [f.day ? s.t('plus.due.day', { day: f.day }) : '', f.accountId !== null ? accountName(f.accountId) : ''].filter(Boolean).join(' · ');
+    blocks.push({ row: {
+      icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
+      title: f.name, value: s.pesos(f.averageMinor), lines: [when, f.category].filter(Boolean) }, fixed: f });
+  }
+  blocks.push({ line: { k: s.t('ai.fixedLeft.sum'), v: s.pesos(sum), cls: 'ui-y' } });
+  const paid = r.fixed.length - left.length;
+  if (paid > 0) blocks.push({ note: s.t(paid === 1 ? 'ai.fixedLeft.paidOne' : 'ai.fixedLeft.paid', { count: paid }) });
+  blocks.push({ note: s.t('ai.fixedLeft.tap') });
+  return {
+    said: { key: left.length === 1 ? 'ai.fixedLeft.saidOne' : 'ai.fixedLeft.said', values: { count: left.length, amount: s.pesos(sum) } },
+    card: card(blocks, [{ label: s.t('ai.recurring.remind'), ghost: true, route: ['/reminders'] }]),
+    next: ['ai.next.due', 'ai.next.recurring'],
   };
 }
 

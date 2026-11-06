@@ -169,3 +169,16 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
     spendMinor: Math.round(all / looked),
   };
 }
+
+/**
+ * The fixed payments not seen yet this month, by the day they are usually
+ * paid: what "Pagos de este mes" in the "+" lists and what the assistant
+ * answers to "¿qué pagos fijos me faltan?" - one rule, so both say the same
+ * (Jose, 2026-11-06: the "+" sent him to the assistant for "the other 2" and
+ * the assistant listed every fixed payment, paid or not). One whose account
+ * is gone has nowhere to open the form on, and is left out of both.
+ */
+export function stillToPay(fixed: readonly FixedPayment[]): FixedPayment[] {
+  return fixed.filter(f => f.thisMonthMinor <= 0 && f.accountId !== null)
+    .sort((a, b) => (a.day ?? 99) - (b.day ?? 99));
+}

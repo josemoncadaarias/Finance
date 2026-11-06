@@ -43,7 +43,8 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { nextDayOfMonth, readReminder } from '../../core/assistant/read-reminder';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
-import type { OpenCategory, RichButton, RichCard, Speech } from './answers';
+import type { OpenCategory, RichBlock, RichButton, RichCard, Speech } from './answers';
+import type { FixedPayment } from '../../core/assistant/recurring';
 import { FilterService } from '../../core/filters/filter.service';
 import { perDay, type GoalThisMonth } from '../../core/assistant/free-money';
 import { canListen, listen } from '../../core/assistant/speech';
@@ -213,6 +214,7 @@ const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color
     { key: 'ai.example.howAmI', icon: 'pulse-outline', cls: 'ui-p' },
     { key: 'ai.example.top', icon: 'pie-chart-outline', cls: 'ui-p' },
     { key: 'ai.example.recurring', icon: 'repeat-outline', cls: 'ui-p' },
+    { key: 'ai.example.fixedLeft', icon: 'checkbox-outline', cls: 'ui-y' },
     { key: 'ai.example.yields', icon: 'trending-up-outline', cls: 'ui-g' },
     { key: 'ai.example.afford', icon: 'help-circle-outline', cls: 'ui-p' }] },
   { title: 'ai.group.search', sub: 'ai.group.search.sub', icon: 'search-outline', color: '#f5b942', rows: [
@@ -643,6 +645,8 @@ export class AssistantPage {
       case 'remind': return this.remind(reading, text);
       case 'reminders': return this.remindersList();
       case 'recurring': return this.give(A.recurring(this.speech(), await this.assistant.recurring()));
+      case 'fixedLeft': return this.give(A.fixedLeft(this.speech(), await this.assistant.recurring(),
+        id => this.accounts.find(a => a.id === id)?.name ?? ''));
       case 'yields': return this.give(A.yieldsAnswer(this.speech(), await this.assistant.yieldsPicture(reading.period, reading.accountId)));
       case 'whyMore': return this.give(A.whyMore(this.speech(), await this.assistant.periodPicture(reading.period)));
       case 'unsure': return this.askShape(reading, text);
@@ -1380,6 +1384,26 @@ export class AssistantPage {
     this.filter.openCategory(open.category);
     this.filter.revealList.update(n => n + 1);
     void this.router.navigate(['/movements']);
+  }
+
+  /**
+   * A fixed payment still to pay: the one movement form filled in with what it
+   * usually is, exactly as "Pagos de este mes" in the "+" opens it. Saved only
+   * by the person.
+   */
+  registerFixed(f: FixedPayment): void {
+    const currency = this.accounts.find(a => a.id === f.accountId)?.currency_code;
+    this.compose.open('expense', {
+      preferredAccountId: f.accountId,
+      // The average is in pesos: an account in another currency gets its amount typed.
+      start: { amountMinor: currency === 'COP' ? f.averageMinor : 0, onDate: isoDay(new Date()), note: f.name, categoryId: f.categoryId },
+    });
+  }
+
+  /** A row of an answer: a category opens its movements, a fixed payment its form. */
+  tapRow(b: RichBlock): void {
+    if (b.fixed) this.registerFixed(b.fixed);
+    else if (b.open) this.openCategory(b.open);
   }
 
   /** A button of an answer's card. */

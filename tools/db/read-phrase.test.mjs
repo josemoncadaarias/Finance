@@ -360,6 +360,11 @@ const ASKED = [
   ['¿Qué pago cada mes?', 'recurring'], ['cuáles son mis gastos fijos', 'recurring'], ['cuánto se me va en suscripciones', 'recurring'],
   ['qué gastos se repiten', 'recurring'], ['¿cuánto pago todos los meses?', 'recurring'], ['mis pagos mensuales', 'recurring'],
   ['what are my monthly bills', 'recurring'],
+  // Jose, 2026-11-06: what is still to pay this month is its own question.
+  ['¿Qué pagos fijos me faltan este mes?', 'fixedLeft'], ['¿qué me falta por pagar este mes?', 'fixedLeft'],
+  ['qué me queda por pagar', 'fixedLeft'], ['mis pagos pendientes', 'fixedLeft'], ['pagos fijos pendientes', 'fixedLeft'],
+  ['cuáles pagos no he hecho este mes', 'fixedLeft'], ['qué no he pagado este mes', 'fixedLeft'],
+  ['what do I still have to pay this month', 'fixedLeft'], ['unpaid bills', 'fixedLeft'],
   ['¿Cuánto me han dado mis cuentas?', 'yields'], ['cuánto llevo de rendimientos', 'yields'], ['¿cuánto me ha rendido Nequi?', 'yields'],
   ['cuántos intereses me pagaron este mes', 'yields'], ['qué rentabilidad tengo', 'yields'], ['cuánto he ganado en mis bolsillos', 'yields'],
   ['how much interest did I earn', 'yields'],
