@@ -187,7 +187,7 @@ inside an effect" under "How to work"); a picture of one's own saves (#299);
 "¿Qué pagos fijos me faltan este mes?", the same list as the "+" (#300); the assistant follows the conversation ("¿y el mes pasado?", mockups
 `55a`-`55g`, 2026-11-06, #302, see "The assistant"); it understands "¿qué
 pagué este mes?" and "¿cuánto me entró?" and offers the closest questions it
-knows when it does not understand (2026-11-06, "The assistant").
+knows when it does not understand (2026-11-06, #304, "The assistant").
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
