@@ -983,6 +983,68 @@ export function biggest(s: Speech, b: { period: Period; label: string; movements
   };
 }
 
+/** How many of a period's movements are shown before "Ver los otros N". */
+const PAID_SHOWN = 8;
+/** At most this many in the section that opens; the rest are in the report. */
+const PAID_FOLDED = 40;
+
+/**
+ * "¿Qué pagué este mes?", "mis gastos", "últimos movimientos" (Jose,
+ * 2026-11-06): what was spent over a period, every account, newest first -
+ * the total and how many, the latest, the rest in a section that opens, and
+ * the categories a tap away.
+ */
+export function paid(s: Speech, b: { period: Period; label: string; movements: Movement[]; outMinor: number }): Answer {
+  if (b.movements.length === 0) return { said: { key: 'ai.top.none', values: { label: b.label } }, card: null, next: ['ai.next.howAmI'] };
+  const name = (m: Movement) => (m.transaction.description ?? '').split('\n')[0].trim() || m.label;
+  const first = b.movements[0];
+  const shown = b.movements.slice(0, PAID_SHOWN);
+  const rest = b.movements.slice(PAID_SHOWN);
+  const blocks: RichBlock[] = [{ lab: s.t('ai.paid.latest', { label: b.label }) }, ...shown.map(m => movBlock(s, m))];
+  if (rest.length > 0) {
+    const folded = rest.slice(0, PAID_FOLDED);
+    blocks.push({ fold: { title: s.t(rest.length === 1 ? 'ai.paid.moreOne' : 'ai.paid.more', { count: rest.length }), blocks: [
+      ...folded.map(m => movBlock(s, m)),
+      ...(rest.length > folded.length ? [{ note: s.t('ai.paid.inReport', { count: rest.length - folded.length }) }] : []),
+    ] } });
+  }
+  blocks.push({ note: s.t('ai.paid.hint') });
+  const count = b.movements.length;
+  return {
+    said: { key: count === 1 ? 'ai.paid.answerOne' : 'ai.paid.answer', values: {
+      label: b.label, amount: s.pesos(b.outMinor), count, name: name(first), date: s.date(first.transaction.occurred_on) } },
+    card: card(blocks, [{ label: s.t('ai.biggest.report'), ghost: true, report: b.period }]),
+    next: ['ai.next.top', 'ai.next.biggest', 'ai.next.income'],
+  };
+}
+
+/** "¿Cuánto me entró este mes?", "mis ingresos": what came in, by category, against the period before. */
+export function income(s: Speech, pic: PeriodPicture): Answer {
+  if (pic.inMinor <= 0 || pic.inSlices.length === 0) {
+    return { said: { key: 'ai.income.none', values: { label: pic.label } }, card: null, next: ['ai.next.howAmI', 'ai.next.paid'] };
+  }
+  const first = pic.inSlices[0].amountMinor;
+  const blocks: RichBlock[] = [{ lab: s.t('ai.income.span', { label: pic.label, total: s.pesos(pic.inMinor) }) }];
+  for (const sl of pic.inSlices.slice(0, 6)) {
+    blocks.push({ ranked: {
+      icon: sl.icon, customId: sl.customIconId, color: sl.color ?? null, seed: sl.seed ?? null, name: sl.label,
+      amount: s.pesos(sl.amountMinor), pct: Math.max(4, Math.round(sl.amountMinor * 100 / first)), change: '', cls: 'mu',
+    }, open: { category: sl.label, period: pic.period } });
+  }
+  const rest = pic.inSlices.slice(6);
+  if (rest.length > 0) blocks.push({ note: s.t('ai.top.more', { count: rest.length, amount: s.pesos(rest.reduce((sum, sl) => sum + sl.amountMinor, 0)) }) });
+  const before = pic.before;
+  if (before) blocks.push({ line: { k: s.t(pic.partial ? 'ai.income.beforeSameDays' : 'ai.income.before', { label: before.label }), v: s.pesos(before.inMinor) } });
+  blocks.push({ note: s.t('ai.income.hint') });
+  const diff = before ? pic.inMinor - before.inMinor : 0;
+  const key: TranslationKey = !before ? 'ai.income.answer' : diff > 0 ? 'ai.income.more' : diff < 0 ? 'ai.income.less' : 'ai.income.same';
+  return {
+    said: { key, values: { label: pic.label, amount: s.pesos(pic.inMinor), diff: s.pesos(Math.abs(diff)), before: before?.label ?? '' } },
+    card: card(blocks, [{ label: s.t('ai.biggest.report'), ghost: true, report: pic.period }]),
+    next: ['ai.next.howAmI', 'ai.next.paid'],
+  };
+}
+
 /** "¿Qué puedo hacer para ahorrar más?" (41h): only the person's own figures, never invented advice. */
 export function saveMore(s: Speech, pic: PeriodPicture, small: { label: string; count: number; totalMinor: number; averageMinor: number; face: Movement }[],
   fixed: RecurringPicture['fixed']): Answer {

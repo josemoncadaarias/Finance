@@ -185,7 +185,9 @@ brought up to date (#296); the Reporte changes month without flicker (#297,
 Store bundle run 178, version 1178 on the internal track - see "An async call
 inside an effect" under "How to work"); a picture of one's own saves (#299);
 "¿Qué pagos fijos me faltan este mes?", the same list as the "+" (#300); the assistant follows the conversation ("¿y el mes pasado?", mockups
-`55a`-`55g`, 2026-11-06, #302, see "The assistant").
+`55a`-`55g`, 2026-11-06, #302, see "The assistant"); it understands "¿qué
+pagué este mes?" and "¿cuánto me entró?" and offers the closest questions it
+knows when it does not understand (2026-11-06, "The assistant").
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -269,7 +271,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1212 on 2026-11-06, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1216 on 2026-11-06, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5937,6 +5939,46 @@ with testers runs; the paywall is finished after them.
   whole period before once it is over). Assistant tour step `since: 11`.
   Checked in a browser on the sample data (every mockup's sentences, the
   sheet, preguntar de cero); not on the phone.
+- **The assistant understands what was paid and what came in, and learns
+  from what it does not understand** (Jose, 2026-11-06, a screenshot: "Que
+  cosas pague este mes?", "Que pague este mes?", "Que he pagado este mes?"
+  not understood; "hay que mejorar mucho más esa base de conocimientos").
+  Measured first on 60 ordinary phrasings: 25 failed. New intents in
+  `read-phrase.ts`: `paid` (`PAID`: "qué pagué / compré / gasté / hice",
+  "mis gastos", "lista de gastos de octubre", "últimos movimientos", "¿cuántos
+  gastos tengo?", and "¿cuánto gasté este mes?" with no category - it used to
+  ask which category) answered by `A.paid` (`AssistantService.paid`: the
+  period's spending, every account, newest first: the total and how many,
+  the 8 latest, up to 40 more in a section that opens, each opening the one
+  form; "Ver el reporte del periodo"); `income` (`INCOME_Q`: "¿cuánto me
+  entró / gané / me pagaron?", "mis ingresos"; never with interest, accounts
+  or savings words, `EARNED_BY`, which stay the yields' question) answered by
+  `A.income` (by category, each opening its movements, against the period
+  before; `PeriodPicture.inSlices`). More words for what was known: "¿cuánto
+  ahorré?", "¿estoy gastando mucho?", "dame un resumen", "ingresos vs
+  gastos" (howAmI), "¿gasté más que el mes pasado?" (whyMore), "¿cuándo pago
+  la tarjeta?" (due), "¿me pasé de algún tope?" (plans), "lo más caro que
+  compré" (biggest), "¿tengo plata para salir?" (perDay), "¿cuántas veces
+  fui a...?" (spentIn). `paid` is a broad catch, so a slip that mended names
+  something more precise wins ("mis gastos fiojs" -> recurring). Both new
+  intents are followable ("¿y el mes pasado?"). **Not understood is never a
+  dead end, and it teaches**: `nearQuestions` (`core/assistant/
+  near-question.ts`, pure) offers the questions it knows (the welcome's and
+  "Para ti, hoy") sharing most word roots with the sentence (first five
+  letters, accents and empty words left out), the one chosen remembered for
+  that sentence as before (`learnAsked`); the sentence is kept on the device
+  (`noteMissed`, `core/assistant/missed.ts`: the last 20 of 30 days, figures
+  of 4+ digits covered) and "Reportar un fallo" carries them under a switch
+  ("Las N preguntas que el asistente no entendió", on by default, forgotten
+  once sent); a chip "Avisar para que la app aprenda esta pregunta" opens
+  that sheet with the sentence written (`FeedbackService.open(kind,
+  reading, text)`). So the knowledge base grows from real sentences, sent by
+  the person, with no server. Welcome examples "¿Qué pagué este mes?" and
+  "¿Cuánto me entró este mes?"; assistant tour step `since: 12`. Tests in
+  `read-phrase.test.mjs` (36 phrasings, invented accounts) and
+  `near-question.test.mjs`; checked in a browser on the sample data (Jose's
+  three sentences, "¿y el mes pasado?" after each, the near questions, the
+  chip); not on the phone.
 - **"¿Qué pagos fijos me faltan este mes?" is its own question** (#300, Jose,
   2026-11-06, two screenshots: the "+" listed the fixed payments not seen
   yet this month and sent "the other 2" to the assistant, which answered

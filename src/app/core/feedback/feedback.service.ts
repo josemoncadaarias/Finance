@@ -18,6 +18,8 @@ export interface FeedbackAsk {
   kind: FeedbackKind;
   /** Whether what was read from the last photo starts kept in. */
   withReading: boolean;
+  /** Words to start the message with (the assistant's "Avisar para que la app aprenda"). */
+  text?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -33,8 +35,8 @@ export class FeedbackService {
     }
   }
 
-  open(kind: FeedbackKind = 'bug', withReading = false): void {
-    this.asking.set({ kind, withReading: withReading && this.hasReading() });
+  open(kind: FeedbackKind = 'bug', withReading = false, text?: string): void {
+    this.asking.set({ kind, withReading: withReading && this.hasReading(), text });
   }
 
   /** What the app made of the photo just read, kept with it for a report. */

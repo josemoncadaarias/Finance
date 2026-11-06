@@ -98,6 +98,8 @@ export interface PeriodPicture {
   before: { label: string; from: string; to: string; inMinor: number; outMinor: number; slices: Slice[] } | null;
   /** Spending by category, largest first. */
   slices: Slice[];
+  /** What came in, by category, largest first. */
+  inSlices: Slice[];
 }
 
 /** What comes back every month, with each one's face (`recurringOf`). */
@@ -562,6 +564,17 @@ export class AssistantService {
   }
 
   /**
+   * What was spent over a period (this month when none is said), every
+   * account, newest first: "¿qué pagué este mes?" (Jose, 2026-11-06).
+   */
+  async paid(asked: Period | null): Promise<{ period: Period; label: string; movements: Movement[]; outMinor: number }> {
+    const b = await this.biggest(asked);
+    const movements = [...b.movements].sort((x, y) => y.transaction.occurred_on.localeCompare(x.transaction.occurred_on)
+      || y.transaction.id - x.transaction.id);
+    return { ...b, movements };
+  }
+
+  /**
    * Small spending that repeats: over the last 30 days, each category's
    * spendings of no more than 2 % of what was spent in those days, when there
    * are at least 8 of them. Generic: the person's own categories and figures.
@@ -605,6 +618,8 @@ export class AssistantService {
     const spending = (list: typeof movements) => slicesOf(list, 'base')
       .filter(slice => slice.flow === 'out' && slice.amountMinor > 0)
       .sort((a, b) => b.amountMinor - a.amountMinor);
+    const income = slicesOf(movements, 'base').filter(slice => slice.flow === 'in' && slice.amountMinor > 0)
+      .sort((a, b) => b.amountMinor - a.amountMinor);
     const earlier = equivalentBefore(period, daysBetween(from, to) + 1);
     let before: PeriodPicture['before'] = null;
     if (earlier !== null && earlier.from !== null && earlier.to !== null) {
@@ -615,7 +630,7 @@ export class AssistantService {
     }
     return {
       period, label: periodLabel(period, locale, all), partial, from, to,
-      inMinor: totals.inMinor, outMinor: totals.outMinor, before, slices: spending(movements),
+      inMinor: totals.inMinor, outMinor: totals.outMinor, before, slices: spending(movements), inSlices: income,
     };
   }
 

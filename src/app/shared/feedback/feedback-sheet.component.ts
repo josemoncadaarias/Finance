@@ -6,6 +6,7 @@
  * in the shell; `FeedbackService.open` opens it, over any form.
  */
 import { errorsText, keptErrors, type LoggedError } from '../../core/feedback/error-log';
+import { forgetMissed, keptMissed, missedText, type Missed } from '../../core/assistant/missed';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { IonIcon, IonModal } from '@ionic/angular';
 
@@ -65,6 +66,14 @@ import { ToastService } from '../ui/toast.service';
                         [attr.aria-label]="'feedback.errors.label' | t" (click)="withErrors.set(!withErrors())"></button>
               </div>
             }
+            @if (missedCount() > 0) {
+              <div class="ui-row">
+                <app-badge [size]="38" builtin="chatbubble-ellipses-outline" fixed="#6378ff"></app-badge>
+                <span class="ui-tx"><b class="wrap">{{ (missedCount() === 1 ? 'feedback.missed.one' : 'feedback.missed') | t:{ count: missedCount() } }}</b><small class="wrap">{{ 'feedback.missed.hint' | t }}</small></span>
+                <button type="button" class="ui-switch" [class.on]="withMissed()" role="switch" [attr.aria-checked]="withMissed()"
+                        [attr.aria-label]="'feedback.missed.label' | t" (click)="withMissed.set(!withMissed())"></button>
+              </div>
+            }
           </div>
           <p class="never">{{ 'feedback.never' | t }}</p>
 
@@ -118,6 +127,10 @@ export class FeedbackSheetComponent {
   readonly withErrors = signal(true);
   readonly errors = signal<LoggedError[]>([]);
   readonly errorCount = computed(() => this.errors().length);
+  /** The sentences the assistant did not understand (`missed.ts`), on the device only until sent. */
+  readonly withMissed = signal(true);
+  readonly missed = signal<Missed[]>([]);
+  readonly missedCount = computed(() => this.missed().length);
   readonly preview = signal(false);
 
   readonly ready = computed(() => this.text().trim().length > 0);
@@ -138,11 +151,13 @@ export class FeedbackSheetComponent {
       device,
       reading: this.withReading() && this.hasReading() ? this.feedback.reading() : null,
       errors: this.withErrors() && this.errorCount() > 0 ? errorsText(this.errors()) : null,
+      missed: this.withMissed() && this.missedCount() > 0 ? missedText(this.missed()) : null,
     }, {
       kind: { bug: t('feedback.subject.bug'), idea: t('feedback.subject.idea'), question: t('feedback.subject.question') },
       device: t('feedback.device'),
       reading: t('feedback.reading'),
       errors: t('feedback.errors.label'),
+      missed: t('feedback.missed.label'),
     });
   });
 
@@ -157,6 +172,9 @@ export class FeedbackSheetComponent {
       this.withReading.set(ask.withReading);
       this.errors.set(keptErrors());
       this.withErrors.set(ask.kind === 'bug');
+      this.missed.set(keptMissed());
+      this.withMissed.set(true);
+      if (ask.text) this.text.set(ask.text);
       this.preview.set(false);
     });
   }
@@ -164,10 +182,12 @@ export class FeedbackSheetComponent {
   async send(): Promise<void> {
     if (!this.ready()) return;
     const mail = this.mail();
+    const sentMissed = this.withMissed() && this.missedCount() > 0;
     // Copied first: if no mail app opens, the message is not lost.
     await copyText(`${mail.to}\n${mail.subject}\n\n${mail.body}`);
     this.feedback.asking.set(null);
     this.text.set('');
+    if (sentMissed) forgetMissed();
     this.toast.say(this.i18n.t('feedback.opened', { to: mail.to }), 10_000, { icon: 'mail-outline' });
     // Capacitor hands a link outside the app to the phone, which opens the mail app.
     window.location.href = mail.href;

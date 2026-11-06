@@ -60,6 +60,10 @@ export type Intent =
   | 'lastTime'
   /** "¿Cuál fue mi gasto más grande?": the biggest movements of a period. */
   | 'biggest'
+  /** "¿Qué pagué este mes?", "mis gastos", "últimos movimientos": what was spent, newest first. */
+  | 'paid'
+  /** "¿Cuánto me entró este mes?", "mis ingresos": what came in, by category. */
+  | 'income'
   /** "¿Qué puedo hacer para ahorrar más?" */
   | 'saveMore'
   /** "¿Qué puedes hacer?": everything the assistant answers. */
@@ -294,21 +298,31 @@ const HOW_GOALS = /\bmetas?\b.*\b(calcul\w*|aporte\w*|cuota\w*)|\b(calcul\w*|apo
 const PAY_MORE = /\b(si|y si|que pasa si|cuanto (me )?ahorro si|what if|if i)\b.*\b(abon\w*|pag[oau]\w*|met[oie]\w*|pongo|pusiera|extra|adicional|pay|paid)\b/;
 const PAY_FIRST = /\b(que|cual|cuales)\b.*\b(deudas?|prestamos?|credito|tarjeta)?\b.*\b(pago|pagar|abono|abonar|cancelo|cancelar|liquido|salgo)\b.*\b(primero|antes|primera|de primeras)\b|\b(que|cual)\b.*\b(deudas?|prestamos?)\b.*\b(me conviene|conviene|mas cara|cuesta mas|cobra mas|mas interes\w*|primero)\b|\b(which|what)\b.*\b(debt|loan)\b.*\bfirst\b|\bpay\b.*\bfirst\b/;
 const DEBTS = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(debo|adeudo)\b|\b(cuantas|cuales|que|mis)\b.*\b(deudas|prestamos|creditos)\b|\b(que|a quien)\b.*\bdebo\b|\bhow much\b.*\bowe\b|\bmy debts\b/;
-const DUE = /\b(que|cuales|cuantos)\b.*\b(pagos|cuotas|facturas|cuentas por pagar)\b|\b(que|cuando)\b.*\b(tengo que pagar|me toca pagar|debo pagar|vence\w*|hay que pagar)\b|\bproximos pagos\b|\b(what|which)\b.*\b(payments|bills)\b|\bwhat do i have to pay\b/;
-const PLANS = /\b(como|que tal)\b.*\b(van?|voy|estan?|llevo|vamos)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(cuanto|que)\b.*\b(falta|queda|llevo)\b.*\b(topes?|metas?|presupuestos?)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
-const HOW_AM_I = /\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|quincena|trimestre|semestre|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|quarter|year|week|going|go)\b/;
+const DUE = /\bcuando\b.*\b(pago|pagar|tengo que pagar|toca pagar|vence|se vence)\b.*\b(tarjeta|cuota|prestamo|credito|factura)s?\b|\b(que|cuales|cuantos)\b.*\b(pagos|cuotas|facturas|cuentas por pagar)\b|\b(que|cuando)\b.*\b(tengo que pagar|me toca pagar|debo pagar|vence\w*|hay que pagar)\b|\bproximos pagos\b|\b(what|which)\b.*\b(payments|bills)\b|\bwhat do i have to pay\b/;
+const PLANS = /\bme (pase|he pasado|estoy pasando|voy a pasar)\b.*\btopes?\b|\b(voy bien|vamos bien)\b.*\b(topes?|metas?|presupuestos?)\b|\b(como|que tal)\b.*\b(van?|voy|estan?|llevo|vamos)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(cuanto|que)\b.*\b(falta|queda|llevo)\b.*\b(topes?|metas?|presupuestos?)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
+const HOW_AM_I = /\bcuanto\b.*\bahorr(e|amos|aste)\b|\bcuanto (he|hemos) ahorrado\b|\bestoy gastando (mucho|demasiado|poco|bien|mal)\b|\b(dame|hazme|quiero|muestrame|ver)\b.*\bresumen\b|^\s*(un )?resumen\s*$|\bingresos\b.*\b(vs|versus|contra|y)\b.*\bgastos\b|\bgastos\b.*\b(vs|versus|contra)\b.*\bingresos\b|\bhow much did i save\b|\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|quincena|trimestre|semestre|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|quarter|year|week|going|go)\b/;
 const TOP_SPENDING = /\b(en que|en donde|donde|a que|que)\b.*\b(gast\w*|se me va\w*|se me fue|se fue|se me esta yendo|se va)\b|\b(mayores?|mas grandes?|principales)\b.*\bgastos?\b|\b(en que|que)\b.*\bcategorias?\b|\bwhat did i spend\b.*\bmost\b|\bwhere\b.*\bmoney\b.*\bgo\w*\b/;
 // "¿Qué pagos fijos me faltan este mes?" (Jose, 2026-11-06): what is still to
 // pay, apart from "¿qué pago cada mes?", which lists them all, paid or not.
 const FIXED_LEFT = /\b(que|cuales|cuantos)\b.*\b(falta\w*|queda\w*)\b.*\bpag\w*|\b(que|cuales|cuantos|mis)\b.*\bpag(o|os|ar)\b.*\b(pendientes?|me faltan|faltan|me quedan|quedan|no he (hecho|pagado|registrado))\b|\bpagos?( fijos?)? pendientes\b|\b(que|cuales)\b.*\bno he pagado\b|\b(what|which)\b.*\b(left to pay|still (have )?to pay|not paid|haven'?t paid)\b|\bunpaid\b|\bpending (bills|payments)\b/;
 const RECURRING = /\b(que|cuales|cuanto|cuanta plata|cuanto dinero)\b.*\b(pago|pagamos|gasto|gastamos|se me va|se nos va|se va|tengo|hay)\b.*\b(cada mes|todos los meses|mes a mes|al mes|mensual\w*|fij[oa]s?)\b|\b(gastos?|pagos?|cuentas?|cobros?)\s+(fij[oa]s?|mensuales|recurrentes|que se repiten|de cada mes)\b|\bsuscripci\w*\b|\b(que|cuales)\b.*\bse (me )?repite\w*\b|\b(every month|each month|monthly bills|recurring|subscriptions?|fixed (costs|expenses|bills))\b/;
 const YIELDS = /\b(rendimient\w*|rentabilidad|rindi\w*|rendid\w*|rinden|rinde|intereses? (que )?(me )?(gan\w*|pag\w*|dier\w*|han dado|dan))\b|\bcuanto\b.*\b(gane|he ganado|ganado|me han dado|me dieron|me pagaron|me paga|me pagan|me dan|me da|produc\w*)\b.*\b(cuentas?|bancos?|ahorros?|bolsillos?|alcancias?|cdts?|productos?|intereses?)\b|\b(yields?|interest (earned|i earned|paid to me)|how much\b.*\b(earn\w*|interest))\b/;
-const WHY_MORE = /\bpor ?que\b.*\b(gast\w*|se me (fue|va|esta yendo)|subi\w*|aument\w*|tanta plata|tanto dinero)\b|\b(en que|que)\b.*\b(gaste|gastado|gastamos) (de mas|mas que|mas de la cuenta)\b|\bque (fue lo que )?(subio|aumento)\b|\bwhy\b.*\b(spen[dt]|more)\b/;
+const WHY_MORE = /\b(gaste|he gastado|estoy gastando)\b.*\bmas\b.*\bque\b.*\b(mes|semana|quincena|ano|periodo|antes)\b|\bpor ?que\b.*\b(gast\w*|se me (fue|va|esta yendo)|subi\w*|aument\w*|tanta plata|tanto dinero)\b|\b(en que|que)\b.*\b(gaste|gastado|gastamos) (de mas|mas que|mas de la cuenta)\b|\bque (fue lo que )?(subio|aumento)\b|\bwhy\b.*\b(spen[dt]|more)\b/;
 // Found in the notes (mockups 41b-41e): "¿cuándo fue el último...?", "¿cuándo pagué...?".
 const LAST_TIME = /\bcuando\b.*\b(fue|fueron|pague|pagamos|pagaste|compre|compramos|fui|fuimos|hice|hicimos|lleve|llevamos|gaste|gastamos|tanquee|tuve|tuvimos|cambie|renove|me pagaron|me llego|recibi|vino)\b|\bultima vez\b|\bultim[oa]s?\s+(pagos?|compras?|gastos?|mantenimientos?|veces|cambios?|visitas?|citas?)\b|\bwhen did (i|we)\b|\blast time\b|\bwhen was\b.*\blast\b/;
 /** "¿Cuánto me cuesta la moto?": the movements whose notes say it, added up. */
 const COST_OF = /\bcuanto\b.*\b(cuesta|cuestan|costo|costaron|costado|sale|salio|ha salido)\b|\bhow much\b.*\b(cost|costs|did .* cost)\b/;
-const BIGGEST = /\b(gastos?|compras?|pagos?|movimientos?)\b.*\b(mas grandes?|mas car[oa]s?|mayor(es)?|mas alt[oa]s?)\b|\b(mayor|mas grande|mas car[oa]|mas alt[oa])\b.*\b(gasto|compra|pago)\b|\b(biggest|largest)\b.*\b(expenses?|purchases?|spending|payments?)\b/;
+const BIGGEST = /\blo mas car[oa]\b|\blo que mas (me )?(costo|cost)\b|\b(gastos?|compras?|pagos?|movimientos?)\b.*\b(mas grandes?|mas car[oa]s?|mayor(es)?|mas alt[oa]s?)\b|\b(mayor|mas grande|mas car[oa]|mas alt[oa])\b.*\b(gasto|compra|pago)\b|\b(biggest|largest)\b.*\b(expenses?|purchases?|spending|payments?)\b/;
+/**
+ * "¿Qué pagué este mes?", "¿qué cosas compré?", "mis gastos", "últimos
+ * movimientos", "¿cuántos gastos tengo?" (Jose, 2026-11-06: asked several
+ * ways and not understood): the spending of a period, newest first.
+ */
+const PAID = /^\s*(y\s+)?(que|cuales?)\s+(cosas\s+)?(pague|he pagado|hemos pagado|pagamos|compre|he comprado|compramos|gaste|he gastado|hice|he hecho)\b|\b(mis|los|lista de|todos (mis|los)|ver)\s+(gastos|pagos|compras|movimientos)\b|\b(cuales|que)\b.*\b(fueron|son|tengo|hice|he hecho)\b.*\b(gastos|pagos|compras|movimientos)\b|\b(que|cuales)\s+(gastos|pagos|compras|movimientos)\s+(tengo|hice|he hecho|hubo|fueron|son|llevo)\b|\bultim[oa]s?\s+(movimientos?|gastos?|pagos?|compras?)\s*$|^\s*(mis\s+)?(ultimos\s+)?(gastos|movimientos|compras)\s*$|\bcuantos\s+(gastos|pagos|movimientos|compras)\b|\bwhat did i (pay|buy|spend)\b(?!.*\bmost\b)|\bmy (expenses|spending|payments|purchases|movements)\b|\blast (movements|expenses|purchases)\b/;
+/** What an account or a product earned: the yields' question, never the period's income. */
+const EARNED_BY = /\b(intereses?|interest|rendimient\w*|rentabilidad|rinde|rinden|cuentas|bancos|ahorros|bolsillos|alcancias|cdts?|productos|accounts?|savings|pockets?)\b/;
+/** "¿Cuánto me entró este mes?", "¿cuánto gané?", "mis ingresos": what came in. */
+const INCOME_Q = /\b(cuanto|cuanta plata|cuanto dinero|que)\b.*\b(me entro|entro|me entraron|entraron|gane|he ganado|ganamos|me pagaron|me han pagado|recibi|he recibido|me llego|me ha llegado|me llegaron|ingreso|ingresaron)\b|\b(mis|los|cuales son mis|de)\s+ingresos\b|^\s*ingresos\b|\bhow much\b.*\b(did i (earn|make|get|receive)|came in)\b|\bmy income\b/;
 const SAVE_MORE = /\b(como|que)\b.*\b(puedo|podria|debo|hago|hacer|podemos|deberia)\b.*\b(ahorr\w*|gastar menos)\b|\bahorr\w* mas\b|\bgastar menos\b|\bhow\b.*\b(save|spend less)\b|\bsave more\b/;
 /**
  * "Ábreme los productos de Nequi", "llévame a los rendimientos de la cuenta de
@@ -324,9 +338,9 @@ const OPEN_GOAL = new RegExp(`${OPEN_VERB}.*\\b(metas?|goals?)\\b`);
 const OPEN_CAP = new RegExp(`${OPEN_VERB}.*\\b(topes?|presupuestos?|caps?|budgets?)\\b`);
 const HELP = /\bque (mas )?(puedes|sabes|puedo) (hacer|preguntar\w*|decir\w*)( (aqui|contigo|con (esto|el asistente|la app)|en (el )?chat|por mi))?\s*$|\bque (mas )?haces\b|\bque te puedo preguntar\b|\bque preguntas\b|^\s*ayuda\s*$|\bwhat can (you|i) (do|ask)\b|^\s*help\s*$/;
 const HAVE = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(tengo|hay|tiene|me queda)\b|\b(mi|cual es mi)\b.*\b(patrimonio|saldo)\b|\bsaldo\b|\bhow much\b.*\b(do i have|is in|have i got)\b|\bmy (net worth|balance)\b/;
-const FREE_NOW = /\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
+const FREE_NOW = /\btengo (plata|dinero|con que)\b.*\bpara\b|\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
 const PER_DAY = /\b(cuanto|que tanto)\b.*\b(puedo gastar|me queda|tengo)\b.*\b(dia|diario|hoy|semana|mes)\b|\bal dia\b.*\bcuanto\b|\bhow much\b.*\b(can i spend|left)\b/;
-const SPENT_IN = /\b(cuanto|que tanto)\b.*\b(llevo|he gastado|gaste|gastado|va|van|voy)\b|\bhow much\b.*\b(spent|have i spent|did i spend)\b/;
+const SPENT_IN = /\bcuantas veces\b|\b(cuanto|que tanto)\b.*\b(llevo|he gastado|gaste|gastado|va|van|voy)\b|\bhow much\b.*\b(spent|have i spent|did i spend)\b/;
 const AFFORD = /\b(alcanza|alcanzaria|me puedo|puedo (gastar|comprar|pagar|darme|permitirme)\w*|podria (gastar|comprar|pagar)\w*|can i (afford|spend|buy|pay)|afford)\b/;
 const EXPENSE = /\b(gaste|gastamos|me gaste|pague|pagamos|compre|compramos|me compre|me costo|costo|spent|paid|bought|gasto de|un gasto)\b/;
 const INCOME = /\b(me llego|llego|me llegaron|llegaron|recibi|me pagaron|me consignaron|me transfirieron|me depositaron|gane|cobre|ingreso|ingresaron|received|got paid|earned|got)\b/;
@@ -735,6 +749,16 @@ function paidCard(end: End, ctx: PhraseContext): boolean {
  */
 export function readPhrase(text: string, ctx: PhraseContext): Reading {
   const first = readAsTyped(text, ctx);
+  // "Mis gastos fiojs": "paid" catches any sentence about one's spending, so a
+  // slip that, mended, names something more precise ("fijos") wins over it.
+  if (first.intent === 'paid') {
+    const mended = mendSlips(text, ctx, candidate => understood(readAsTyped(candidate, ctx)));
+    if (mended !== text) {
+      const second = readAsTyped(mended, ctx);
+      if (understood(second) && second.intent !== 'paid') return second;
+    }
+    return first;
+  }
   if (first.intent !== 'unknown' && first.intent !== 'unsure') return first;
   const mended = mendSlips(text, ctx, candidate => understood(readAsTyped(candidate, ctx)));
   if (mended === text) return first;
@@ -751,7 +775,7 @@ function understood(reading: Reading): boolean {
 let vocabulary: Vocabulary | null = null;
 function assistantWords(): Vocabulary {
   vocabulary ??= vocabularyOf([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
-    TOP_SPENDING, RECURRING, FIXED_LEFT, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
+    TOP_SPENDING, RECURRING, FIXED_LEFT, PAID, INCOME_Q, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
     OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
     TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST],
   [...Object.keys(UNITS), ...Object.keys(TIMES), ...FILLER, ...DAYS_ES, ...DAYS_EN, ...MONTHS, ...MONTHS_EN,
@@ -812,6 +836,7 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
   else if (!amount && has(folded, OPEN_GOAL) && !has(folded, HOW_MUCH)) intent = 'openGoal';
   else if (!amount && has(folded, OPEN_CAP) && !has(folded, HOW_MUCH)) intent = 'openCap';
   else if (!amount && has(folded, OPEN_CATEGORY) && !has(folded, HOW_MUCH)) intent = 'openCategory';
+  else if (!amount && has(folded, PAID) && !has(folded, /\b(mayores?|mas grandes?|principales)\b/) && !has(folded, RECURRING) && !has(folded, FIXED_LEFT) && !has(folded, BIGGEST) && !has(folded, DUE)) intent = 'paid';
   else if (!amount && has(folded, LAST_TIME)) intent = 'lastTime';
   else if (!amount && has(folded, BIGGEST)) intent = 'biggest';
   else if (!amount && has(folded, SAVE_MORE) && !has(folded, YIELDS)) intent = 'saveMore';
@@ -825,6 +850,7 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
   else if (!amount && has(folded, DUE)) intent = 'due';
   else if (!amount && has(folded, DEBTS)) intent = 'debts';
   else if (!amount && has(folded, PLANS)) intent = 'plans';
+  else if (!amount && has(folded, INCOME_Q) && !has(folded, EARNED_BY) && !has(folded, HOW_AM_I)) intent = 'income';
   else if (!amount && has(folded, YIELDS)) intent = 'yields';
   else if (!amount && has(folded, WHY_MORE)) intent = 'whyMore';
   else if ((has(folded, SPENT_IN) || has(folded, COST_OF)) && !amount) intent = 'spentIn';
@@ -965,6 +991,10 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
       }
     }
   }
+
+  // "¿Cuánto gasté este mes?", "¿cuánto llevo gastado?": no category and
+  // nothing else said - the whole period's spending, not a category to ask.
+  if (intent === 'spentIn' && categoryId === null && !thing && !has(folded, /\bcuantas veces\b/)) intent = 'paid';
 
   // A sentence with no verb: what it meant last time it had this shape.
   let shape: string | null = null;
