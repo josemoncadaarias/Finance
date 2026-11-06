@@ -183,7 +183,8 @@ the "Guardado" banner after every save, the month's summary, the 8 p.m.
 review notice, starter categories and icons for everybody (#295); CLAUDE.md
 brought up to date (#296); the Reporte changes month without flicker (#297,
 Store bundle run 178, version 1178 on the internal track - see "An async call
-inside an effect" under "How to work").
+inside an effect" under "How to work"); a picture of one's own saves (#299);
+"¿Qué pagos fijos me faltan este mes?", the same list as the "+" (#300).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -5897,7 +5898,7 @@ with testers runs; the paywall is finished after them.
   Read when the sheet opens, once per data change and month
   (`ComposeHostComponent.dueFixed`). Home tour's "+" step says it (`since: 7`).
   Checked in a browser.
-- **"¿Qué pagos fijos me faltan este mes?" is its own question** (Jose,
+- **"¿Qué pagos fijos me faltan este mes?" is its own question** (#300, Jose,
   2026-11-06, two screenshots: the "+" listed the fixed payments not seen
   yet this month and sent "the other 2" to the assistant, which answered
   "¿Qué pago cada mes?" - every fixed payment, Claro hogar already paid
