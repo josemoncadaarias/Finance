@@ -258,6 +258,7 @@ const TOUR_LIST = {
       { sel: 'app-assistant .compose-bar', title: 'tour.assistant.9.title', text: 'tour.assistant.9.text', since: 8 },
       { sel: 'app-assistant .compose-bar', title: 'tour.assistant.10.title', text: 'tour.assistant.10.text', since: 9 },
       { title: 'tour.assistant.11.title', text: 'tour.assistant.11.text', since: 10 },
+      { sel: 'app-assistant .compose-bar', title: 'tour.assistant.12.title', text: 'tour.assistant.12.text', since: 11 },
     ],
   },
   tax: {

@@ -259,10 +259,11 @@ Jose: con una cuenta elegida arriba, "Puedes gastar hoy" mostraba la cifra de to
 - `54f` y `54g` una tarjeta: lo que sueles gastar con ella al mes, menos lo gastado; el cupo no cuenta como dinero tuyo.
 - `54h` qué cambia, por tipo de cuenta.
 
-## 55 - Preguntas de seguimiento en el asistente (2026-11-06, propuesta)
+## 55 - Preguntas de seguimiento en el asistente (2026-11-06, construido el mismo día)
 
 Lo que la persona no dice se toma de su pregunta anterior, y cada respuesta a un seguimiento dice en una línea la pregunta completa que se entendió ("Entendí: ...", con "Cambiar"). Sin IA.
 
 - `55a` cambia el periodo ("¿y el mes pasado?"). `55b` cambia la categoría ("¿y en mercado?") y suma dos ("¿y los dos juntos?"). `55c` cambia la cuenta ("¿y en Ahorro Verde?", "¿y en total?").
 - `55d` "¿por qué?" después de "¿Cómo voy?". `55e` registrar seguido ("y 12 mil en la panadería" con la cuenta y el día del anterior; "con la Coral" cambia solo el que aún no se guarda).
 - `55f` "Cambiar": cada pieza dice si vino de la pregunta anterior o se dijo ahora, y "preguntar de cero". `55g` un seguimiento que no se puede ubicar pregunta con cuál sigue.
+- Construido con dos diferencias: las piezas de `55f` no se cambian una por una ("Escribir la pregunta completa" pone la pregunta en la caja), y la elección de `55g` no se recuerda.

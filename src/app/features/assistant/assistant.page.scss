@@ -365,3 +365,35 @@ ion-content.chat {
 .ideas-sheet ion-content { --background: transparent; }
 
 .amount.missing { color: var(--app-yel); font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+/* A follow-up's whole question, said before its answer (55a-55g). */
+.got {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 0 38px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(var(--app-pr-rgb), .1);
+  border: 1px solid rgba(var(--app-pr-rgb), .28);
+  font-size: 12.8px;
+  line-height: 1.4;
+
+  ion-icon { flex: none; width: 15px; height: 15px; margin-top: 2px; color: var(--app-pr); }
+  .got-words { flex: 1; min-width: 0; text-wrap: pretty; }
+  .got-lab { color: var(--app-mu); margin-right: 4px; }
+  b { font-weight: 600; }
+  .got-change {
+    flex: none;
+    background: none;
+    border: 0;
+    padding: 0 0 0 4px;
+    color: var(--app-pr);
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+/* "Lo que entendí": its two ways out under the pieces. */
+.ui-sheet-body > .ui-btn { width: 100%; margin-top: 12px; }

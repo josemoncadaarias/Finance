@@ -38,6 +38,7 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { SaveShareService } from '../../core/assistant/save-share.service';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { fold, readPhrase, type Reading } from '../../core/assistant/read-phrase';
+import { FOLLOWABLE, followUp, type Asked, type FollowUp, type Piece } from '../../core/assistant/follow-up';
 import { termsOf } from '../../core/assistant/note-search';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { nextDayOfMonth, readReminder } from '../../core/assistant/read-reminder';
@@ -48,7 +49,7 @@ import type { FixedPayment } from '../../core/assistant/recurring';
 import { FilterService } from '../../core/filters/filter.service';
 import { perDay, type GoalThisMonth } from '../../core/assistant/free-money';
 import { canListen, listen } from '../../core/assistant/speech';
-import { currentPeriod, isoDay, periodLabel } from '../../core/filters/period';
+import { currentPeriod, isoDay, periodLabel, type Period } from '../../core/filters/period';
 import type { LimitView } from '../../core/limits/limits.service';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN } from '../../core/paywall/plan';
@@ -113,13 +114,18 @@ interface FreeCard {
   account: { row: AccountRow; holdsMinor: number; dues: { name: string; amountMinor: number; dueOn: string }[] } | null;
 }
 
-/** "¿Cuánto llevo en X?" (39g). */
+/** "¿Cuánto llevo en X?" (39g), over any period and for several categories added (55a, 55b). */
 interface SpentCard {
   kind: 'spent';
   category: CategoryRow;
   nowMinor: number;
   beforeMinor: number;
   cap: LimitView | null;
+  /** Said instead of "Este mes, hasta hoy" / "Mes pasado, los mismos días" for another period. */
+  nowLabel?: string;
+  beforeLabel?: string | null;
+  /** Several categories: each one's figure, then together. */
+  parts?: { name: string; minor: number }[];
 }
 
 /** "¿Cómo calculas lo de mis metas?" (39n). */
@@ -146,10 +152,25 @@ interface RemindCard {
 
 type Card = RegisterCard | TransferCard | FreeCard | SpentCard | GoalsCard | RichCard | RemindCard;
 
+/**
+ * What a follow-up was understood as (55a-55g): the whole question in one
+ * line, and each piece with where it came from, for "Cambiar".
+ */
+interface Got {
+  parts: Part[];
+  /** The question in words with no marks, for "Escribir la pregunta completa". */
+  plain: string;
+  pieces: { label: string; value: string; now: boolean }[];
+  /** What the person typed, to ask it again from scratch. */
+  original: string;
+}
+
 interface Message {
   id: number;
   who: 'me' | 'app';
   parts: Part[];
+  /** A follow-up's question understood, drawn as one line over the answer. */
+  got?: Got;
   card?: Card;
   chips?: Chip[];
   /** Said over the chips: "También puedes preguntar" (41b). */
@@ -278,6 +299,12 @@ export class AssistantPage {
   readonly dayChoices = HISTORY_DAY_CHOICES;
   readonly choosingDays = signal(false);
   readonly clearing = signal(false);
+  /** The follow-up whose pieces are on show ("Cambiar", 55f). */
+  readonly gotOpen = signal<Got | null>(null);
+  /** The last questions asked, the newest first: what a follow-up goes on from. */
+  private asked: Asked[] = [];
+  /** "Preguntar de cero": the next sentence is read on its own. */
+  private fresh = false;
   /** Everything it answers, open at any moment of the conversation (Jose, 2026-10-23). */
   readonly ideas = signal(false);
   /** Questions made of the person's own data (41a), read once on opening. */
@@ -417,6 +444,7 @@ export class AssistantPage {
     this.clearing.set(false);
     this.waiting = null;
     this.rateAsked = false;
+    this.asked = [];
     this.messages.set([]);
   }
 
@@ -623,6 +651,16 @@ export class AssistantPage {
       reading = readPhrase(meant, ctx);
       text = meant;
     }
+    // "¿Y el mes pasado?", "¿y en mercado?", "con la Coral": it goes on from the last question (55a-55g).
+    const follow: FollowUp = this.fresh ? { kind: 'none' } : followUp(text, reading, this.asked);
+    this.fresh = false;
+    if (follow.kind !== 'none') return this.goOn(follow, text, reading);
+    // Every question is kept: what the next sentence may go on from, or offer back when it is not clear.
+    if (!['register', 'unsure', 'unknown', 'spentIn'].includes(reading.intent)) {
+      const followable = FOLLOWABLE.has(reading.intent);
+      this.remember({ intent: reading.intent, said: text, categoryIds: [],
+        accountId: followable ? reading.accountId : null, period: followable ? reading.period : null });
+    }
     // Registering is free; a question counts against the month's free ones.
     const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help', 'openProducts', 'openCategory', 'openGoal', 'openCap'].includes(reading.intent);
     if (question && !(await this.pro.askQuestion())) {
@@ -749,6 +787,9 @@ export class AssistantPage {
     if (reading.amountMinor === null) return this.say('ai.register.noAmount');
 
     const side = reading.side === 'income' ? 'income' : 'expense';
+    // Kept before anything is asked: "y 12 mil en la panadería" goes on from it even while its account is asked.
+    this.remember({ intent: 'register', said, categoryIds: reading.categoryId !== null ? [reading.categoryId] : [],
+      accountId: reading.accountId, period: null, side, onDate: reading.onDate });
     if (reading.categoryId === null) return this.askCategory({ ...reading, side }, said);
     if (reading.accountId === null) return this.askAccount({ ...reading, side }, said, reading.accountChoices);
 
@@ -768,6 +809,7 @@ export class AssistantPage {
     // "en mercado" named the category; it is no note of its own.
     if (reading.categoryFrom === 'name') card.note = '';
     else card.note = card.note.charAt(0).toUpperCase() + card.note.slice(1);
+    this.remember({ intent: 'register', said, categoryIds: [category.id], accountId: account.id, period: null, side, onDate: reading.onDate });
     if (reading.amountGuessed) this.say('ai.amount.guessed', { said: reading.amountText ?? '', amount: this.pesos(reading.amountMinor) });
     if (reading.fromMemory) this.say('ai.remembered');
     else if (reading.productId !== null && product) {
@@ -777,6 +819,7 @@ export class AssistantPage {
   }
 
   private transfer(reading: Reading, said = ''): void {
+    this.asked = [];
     const to = reading.toAccountId !== null ? this.accounts.find(a => a.id === reading.toAccountId) ?? null : null;
     if (!to) return void this.askTransferTo(reading, said);
     const from = reading.accountId !== null ? this.accounts.find(a => a.id === reading.accountId) ?? null : null;
@@ -1058,14 +1101,184 @@ export class AssistantPage {
       });
     }
     const category = this.categories.find(c => c.id === reading.categoryId)!;
-    const s = await this.assistant.spentIn(category);
+    return this.spentFor([category], reading.period, said);
+  }
+
+  /** What went to one category, or several added, over a period (the month running when none is said). */
+  private async spentFor(categories: CategoryRow[], period: Period | null, said: string): Promise<void> {
+    const s = await this.assistant.spentIn(categories, period);
+    this.remember({ intent: 'spentIn', said, categoryIds: categories.map(c => c.id), accountId: null, period });
+    const name = this.names(categories.map(c => c.name));
     const diff = s.nowMinor - s.beforeMinor;
-    const key: TranslationKey = diff > 0 ? 'ai.spent.more' : diff < 0 ? 'ai.spent.less' : 'ai.spent.same';
-    this.say(key, { amount: this.pesos(s.nowMinor), category: category.name, diff: this.pesos(Math.abs(diff)) }, {
-      card: { kind: 'spent', category, nowMinor: s.nowMinor, beforeMinor: s.beforeMinor, cap: s.cap },
-      chips: [{ label: this.i18n.t('ai.spent.seeMovements'),
-        act: () => this.openCategory({ category: category.name, period: currentPeriod('month') }) }],
+    const values = { amount: this.pesos(s.nowMinor), category: name, diff: this.pesos(Math.abs(diff)), period: s.label, before: s.beforeLabel ?? '' };
+    const key: TranslationKey = s.thisMonth
+      ? (diff > 0 ? 'ai.spent.more' : diff < 0 ? 'ai.spent.less' : 'ai.spent.same')
+      : s.beforeLabel === null ? 'ai.spent.inOnly'
+        : diff > 0 ? 'ai.spent.inMore' : diff < 0 ? 'ai.spent.inLess' : 'ai.spent.inSame';
+    const card: SpentCard = { kind: 'spent', category: categories[0], nowMinor: s.nowMinor, beforeMinor: s.beforeMinor, cap: s.cap };
+    if (!s.thisMonth) {
+      card.nowLabel = this.cap1(s.label);
+      card.beforeLabel = s.beforeLabel === null ? null
+        : s.partial ? this.cap1(this.i18n.t('ai.spent.beforeOf', { label: s.beforeLabel })) : this.cap1(s.beforeLabel);
+    }
+    if (categories.length > 1) card.parts = s.parts.map(p => ({ name: p.category.name, minor: p.minor }));
+    const shown = period ?? currentPeriod('month');
+    this.say(key, values, {
+      card,
+      chips: categories.length === 1 ? [{ label: this.i18n.t('ai.spent.seeMovements'),
+        act: () => this.openCategory({ category: categories[0].name, period: shown }) }] : [],
     });
+  }
+
+  /** "Restaurantes y Mercado", "Ropa, Mercado y Transporte". */
+  private names(list: string[]): string {
+    if (list.length <= 1) return list[0] ?? '';
+    return `${list.slice(0, -1).join(', ')}${this.i18n.t('ai.got.and')}${list[list.length - 1]}`;
+  }
+
+  // ---- Follow-ups (55a-55g) ---------------------------------------------------
+
+  private remember(asked: Asked): void {
+    // The same sentence asked again (an account or a category chosen after it) replaces itself.
+    const rest = this.asked[0]?.said === asked.said && this.asked[0]?.intent === asked.intent ? this.asked.slice(1) : this.asked;
+    this.asked = [asked, ...rest].slice(0, 3);
+  }
+
+  /** A follow-up: the question it completes said in one line, then answered. */
+  private async goOn(follow: FollowUp, text: string, reading: Reading): Promise<void> {
+    switch (follow.kind) {
+      case 'ask': {
+        if (!(await this.pro.askQuestion())) return this.say('ai.pro.out', { free: PLAN.assistant.free });
+        const a = follow.asked;
+        this.understood(this.gotOf(a, follow.pieces, text));
+        const as: Reading = { ...reading, intent: a.intent, period: a.period, accountId: a.accountId,
+          categoryId: a.categoryIds[0] ?? null, categoryFrom: 'name' };
+        if (a.intent === 'spentIn') {
+          const categories = a.categoryIds.map(id => this.categories.find(c => c.id === id)).filter((c): c is CategoryRow => !!c);
+          return this.spentFor(categories, a.period, text);
+        }
+        this.remember({ ...a, said: text });
+        switch (a.intent) {
+          case 'howAmI': return this.howAmI(as);
+          case 'topSpending': return this.topSpending(as);
+          case 'biggest': return this.give(A.biggest(this.speech(), await this.assistant.biggest(a.period)));
+          case 'whyMore': return this.give(A.whyMore(this.speech(), await this.assistant.periodPicture(a.period)));
+          case 'yields': return this.give(A.yieldsAnswer(this.speech(), await this.assistant.yieldsPicture(a.period, a.accountId)));
+          case 'have': return this.haveAnswer(as);
+          default: return this.notUnderstood(reading, text);
+        }
+      }
+      case 'register': {
+        const r = follow.reading;
+        const account = this.accounts.find(x => x.id === r.accountId);
+        const before = follow.pieces.some(p => p.from === 'before');
+        const kind = this.i18n.t(r.side === 'income' ? 'ai.got.otherIncome' : 'ai.got.otherSpending');
+        // "hoy", "ayer" inside a sentence, never capitalised.
+        const day = this.dayText(r.onDate).replace(/^\p{Lu}/u, c => c.toLocaleLowerCase());
+        const words = account
+          ? this.i18n.t('ai.got.register', { kind, amount: this.pesos(r.amountMinor ?? 0), account: account.name, day })
+          : this.i18n.t('ai.got.registerNoAccount', { kind, amount: this.pesos(r.amountMinor ?? 0), day });
+        this.understood(this.got(`${words}${before ? this.i18n.t('ai.got.likeBefore') : ''}.`, [
+          ...(account ? [{ label: this.i18n.t('ai.got.piece.account'), value: account.name, now: follow.pieces[0].from === 'now' }] : []),
+          { label: this.i18n.t('ai.got.piece.day'), value: this.dayText(r.onDate), now: follow.pieces[1].from === 'now' },
+        ], text));
+        return this.register(r, text);
+      }
+      case 'moveTo': return this.moveTo(follow.accountId, text);
+      case 'unclear': {
+        const asked = this.asked.slice(0, 2);
+        return this.say('ai.follow.unclear', { said: text.replace(/[¿?]/g, '').trim().replace(/^(y|e|and)\s+/i, '') }, {
+          chips: [
+            ...asked.map(a => ({ label: a.said, act: () => void this.send(a.said) })),
+            { label: this.i18n.t('ai.follow.none'), act: () => this.box()?.nativeElement.focus() },
+          ],
+          chipsTitle: this.i18n.t('ai.follow.which'),
+        });
+      }
+      default: return;
+    }
+  }
+
+  /** "Con la Coral": the last movement not saved yet, on that account (55e). */
+  private async moveTo(accountId: number, text: string): Promise<void> {
+    const list = this.messages();
+    const at = [...list].reverse().find(m => m.card?.kind === 'register');
+    const card = at?.card?.kind === 'register' ? at.card : null;
+    if (!at || !card || card.state !== 'open') return this.say('ai.follow.alreadySaved');
+    const account = this.accounts.find(a => a.id === accountId);
+    if (!account) return this.say('ai.follow.alreadySaved');
+    this.understood(this.got(this.i18n.t(card.side === 'income' ? 'ai.got.moveIncome' : 'ai.got.moveSpending', { account: account.name }),
+      [{ label: this.i18n.t('ai.got.piece.account'), value: account.name, now: true }], text));
+    // The card it replaces leaves the conversation, with its line: one movement, one card.
+    this.messages.update(all => all.filter(m => m.id !== at.id));
+    return this.register({
+      intent: 'register', side: card.side, amountMinor: card.amountMinor, amountGuessed: false, amountText: null,
+      onDate: card.onDate, dayWord: null, accountId, accountChoices: [], toAccountId: null, productId: null,
+      fromProductId: null, toProductId: null, categoryId: card.category.id, categoryFrom: 'learned',
+      thing: card.note || null, shape: null, period: null, phraseKey: card.phraseKey ?? null, fromMemory: false,
+    }, text);
+  }
+
+  /** The question a follow-up completes, in words, with its pieces. */
+  private gotOf(a: Asked, pieces: Piece[], original: string): Got {
+    const t = (key: TranslationKey, values: Record<string, string | number> = {}) => this.i18n.t(key, values);
+    const periodName = this.periodName(a.period);
+    const when = periodName === null ? t('ai.got.thisMonth') : t('ai.got.inPeriod', { label: periodName });
+    const account = a.accountId !== null ? this.accounts.find(x => x.id === a.accountId)?.name ?? '' : t('ai.got.allAccounts');
+    const category = this.names(a.categoryIds.map(id => this.categories.find(c => c.id === id)?.name ?? ''));
+    const words = (() => {
+      switch (a.intent) {
+        case 'spentIn': return t('ai.got.spentIn', { category, period: when });
+        case 'howAmI': return t('ai.got.howAmI', { period: when });
+        case 'topSpending': return t('ai.got.topSpending', { period: when });
+        case 'biggest': return t('ai.got.biggest', { period: when });
+        case 'whyMore': return t('ai.got.whyMore', { period: when });
+        case 'yields': return t('ai.got.yields', { account, period: when });
+        default: return t('ai.got.have', { account });
+      }
+    })();
+    const value = (p: Piece): string => {
+      switch (p.what) {
+        case 'question': return t(`ai.got.q.${a.intent}` as TranslationKey);
+        case 'category': return category;
+        case 'period': return periodName === null ? this.cap1(t('ai.got.thisMonthPlain')) : this.cap1(periodName);
+        case 'account': return a.accountId !== null ? account : this.cap1(t('ai.got.allAccountsPlain'));
+        default: return '';
+      }
+    };
+    return this.got(words, pieces.map(p => ({ label: t(`ai.got.piece.${p.what}` as TranslationKey), value: value(p), now: p.from === 'now' })), original);
+  }
+
+  /** A period's name, or null for the month that is running. */
+  private periodName(period: Period | null): string | null {
+    if (!period) return null;
+    const month = currentPeriod('month');
+    if (period.from === month.from && period.to === month.to) return null;
+    return periodLabel(period, this.i18n.dateLocale(), this.i18n.t('period.all'));
+  }
+
+  private got(words: string, pieces: Got['pieces'], original: string): Got {
+    return { parts: this.parts(words), plain: words.replace(/\*\*/g, ''), pieces, original };
+  }
+
+  /** The line "Entendí: ..." over the answer. */
+  private understood(got: Got): void {
+    this.messages.update(list => [...list, { id: this.nextId++, who: 'app', at: Date.now(), parts: [], got }]);
+    this.scroll();
+  }
+
+  /** "Escribir la pregunta completa": the whole question in the box, to change any piece. */
+  writeGot(got: Got): void {
+    this.gotOpen.set(null);
+    this.typed.set(got.plain);
+    setTimeout(() => this.box()?.nativeElement.focus(), 300);
+  }
+
+  /** "No era una continuación": the sentence asked again on its own. */
+  askFresh(got: Got): void {
+    this.gotOpen.set(null);
+    this.fresh = true;
+    void this.send(got.original);
   }
 
   // ---- The goals ------------------------------------------------------------

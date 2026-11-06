@@ -57,6 +57,8 @@ const ALLOWED = [
   // The words of both languages a sentence to the assistant is read by -
   // gasté, me llegó, ¿me alcanza? - read out of what was typed, never shown.
   'core/assistant/read-phrase.ts',
+  // "¿y el mes pasado?", "en total": the words a follow-up is read by, never shown.
+  'core/assistant/follow-up.ts',
   // Folding what was typed, with the "ñ" kept: no word of the screen.
   'core/assistant/assistant.service.ts',
   'features/assistant/assistant.page.ts',

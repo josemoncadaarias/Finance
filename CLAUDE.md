@@ -184,7 +184,8 @@ review notice, starter categories and icons for everybody (#295); CLAUDE.md
 brought up to date (#296); the Reporte changes month without flicker (#297,
 Store bundle run 178, version 1178 on the internal track - see "An async call
 inside an effect" under "How to work"); a picture of one's own saves (#299);
-"¿Qué pagos fijos me faltan este mes?", the same list as the "+" (#300).
+"¿Qué pagos fijos me faltan este mes?", the same list as the "+" (#300); the assistant follows the conversation ("¿y el mes pasado?", mockups
+`55a`-`55g`, 2026-11-06, see "The assistant").
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -268,7 +269,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1200 on 2026-11-06, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1212 on 2026-11-06, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5898,6 +5899,44 @@ with testers runs; the paywall is finished after them.
   Read when the sheet opens, once per data change and month
   (`ComposeHostComponent.dueFixed`). Home tour's "+" step says it (`since: 7`).
   Checked in a browser.
+- **The assistant follows the conversation** (Jose, 2026-11-06, mockups
+  `55a`-`55g`, approved: "construye el seguimiento como lo propusiste";
+  asked after Lukas's post on Claude's Personal Finance - the app's own
+  reading by rules stays, no LLM, no server). A sentence that goes on from
+  the last question takes from it what it does not say:
+  `followUp` (`core/assistant/follow-up.ts`, pure, `follow-up.test.mjs` on
+  invented data) reads the sentence's own reading against the last three
+  questions (`Asked`, kept in memory only, cleared with the conversation).
+  It is a follow-up when it opens with "y"/"and"/"también", or is short
+  (6 words or fewer) and understands nothing alone; a whole question of its
+  own is always that question. What it does: "¿y el mes pasado?" / "¿en
+  septiembre?" changes the period; "¿y en mercado?" the category (after
+  "¿cómo voy?" too, becoming what went to it); "¿y los dos juntos?" adds the
+  last two categories; "¿y en Ahorro Verde?" / "¿y en total?" the account of
+  "¿cuánto tengo?" and of the interest; "¿por qué?" after a summary is
+  "¿por qué gasté más?" over the same period; "y 12 mil en la panadería"
+  is another movement with the last one's account and day unless said
+  (also while its account is still being asked); "con la Coral" moves the
+  last card NOT saved yet to that account (the old card and its line leave
+  the chat; a saved one is never changed here, it says to tap it on Inicio).
+  A follow-up that cannot be placed ("¿y el otro?") offers the last two
+  questions as chips, never a guess. Every answer to a follow-up is preceded
+  by one line, "Entendí: {the whole question}" with "Cambiar"
+  (`Message.got`, `.got` in `assistant.page.scss`), opening "Lo que
+  entendí": each piece with "de tu pregunta anterior" / "lo dijiste ahora",
+  "Escribir la pregunta completa" (puts it in the box) and "No era una
+  continuación: preguntar de cero" (`fresh`). **Not as drawn in `55f`**:
+  the pieces are not edited one by one (no chevrons); the whole question
+  in the box is how any piece changes. **Not as drawn in `55g`**: the
+  choice is not remembered. A follow-up question counts as a question
+  (20 free a month); a movement does not. **Fixed with it**: "¿cuánto
+  llevo en X?" answered the month running whatever period was said;
+  `AssistantService.spentIn(categories, period)` now takes the period (the
+  month running when none) and several categories, set against the same
+  days of the period before ("{label}, los mismos días" while it runs, the
+  whole period before once it is over). Assistant tour step `since: 11`.
+  Checked in a browser on the sample data (every mockup's sentences, the
+  sheet, preguntar de cero); not on the phone.
 - **"¿Qué pagos fijos me faltan este mes?" is its own question** (#300, Jose,
   2026-11-06, two screenshots: the "+" listed the fixed payments not seen
   yet this month and sent "the other 2" to the assistant, which answered
@@ -7439,4 +7478,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, proposal)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06)

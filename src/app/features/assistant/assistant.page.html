@@ -52,6 +52,13 @@
     @for (m of messages(); track m.id) {
       @if (m.who === 'me') {
         <div class="me"><p>{{ m.parts[0].text }}</p></div>
+      } @else if (m.got; as g) {
+        <!-- A follow-up's whole question, said before its answer (55a-55g). -->
+        <div class="got">
+          <ion-icon name="return-down-forward-outline"></ion-icon>
+          <span class="got-words"><span class="got-lab">{{ 'ai.got.understood' | t }}</span> @for (p of g.parts; track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</span>
+          <button type="button" class="got-change" (click)="gotOpen.set(g)">{{ 'ai.got.change' | t }}</button>
+        </div>
       } @else {
         <div class="app">
           <app-badge shape="ci" [size]="30" builtin="sparkles-outline" fixed="#6378ff"></app-badge>
@@ -210,8 +217,17 @@
               }
 
               @case ('spent') {
-                <div class="line"><span>{{ 'ai.spent.now' | t }}</span><b>{{ pesos(card.nowMinor) }}</b></div>
-                <div class="line"><span>{{ 'ai.spent.before' | t }}</span><b>{{ pesos(card.beforeMinor) }}</b></div>
+                @if (card.parts?.length) {
+                  @for (p of card.parts; track $index) {
+                    <div class="line"><span>{{ p.name }}</span><b>{{ pesos(p.minor) }}</b></div>
+                  }
+                  <div class="line"><span>{{ 'ai.spent.together' | t }} · {{ card.nowLabel ?? ('ai.spent.now' | t) }}</span><b>{{ pesos(card.nowMinor) }}</b></div>
+                } @else {
+                  <div class="line"><span>{{ card.nowLabel ?? ('ai.spent.now' | t) }}</span><b>{{ pesos(card.nowMinor) }}</b></div>
+                }
+                @if (card.beforeLabel !== null) {
+                  <div class="line"><span>{{ card.beforeLabel ?? ('ai.spent.before' | t) }}</span><b>{{ pesos(card.beforeMinor) }}</b></div>
+                }
                 @if (card.cap; as cap) {
                   <div class="line"><span>{{ 'ai.spent.cap' | t:{ name: cap.name } }}</span><b>{{ pesos(cap.status.amountMinor) }}</b></div>
                   <div class="line"><span>{{ 'ai.spent.used' | t }}</span><b [class.ui-y]="cap.status.percent >= 80 && cap.status.percent <= 100" [class.ui-r]="cap.status.percent > 100">{{ cap.status.percent }} %</b></div>
@@ -313,6 +329,32 @@
 <app-confirm [open]="clearing()" icon="trash-outline" tone="danger"
              [title]="'ai.history.clear.title' | t" [body]="'ai.history.clear.body' | t"
              [confirmLabel]="'ai.history.clear' | t" (confirmed)="clear()" (cancelled)="clearing.set(false)"></app-confirm>
+
+<!-- What a follow-up was understood as, piece by piece (55f). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="gotOpen() !== null" (didDismiss)="gotOpen.set(null)">
+  <ng-template>
+    @if (gotOpen(); as g) {
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="gotOpen.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <h3 class="ui-h first">{{ 'ai.got.title' | t }}</h3>
+        <p class="sheet-hint">{{ 'ai.got.hint' | t }}</p>
+        <div class="ui-list">
+          @for (p of g.pieces; track $index) {
+            <div class="ui-row">
+              <span class="ui-tx">
+                <small>{{ p.label }} · {{ (p.now ? 'ai.got.from.now' : 'ai.got.from.before') | t }}</small>
+                <b>{{ p.value }}</b>
+              </span>
+            </div>
+          }
+        </div>
+        <button type="button" class="ui-btn" (click)="writeGot(g)"><ion-icon name="create-outline"></ion-icon>{{ 'ai.got.write' | t }}</button>
+        <button type="button" class="ui-btn ghost" (click)="askFresh(g)">{{ 'ai.got.fresh' | t }}</button>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
 
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingDays()" (didDismiss)="choosingDays.set(false)">
   <ng-template>
