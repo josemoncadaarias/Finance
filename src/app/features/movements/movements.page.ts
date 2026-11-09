@@ -59,6 +59,11 @@ import { AttentionHomeComponent } from './attention-home.component';
 import type { TranslationKey } from '../../core/i18n/translations';
 import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
+const SUMMARY_KEY = 'finance.home.summaryOpen';
+function readSummaryOpen(): boolean {
+  try { return localStorage.getItem(SUMMARY_KEY) === '1'; } catch { return false; }
+}
+
 @Component({
   selector: 'app-movements',
   templateUrl: './movements.page.html',
@@ -79,15 +84,51 @@ export class MovementsPage {
   readonly view = inject(ViewPrefsService);
   /** Inicio's three places in the order chosen: Pendientes, the balance, the chart or list. */
   readonly homeSlots = computed(() => {
-    const slots: ('attention' | 'figures' | 'today' | 'faces')[] = [];
+    // Pendientes and "Puedes gastar hoy" live inside the balance card since
+    // 2026-11-09 (56b, 56c): the card stands where the first of the three is.
+    const slots: ('figures' | 'faces')[] = [];
     for (const key of this.view.homeOrder()) {
-      if (key === 'home.today' && !this.view.shown('home.today')) continue;
-      const slot = key === 'home.attention' ? 'attention' : key === 'home.figures' ? 'figures'
-        : key === 'home.today' ? 'today' : 'faces';
+      const slot = key === 'home.attention' || key === 'home.figures' || key === 'home.today' ? 'figures' : 'faces';
       if (!slots.includes(slot)) slots.push(slot);
     }
     return slots;
   });
+
+  /** Pendientes and "Puedes gastar hoy" inside the open card, in the order chosen. */
+  readonly innerRows = computed(() => this.view.homeOrder()
+    .filter(key => key === 'home.attention' || (key === 'home.today' && this.view.shown('home.today')))
+    .map(key => key === 'home.attention' ? 'attention' as const : 'today' as const));
+
+  /** Whether the balance card shows everything (56c) or one line (56b); kept on the device. */
+  readonly summaryOpen = signal(readSummaryOpen());
+  setSummary(open: boolean): void {
+    this.summaryOpen.set(open);
+    try { localStorage.setItem(SUMMARY_KEY, open ? '1' : '0'); } catch { /* private mode: not kept */ }
+  }
+
+  private readonly attentionRow = viewChild(AttentionHomeComponent);
+  private readonly todayRow = viewChild(SafeTodayComponent);
+
+  /** The folded card's line (56b): what is pending, what can be spent today; else what came in and went out (56e). */
+  readonly glance = computed(() => {
+    const items: { key: string; text: string; tone: string }[] = [];
+    const attention = this.attentionRow();
+    if (attention && attention.total() > 0 && (this.view.shown('home.attention') || attention.urgent())) {
+      items.push({ key: 'attention', text: attention.line(), tone: attention.urgent() ? 'red' : 'yel' });
+    }
+    const today = this.todayRow()?.glance();
+    if (today && this.view.shown('home.today')) {
+      items.push({ key: 'today', text: this.i18n.t('home.glance.today', { amount: today.text }), tone: today.bad ? 'red' : 'grn' });
+    }
+    if (items.length === 0) {
+      items.push({ key: 'nothing', text: this.i18n.t('home.glance.nothing'), tone: 'grn' });
+      for (const tile of this.flowLines()[0] ?? []) {
+        items.push({ key: tile.key, text: `${tile.label} ${formatMoney(tile.amount, this.store.currency())}`, tone: 'flow' });
+      }
+    }
+    return items;
+  });
+  readonly glanceUrgent = computed(() => this.attentionRow()?.urgent() ?? false);
 
   /** A face turned off is never the one on show (save the list a chart tap opened). */
   private readonly faceWatch = effect(() => {

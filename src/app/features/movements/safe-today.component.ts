@@ -16,7 +16,7 @@
  * a new day and a new share.
  */
 
-import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -36,7 +36,7 @@ import { SaveShareSheetComponent } from '../../shared/save-share/save-share-shee
 @Component({
   selector: 'app-safe-today',
   standalone: true,
-  host: { '[hidden]': 'room() === null && acc() === null' },
+  host: { '[hidden]': 'room() === null && acc() === null', '[class.in-card]': 'inCard()' },
   imports: [TranslatePipe, IonIcon, IonModal, SaveShareSheetComponent],
   template: `
     @if (acc(); as a) {
@@ -177,6 +177,9 @@ import { SaveShareSheetComponent } from '../../shared/save-share/save-share-shee
   `,
   styles: [`
     :host { display: block; }
+    /* Inside the balance card (56c): a row of the card, not a card of its own. */
+    :host(.in-card) .ui-card { background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 10px 0; }
+    :host(.in-card) .today.bad .lab { color: var(--app-red); }
     .today {
       width: 100%; border: 0; text-align: left; font: inherit; color: var(--app-tx);
       display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer;
@@ -215,6 +218,8 @@ export class SafeTodayComponent {
   private readonly filter = inject(FilterService);
   private readonly compose = inject(ComposeService);
 
+  /** Drawn inside the balance card on Inicio (56c). */
+  readonly inCard = input(false);
   readonly room = signal<SpendRoom | null>(null);
   /** One account chosen on top: its own figure (54). */
   readonly acc = signal<AccountRoom | null>(null);
@@ -226,6 +231,14 @@ export class SafeTodayComponent {
   readonly account = signal<string | null>(null);
   readonly accName = () => this.account() ?? '';
   private read = '';
+
+  /** What the folded balance card says of it (56b): the figure a day, and whether it is short. */
+  readonly glance = computed(() => {
+    const a = this.acc();
+    if (a) return a.mode === 'card' && a.usualMinor === 0 ? null : { text: this.short(a.perDayMinor), bad: a.leftMinor <= 0 };
+    const r = this.room();
+    return !r || r.noIncome ? null : { text: this.short(r.perDayMinor), bad: r.leftMinor <= 0 };
+  });
 
   constructor() {
     effect(() => {

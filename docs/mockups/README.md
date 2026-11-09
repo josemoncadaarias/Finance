@@ -267,3 +267,13 @@ Lo que la persona no dice se toma de su pregunta anterior, y cada respuesta a un
 - `55d` "¿por qué?" después de "¿Cómo voy?". `55e` registrar seguido ("y 12 mil en la panadería" con la cuenta y el día del anterior; "con la Coral" cambia solo el que aún no se guarda).
 - `55f` "Cambiar": cada pieza dice si vino de la pregunta anterior o se dijo ahora, y "preguntar de cero". `55g` un seguimiento que no se puede ubicar pregunta con cuál sigue.
 - Construido con dos diferencias: las piezas de `55f` no se cambian una por una ("Escribir la pregunta completa" pone la pregunta en la caja), y la elección de `55g` no se recuerda.
+
+## 56 - Lo de arriba de Inicio en un solo bloque que se pliega (2026-11-09, propuesta)
+
+Pendientes, el saldo con su barra y cifras, y "Puedes gastar hoy" ocupan casi la mitad de la pantalla antes del gráfico.
+
+- `56a` hoy, para comparar.
+- Opción A (recomendada): una sola tarjeta plegada. `56b` la cifra y una línea con lo pendiente; `56c` abierta en su sitio, con todo lo de hoy; `56d` en rojo cuando algo está vencido; `56e` sin pendientes.
+- Opción B: `56f` la cifra en el encabezado y una fila de chips; `56g` un chip abre lo mismo que su bloque de hoy.
+- Opción C: `56h` igual que hoy, se reduce a una línea al bajar por la lista.
+- `56i` las tres medidas: cuánto de la pantalla queda para el gráfico.

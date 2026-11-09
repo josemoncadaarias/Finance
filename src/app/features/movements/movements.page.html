@@ -66,29 +66,21 @@
     <div class="home-slots">
     @for (slot of homeSlots(); track slot) {
       @switch (slot) {
-        @case ('attention') { <ng-container *ngTemplateOutlet="attentionBlock"></ng-container> }
         @case ('figures') {
           <ng-container *ngTemplateOutlet="figuresBlock"></ng-container>
           <!-- A new app's first steps, under the balance (44a). -->
           <app-first-steps></app-first-steps>
         }
-        @case ('today') { <app-safe-today></app-safe-today> }
         @case ('faces') { <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div> }
       }
     }
     </div>
 
-    <ng-template #attentionBlock>
-    <!-- What needs attention - cards and loans due (11o), caps and goals (14f,
-         14i, 14m) - folded into one line that opens to them (23b, 23c). -->
-    <app-attention-home [onlyUrgent]="!view.shown('home.attention')"></app-attention-home>
-
-    </ng-template>
 
     <ng-template #figuresBlock>
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
-      <section class="ui-hero figures" data-tour="hero">
+      <section class="ui-hero figures" data-tour="hero" [class.folded]="!summaryOpen()">
         @let card = standing.kind === 'credit';
         <!-- The label and the figure beside the buttons when the figure fits
              there (Jose, 2026-10-31: the label sat alone on a row of its own);
@@ -126,6 +118,24 @@
           </span>
         </div>
 
+        <!-- Folded (56b, Jose 2026-11-09): one line under the figure with what
+             needs attention and what can be spent today; a tap opens the rest
+             in place. Red when something is late or passed (56d). -->
+        @if (!summaryOpen()) {
+          <button type="button" class="glance" [class.red]="glanceUrgent()" (click)="setSummary(true)"
+                  [attr.aria-expanded]="false" [attr.aria-label]="'home.fold.more' | t">
+            <span class="items">
+              @for (item of glance(); track item.key) {
+                <span class="item" [class]="item.tone"><i></i>{{ item.text }}</span>
+              }
+            </span>
+            <ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
+        }
+
+        <!-- Open (56c): everything that was there before, inside the card. The
+             rows stay mounted while folded, so the line above can read them. -->
+        <div class="unfolded" [class.shut]="!summaryOpen()">
         <!-- A card: how much of its limit is used, what is left and the limit,
              and its statement when it has the two days (29e-29g). -->
         @if (card) {
@@ -170,6 +180,23 @@
             <span class="flow"><ion-icon name="swap-horizontal" class="ui-t"></ion-icon><b class="ui-t">{{ store.movedBetween() | money:store.currency() }}</b> {{ 'home.movedBetween' | t }}</span>
           </div>
         }
+        </div>
+
+        <!-- What needs attention (Pendientes) and what can be spent today, as
+             rows of the card, in the order chosen on "Personaliza tu vista". -->
+        <div class="inner">
+        @for (row of innerRows(); track row) {
+          @if (row === 'attention') {
+            <app-attention-home [inCard]="true" [onlyUrgent]="!view.shown('home.attention')"></app-attention-home>
+          } @else {
+            <app-safe-today [inCard]="true"></app-safe-today>
+          }
+        }
+        </div>
+
+        <button type="button" class="fold-less" (click)="setSummary(false)" [attr.aria-expanded]="true">
+          {{ 'home.fold.less' | t }}<ion-icon name="chevron-up-outline"></ion-icon>
+        </button>
         </div>
       </section>
     }

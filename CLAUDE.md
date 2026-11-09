@@ -279,6 +279,27 @@ could not prove.
   "Pending from Jose" list. A future session on any machine knows only what
   is written here and in the commits. Done in the same PR as the change, or
   in a PR right after it - never left for "later".
+- **Inicio's top is one balance card that folds** (Jose, 2026-11-09,
+  mockups `56a`-`56i`, option A; asked to answer as feedback written by a
+  tester in the Play Store). Pendientes and "Puedes gastar hoy" are no longer
+  blocks of their own: they live inside the balance card (`.figures` in
+  `movements.page.html`). Folded (the default): the label, the figure and its
+  buttons, and ONE line (`glance` in `movements.page.ts`) with what is pending
+  (the attention line, red when something is late or passed) and "Hoy puedes
+  gastar $ X" (`SafeTodayComponent.glance`); with nothing pending, "Nada
+  pendiente" and what came in and went out. A tap opens, inside the same card,
+  everything that was there before: a card's bar and statement line, Entró /
+  Salió / Recibido / Enviado, and the two components as rows (`inCard` input:
+  no card of their own), in the order chosen on "Personaliza tu vista"
+  (`innerRows`); "Ver menos" folds it. Kept on the device
+  (`finance.home.summaryOpen`). The components stay mounted while folded, so
+  the line reads their counts and their sheets still open. Hiding Pendientes
+  or "Puedes gastar hoy" still works; dragging them now orders them inside
+  the card, and the card stands where the first of the three is
+  (`homeSlots`). Measured on the mockups: the chart gets 74 % of the space
+  under the period instead of 46 %. Home tour step `since: 21`. Checked in a
+  browser on the sample data (all accounts and a card, folded and open, dark
+  and light, kept after a reload); not on the phone.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was

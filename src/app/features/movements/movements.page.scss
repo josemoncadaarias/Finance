@@ -177,3 +177,34 @@
 
 // The sheet of one account's options (2026-10-31).
 .action-icon { pointer-events: none; flex: none; }
+
+/* The balance card folds (56b, 56c; Jose, 2026-11-09): one line under the
+   figure with what is pending and what can be spent today; opened, the rest
+   inside the same card. */
+.figures {
+  .glance {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 10px 0 0;
+    border: 0; border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent); background: none;
+    font: inherit; color: inherit; text-align: left; cursor: pointer;
+    .items { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; line-height: 1.35; }
+    .item { display: inline-flex; align-items: center; gap: 6px; text-wrap: pretty; }
+    .item i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+    .item.yel i { background: var(--app-yel); }
+    .item.grn i { background: var(--app-grn); }
+    .item.red i { background: var(--app-red); }
+    .item.red { color: var(--app-red); }
+    .item.flow { color: var(--app-mu); }
+    .item.flow i { display: none; }
+    > ion-icon { font-size: 20px; color: var(--app-pr); flex: none; }
+  }
+  .unfolded.shut { display: none; }
+  .inner { margin-top: 10px; }
+  .inner > :not([hidden]) { border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent); }
+  .inner:not(:has(> :not([hidden]))) { display: none; }
+  .fold-less {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    margin-top: 6px; padding: 8px 0 0; border: 0; background: none;
+    font: inherit; font-size: 14px; font-weight: 500; color: var(--app-pr); cursor: pointer;
+    ion-icon { font-size: 18px; }
+  }
+}
