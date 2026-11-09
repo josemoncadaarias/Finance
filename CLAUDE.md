@@ -197,7 +197,8 @@ guess. What Google wants to see, and what to aim the next 14 days at:
   On 2026-11-09 version **1179** (1.0.1179, sent to Closed testing - Alpha
   on 2026-11-06 at 1:53 PM, with the testers' feedback channel changed to
   jadex.apps@gmail.com) was still "In review" after three days. It does
-  NOT carry #306 (merged 2026-11-09): that goes in the next closed-testing
+  NOT carry #306 nor #309 (merged 2026-11-09; #309 answers feedback Jose's
+  mother is to write as a tester): that goes in the next closed-testing
   release, once 1179 passes. The same Play Console page shows "Declare
   your trader status" - offered now, to be filed with Jose one step at a
   time.
@@ -279,7 +280,7 @@ could not prove.
   "Pending from Jose" list. A future session on any machine knows only what
   is written here and in the commits. Done in the same PR as the change, or
   in a PR right after it - never left for "later".
-- **Inicio's top is one balance card that folds** (Jose, 2026-11-09,
+- **Inicio's top is one balance card that folds** (#309; Jose, 2026-11-09,
   mockups `56a`-`56i`, option A; asked to answer as feedback written by a
   tester in the Play Store). Pendientes and "Puedes gastar hoy" are no longer
   blocks of their own: they live inside the balance card (`.figures` in
