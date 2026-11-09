@@ -194,6 +194,13 @@ guess. What Google wants to see, and what to aim the next 14 days at:
   answers. Assumed, not verified: that a new release sent while another is
   in review replaces it and may restart the wait; so wait for the one in
   review to pass before sending the next.
+  On 2026-11-09 version **1179** (1.0.1179, sent to Closed testing - Alpha
+  on 2026-11-06 at 1:53 PM, with the testers' feedback channel changed to
+  jadex.apps@gmail.com) was still "In review" after three days. It does
+  NOT carry #306 (merged 2026-11-09): that goes in the next closed-testing
+  release, once 1179 passes. The same Play Console page shows "Declare
+  your trader status" - offered now, to be filed with Jose one step at a
+  time.
 **Next**: the 14 days with real use and feedback, then apply again, one
 step at a time with Jose. Once approved: the first production release
 (Store bundle on `main`, promote that version to Production with its
