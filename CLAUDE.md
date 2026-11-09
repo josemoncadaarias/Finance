@@ -244,6 +244,17 @@ could not prove.
   "Pending from Jose" list. A future session on any machine knows only what
   is written here and in the commits. Done in the same PR as the change, or
   in a PR right after it - never left for "later".
+- **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
+  partner on a Samsung: she turned off the phone's power saving mode, which
+  the card's words seemed to ask for, and nothing changed; the setting was
+  Finance's own Batería → "No restringido", which Samsung names so while the
+  card said "Sin restricciones"). The card now says it is not the phone's
+  power saving mode but a setting of Finance, then three numbered steps
+  (open, Batería, "No restringido" or "Sin restricciones" - the name changes
+  by phone), and that the message goes once it is set
+  (`ui.notifications.asleep`, one step per line: `white-space: pre-line` on
+  the status card's line). Checked in a browser with the state forced; not
+  on the phone.
 - **An account, a category or a group with a picture of its own saves**
   (2026-11-06, Jose's screenshot: "Nueva cuenta" with its own logo failed
   with "CHECK constraint failed: (builtin_icon IS NULL) <> (custom_icon_id IS
