@@ -160,19 +160,47 @@ takes typing over the account form (#130); credit card statements and other
 banks' layouts are read (#131, #132); a figure missing to add up is brought
 from the statement's summary (#133).
 
-**Where the store stands (2026-11-05).** The app is on the internal and
-closed (Alpha) tracks. **Jose applied for production access on 2026-11-04**
+**Where the store stands (2026-11-09).** The app is on the internal and
+closed (Alpha) tracks. Jose applied for production access on 2026-11-04
 (Play Console → Production → "Apply for production", the questionnaire on
 recruiting testers, engagement, feedback, audience, value and readiness
 answered in English, under 300 characters each; expected installs 0-10K).
-Google reviews it in up to 7 days and emails the account owner
-(jadex.apps@gmail.com). **Next, once approved, one step at a time with
-Jose**: create the first production release (Store bundle on `main`, then
-promote that version to Production with its `<es-419>` note); the SMS and
-foreground-service declarations saved on 2026-10-09 go for review with it;
-replace the public address in the payments profile before selling for
-real; file "Trader status" when Play Console offers it. Until approval,
-updates keep going to Closed testing as before.
+**Refused on 2026-11-05** (email "More testing required to access Google
+Play production", from no-reply-googleplay-developer@google.com, to Jose
+and jadex.apps@gmail.com). Google's words, verbatim: possible reasons -
+"Testers were not engaged with your app during your closed test" and "You
+didn't follow testing best practices, which may include gathering and
+acting on user feedback through updates to your app"; and "Before applying
+again, test your app using closed testing for an additional 14 days with
+real testers." So the 14 more days are Google's own requirement, not a
+guess. What Google wants to see, and what to aim the next 14 days at:
+- **Testers who use the app** (open it on several days, not once), at
+  least 12 opted in the whole time. Assumed from third-party guides, not
+  Google's page: a tester who leaves and joins again restarts their count.
+- **Feedback written through the Play Store** (a tester's private comment
+  on the listing) and **an update that answers it**, published to Closed
+  testing with a release note saying what was fixed, and a reply to the
+  tester from Play Console. The first: Jose's partner commented on
+  2026-11-09 that the battery card was unclear; fixed in #306.
+- **The questionnaire on reapplying** names the feedback received and the
+  version that fixed it. A GitHub link means nothing to Google (the
+  repository is private and reviewers do not read it).
+- **Every closed-testing update now goes to a slow, human review** (Jose,
+  2026-11-09: one was still in review and he could send nothing else for
+  days). So: fixes are tried first on the INTERNAL track (the Store bundle
+  uploads there and it is not held by that review - assumed from how it
+  behaved before, to confirm), and gathered into few closed-testing
+  releases - about one a week of the test - each listing the feedback it
+  answers. Assumed, not verified: that a new release sent while another is
+  in review replaces it and may restart the wait; so wait for the one in
+  review to pass before sending the next.
+**Next**: the 14 days with real use and feedback, then apply again, one
+step at a time with Jose. Once approved: the first production release
+(Store bundle on `main`, promote that version to Production with its
+`<es-419>` note); the SMS and foreground-service declarations saved on
+2026-10-09 go for review with it; replace the public address in the
+payments profile before selling for real; file "Trader status" when Play
+Console offers it.
 
 **From #134 to #297 (2026-10-15 to 2026-11-05)** each change is told in the
 dated bullets of "How to work", of "The assistant" and of the rule it
@@ -7463,9 +7491,10 @@ budget family (2/16, 1, 7), then the rest.
   not what they are worth. Valuation and its tax treatment come later; interest
   and a change in market value are taxed differently in Colombia and must not
   share a table just because they look alike. Decision by Jose, 2026-09-08.
-- [ ] Production access (applied 2026-11-04): forward or screenshot Google's
-      email when it arrives, then the first production release, one step at
-      a time (see "Where the store stands" in "Start here").
+- [ ] Production access: refused 2026-11-05 ("more testing required", see
+      "Where the store stands"). 14 more days of closed testing with
+      testers using the app and writing feedback in the Play Store, each
+      comment answered by an update; then apply again, one step at a time.
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 - [ ] Try the redesign on the phone and report what reads wrong: the list
