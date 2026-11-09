@@ -34,7 +34,7 @@ import { RemindersService } from '../../core/reminders/reminders.service';
   standalone: true,
   // Hidden from "Personaliza tu vista", it still shows a payment already late
   // or a cap gone over (31f): those are never kept quiet.
-  host: { '[hidden]': '(onlyUrgent() && !urgent()) || total() === 0' },
+  host: { '[hidden]': '(onlyUrgent() && !urgent()) || total() === 0', '[class.in-card]': 'inCard()' },
   imports: [TranslatePipe, IonIcon, IonModal, DueHomeComponent, LimitsHomeComponent, RemindersHomeComponent],
   template: `
     @if (total() > 0) {
@@ -66,6 +66,8 @@ import { RemindersService } from '../../core/reminders/reminders.service';
   styles: [`
     :host { display: block; }
     :host([hidden]) { display: none; }
+    /* Inside the balance card (56c): a row of the card, not a card of its own. */
+    :host(.in-card) .bar { background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 10px 0; }
     .bar {
       display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
       font: inherit; color: inherit; cursor: pointer; padding: 12px 14px;
@@ -94,6 +96,8 @@ export class AttentionHomeComponent {
   readonly open = signal(false);
   /** Set when the person turned Pendientes off. */
   readonly onlyUrgent = input(false);
+  /** Drawn inside the balance card on Inicio (56c). */
+  readonly inCard = input(false);
 
   readonly payments = computed(() => this.due()?.rows().length ?? 0);
   readonly paymentsLate = computed(() => (this.due()?.rows() ?? []).some(r => r.item.overdue));

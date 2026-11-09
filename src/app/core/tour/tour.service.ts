@@ -49,6 +49,8 @@ const TOUR_LIST = {
       { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 14 },
       { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text', since: 8 },
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
+      // 2026-11-09: Pendientes and "Puedes gastar hoy" folded into one line of the card (56b).
+      { sel: 'app-movements .figures .glance', title: 'tour.home.fold.title', text: 'tour.home.fold.text', since: 21 },
       // 2026-10-29: a new app's first steps (44a).
       { sel: 'app-movements app-first-steps .ui-card', title: 'tour.home.steps.title', text: 'tour.home.steps.text', since: 16 },
       // 2026-10-14: the eye that hides every amount.
