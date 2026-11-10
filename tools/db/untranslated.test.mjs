@@ -59,6 +59,8 @@ const ALLOWED = [
   'core/assistant/read-phrase.ts',
   // "¿y el mes pasado?", "en total": the words a follow-up is read by, never shown.
   'core/assistant/follow-up.ts',
+  // "¿Cómo registro un préstamo?": the words a question about using the app is read by, never shown.
+  'core/assistant/guide.ts',
   // The empty words a sentence not understood is compared by, never shown.
   'core/assistant/near-question.ts',
   // Folding what was typed, with the "ñ" kept: no word of the screen.

@@ -31,6 +31,7 @@ import type { Movement } from '../../features/movements/group-movements';
 import { everyMonths, monthsBetween, nextInMonths, type NoteMatches, type NoteRow } from '../../core/assistant/note-search';
 import { fold } from '../../core/assistant/read-phrase';
 import { stillToPay, type FixedPayment } from '../../core/assistant/recurring';
+import { GUIDE_TOPICS, type GuideTopic } from '../../core/assistant/guide';
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'plain';
 
@@ -93,6 +94,8 @@ export interface RichButton {
   report?: Period;
   /** Opens this category's movements on Inicio. */
   category?: OpenCategory;
+  /** Opens the movement form of that kind, the statement reader, or the "+" sheet. */
+  compose?: 'expense' | 'income' | 'transfer' | 'statement' | 'plus';
 }
 
 export interface RichCard {
@@ -1240,4 +1243,104 @@ export function affordBig(s: Speech, amountMinor: number, thing: string | null, 
     card: card(blocks, buttons, w.verdict === 'no' ? 'bad' : w.verdict === 'most' ? 'warn' : 'ok', band),
     next: ['ai.next.howAmI'],
   };
+}
+
+// ---------------------------------------------------------------------------
+// "¿Cómo registro un préstamo?" (Jose, 2026-11-10): the steps, and a button
+// that opens that form at once
+// ---------------------------------------------------------------------------
+
+/** What a guide answer needs to know of the person's data and phone. */
+export interface GuideFacts {
+  cards: readonly { id: number; name: string }[];
+  loans: readonly { id: number; name: string }[];
+  /** Photos of receipts and bank notices are read only on an Android phone. */
+  android: boolean;
+}
+
+/** Each topic: how many steps it has, whether a note follows them, and the topics to offer next. */
+const GUIDE_SHAPE: Record<GuideTopic, { steps: number; note: boolean; related: GuideTopic[] }> = {
+  expense: { steps: 4, note: true, related: ['receipt', 'category', 'statement'] },
+  income: { steps: 4, note: true, related: ['expense', 'transfer'] },
+  transfer: { steps: 4, note: true, related: ['payCard', 'expense'] },
+  account: { steps: 4, note: true, related: ['card', 'loan', 'currency'] },
+  card: { steps: 4, note: true, related: ['payCard', 'loan'] },
+  loan: { steps: 5, note: true, related: ['payLoan', 'card'] },
+  debt: { steps: 4, note: false, related: ['payLoan', 'payCard'] },
+  payCard: { steps: 4, note: true, related: ['card', 'payLoan'] },
+  payLoan: { steps: 4, note: true, related: ['loan', 'payCard'] },
+  category: { steps: 4, note: true, related: ['cap', 'expense'] },
+  cap: { steps: 4, note: true, related: ['goal', 'category'] },
+  goal: { steps: 4, note: true, related: ['cap', 'product'] },
+  reminder: { steps: 4, note: true, related: ['payCard', 'cap'] },
+  product: { steps: 4, note: true, related: ['account', 'goal'] },
+  currency: { steps: 3, note: true, related: ['account', 'transfer'] },
+  statement: { steps: 4, note: false, related: ['receipt', 'notices'] },
+  receipt: { steps: 4, note: false, related: ['statement', 'expense'] },
+  notices: { steps: 4, note: false, related: ['statement', 'receipt'] },
+  backup: { steps: 3, note: true, related: ['account', 'notices'] },
+};
+
+/** The question that asks for a topic's guide, in words: the chips. */
+export function guideQuestion(s: Speech, topic: GuideTopic): string {
+  return s.t(`ai.guide.ask.${topic}` as TranslationKey);
+}
+
+export function guide(s: Speech, topic: GuideTopic | 'any', facts: GuideFacts): Answer {
+  if (topic === 'any') {
+    return { said: { key: 'ai.guide.any.said', values: {} }, card: null, next: [],
+      ask: GUIDE_TOPICS.map(t => guideQuestion(s, t)) };
+  }
+  const shape = GUIDE_SHAPE[topic];
+  const key = (end: string) => `ai.guide.${topic}.${end}` as TranslationKey;
+  const blocks: RichBlock[] = [];
+  for (let n = 1; n <= shape.steps; n++) {
+    blocks.push({ step: { n, color: STEP_COLORS[(n - 1) % STEP_COLORS.length], title: s.t(key(String(n))), lines: [] } });
+  }
+  if (shape.note) blocks.push({ note: s.t(key('note')) });
+  const phoneOnly = (topic === 'receipt' || topic === 'notices') && !facts.android;
+  if (phoneOnly) blocks.push({ note: s.t('ai.guide.androidOnly') });
+  return {
+    said: { key: key('said'), values: {} },
+    card: card(blocks, phoneOnly ? [] : guideButtons(s, topic, facts)),
+    next: [],
+    ask: shape.related.map(t => guideQuestion(s, t)),
+  };
+}
+
+function guideButtons(s: Speech, topic: GuideTopic, facts: GuideFacts): RichButton[] {
+  const go = (label: string, route: string[], query?: Record<string, string>, ghost = false): RichButton =>
+    ({ label, ghost, route, ...(query ? { query } : {}) });
+  const label = s.t(`ai.guide.${topic}.go` as TranslationKey);
+  switch (topic) {
+    case 'expense':
+    case 'income':
+    case 'transfer':
+    case 'statement': return [{ label, ghost: false, compose: topic }];
+    case 'receipt': return [{ label, ghost: false, compose: 'plus' }];
+    case 'account': return [go(label, ['/accounts'], { new: 'account' })];
+    case 'card': return [go(label, ['/debts'], { new: 'card' })];
+    case 'loan': return [go(label, ['/debts'], { new: 'loan' })];
+    case 'debt': return [go(s.t('ai.guide.loan.go'), ['/debts'], { new: 'loan' }), go(s.t('ai.guide.card.go'), ['/debts'], { new: 'card' }, true)];
+    case 'payCard': {
+      const only = facts.cards.length === 1 ? facts.cards[0] : null;
+      if (only) return [go(s.t('ai.guide.payCard.goOne', { name: only.name }), ['/debts', String(only.id)], { pay: '1' })];
+      if (facts.cards.length === 0) return [go(s.t('ai.guide.card.go'), ['/debts'], { new: 'card' })];
+      return [go(label, ['/debts'])];
+    }
+    case 'payLoan': {
+      const only = facts.loans.length === 1 ? facts.loans[0] : null;
+      if (only) return [go(s.t('ai.guide.payLoan.goOne', { name: only.name }), ['/debts', 'loan', String(only.id)])];
+      if (facts.loans.length === 0) return [go(s.t('ai.guide.loan.go'), ['/debts'], { new: 'loan' })];
+      return [go(label, ['/debts'])];
+    }
+    case 'category': return [go(label, ['/categories'], { new: '1' })];
+    case 'cap': return [go(label, ['/plans'], { new: 'limit' })];
+    case 'goal': return [go(label, ['/plans'], { face: 'goals', new: 'goal' })];
+    case 'reminder': return [go(label, ['/reminders'], { new: '1' })];
+    case 'product': return [go(label, ['/products'])];
+    case 'currency': return [go(label, ['/accounts'], { new: 'account' }), go(s.t('ai.guide.currency.go2'), ['/currencies'], undefined, true)];
+    case 'notices': return [go(label, ['/notifications'])];
+    case 'backup': return [go(label, ['/export'])];
+  }
 }

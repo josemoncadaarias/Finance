@@ -10,6 +10,7 @@
  * makes archiving an informed decision rather than a guess.
  */
 
+import { ActivatedRoute, Router } from '@angular/router';
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal } from '@angular/core';
@@ -122,6 +123,13 @@ export class CategoriesPage {
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
+
+    // `?new=1` (from the assistant's guide): "¿En cuál lista?" at once.
+    const route = inject(ActivatedRoute);
+    if (route.snapshot.queryParamMap.get('new')) {
+      void inject(Router).navigate([], { queryParams: {}, replaceUrl: true });
+      setTimeout(() => void this.startNew(), 200);
+    }
 
     effect(() => {
       this.database.dataVersion();

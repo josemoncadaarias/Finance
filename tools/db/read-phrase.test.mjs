@@ -641,3 +641,41 @@ test('what was paid, what came in, said the ways people say it (Jose, 2026-11-06
   assert.equal(readPhrase('Lista de gastos de octubre', ctx()).period.from, '2026-10-01');
   assert.equal(readPhrase('Qué compré ayer?', ctx()).period.from, '2026-10-18');
 });
+
+test('how to do something in the app: the steps, never a question about money (Jose, 2026-11-10: a tester could not find where a loan goes)', () => {
+  const cases = [
+    ['Me puedes mostrar como ingreso un préstamo?', 'loan'], ['¿Cómo registro un préstamo?', 'loan'],
+    ['dónde están los préstamos', 'loan'], ['quiero meter un crédito de vehículo', 'loan'], ['how do I add a loan?', 'loan'],
+    ['¿como creo un prestamso?', 'loan'],
+    ['quiero agregar una tarjeta de crédito', 'card'], ['¿Cómo regsitro una tarjta?', 'card'],
+    ['¿Cómo pago la tarjeta?', 'payCard'], ['¿cómo abono a capital?', 'payLoan'], ['cómo pago la cuota del préstamo', 'payLoan'],
+    ['¿cómo agrego una deuda?', 'debt'],
+    ['¿Cómo creo una categoría?', 'category'], ['crear categoría', 'category'], ['¿Cómo crep una categoria?', 'category'],
+    ['nueva meta', 'goal'], ['¿cómo pongo un tope?', 'cap'], ['¿cómo creo un recordatorio?', 'reminder'],
+    ['¿cómo agrego un bolsillo?', 'product'], ['¿cómo creo una cuenta en dólares?', 'account'],
+    ['¿cómo registro dinero en dólares?', 'currency'], ['¿cómo importo un extracto?', 'statement'],
+    ['¿cómo registro un gasto con la foto de un recibo?', 'receipt'], ['¿cómo conecto las notificaciones del banco?', 'notices'],
+    ['¿cómo saco una copia de seguridad?', 'backup'], ['¿cómo registro un gasto con la tarjeta?', 'expense'],
+    ['¿cómo registro mi sueldo?', 'income'], ['¿cómo paso plata de una cuenta a otra?', 'transfer'],
+    ['ayúdame a crear una cuenta', 'account'], ['¿Dónde agrego una tarjeta?', 'card'],
+  ];
+  for (const [said, topic] of cases) {
+    const r = readPhrase(said, ctx());
+    assert.equal(r.intent, 'guide', said);
+    assert.equal(r.guide, topic, said);
+  }
+  // Asked how without saying what: asked back.
+  assert.equal(readPhrase('¿cómo creo algo?', ctx()).guide, 'any');
+  // Questions about one's money that start like a guide stay what they were.
+  const kept = [
+    ['¿cómo hago para ahorrar más?', 'saveMore'], ['¿cómo voy este mes?', 'howAmI'], ['¿cómo hago para saber cuánto debo?', 'debts'],
+    ['¿qué deuda pago primero?', 'payFirst'], ['¿cómo calculas lo de mis metas?', 'howGoals'], ['¿cuándo pago la tarjeta?', 'due'],
+    ['recuérdame pagar la tarjeta el 5', 'remind'], ['muéstrame la categoría mercado', 'openCategory'], ['¿cómo van mis topes?', 'plans'],
+    ['¿dónde veo mis gastos?', 'paid'], ['gasté 20 mil en mercado', 'register'], ['¿puedo pagar 300 mil?', 'afford'],
+  ];
+  for (const [said, intent] of kept) assert.equal(readPhrase(said, ctx()).intent, intent, said);
+  // Two of one's own places named: that transfer, not how transfers are made.
+  const move = readPhrase('quiero pasar plata del bolsillo viajes a ahorros índigo', ctx());
+  assert.equal(move.intent, 'register');
+  assert.equal(move.side, 'transfer');
+});

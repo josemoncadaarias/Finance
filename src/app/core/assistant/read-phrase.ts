@@ -15,6 +15,7 @@
  */
 
 import { REMIND, REMINDERS_LIST } from './read-reminder';
+import { GUIDE_WORDS, guideIn, type GuideTopic } from './guide';
 import { slipsOf, vocabularyOf, type Vocabulary } from './mend-slips';
 import { periodContaining, shiftPeriod, type Period } from '../filters/period';
 
@@ -68,6 +69,11 @@ export type Intent =
   | 'saveMore'
   /** "¿Qué puedes hacer?": everything the assistant answers. */
   | 'help'
+  /**
+   * "¿Cómo registro un préstamo?", "¿dónde creo una categoría?": how to do
+   * something in the app; `Reading.guide` says what (`guide.ts`).
+   */
+  | 'guide'
   /** "Ábreme los productos de Nequi": a button straight to that account's products. */
   | 'openProducts'
   /** "Ábreme la categoría Mercado": its movements on Inicio. */
@@ -164,6 +170,8 @@ export interface Reading {
   phraseKey: string | null;
   /** The route came from what was saved for this same sentence before. */
   fromMemory: boolean;
+  /** What a 'guide' question asks how to make: a topic, or 'any' when it did not say. */
+  guide: GuideTopic | 'any' | null;
 }
 
 /** Lower case, no accents, the way every comparison here is made. */
@@ -759,7 +767,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     }
     return first;
   }
-  if (first.intent !== 'unknown' && first.intent !== 'unsure') return first;
+  if (understood(first)) return first;
   const mended = mendSlips(text, ctx, candidate => understood(readAsTyped(candidate, ctx)));
   if (mended === text) return first;
   const second = readAsTyped(mended, ctx);
@@ -768,7 +776,8 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
 }
 
 function understood(reading: Reading): boolean {
-  return reading.intent !== 'unknown' && reading.intent !== 'unsure';
+  // "¿Cómo creo un prestamso?": how to make something, without a thing it knows, may be a slip.
+  return reading.intent !== 'unknown' && reading.intent !== 'unsure' && reading.guide !== 'any';
 }
 
 /** Every word the assistant reads a meaning from (`vocabularyOf`), worked out once. */
@@ -777,7 +786,7 @@ function assistantWords(): Vocabulary {
   vocabulary ??= vocabularyOf([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
     TOP_SPENDING, RECURRING, FIXED_LEFT, PAID, INCOME_Q, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
     OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
-    TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST],
+    TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST, ...GUIDE_WORDS],
   [...Object.keys(UNITS), ...Object.keys(TIMES), ...FILLER, ...DAYS_ES, ...DAYS_EN, ...MONTHS, ...MONTHS_EN,
     'quincena', 'trimestre', 'semestre', 'semana', 'pasada', 'pasado', 'anterior', 'millones', 'millon', 'lucas', 'palos']);
   return vocabulary;
@@ -829,9 +838,16 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
 
   let intent: Intent;
   let side: Side | null = null;
+  // "¿Cómo registro un préstamo?": how to use the app. Never with a figure
+  // ("¿puedo pagar 300 mil?") nor a question about one's money that only
+  // starts with "cómo" ("¿cómo hago para saber cuánto debo?", "¿cómo hago
+  // para ahorrar más?", "¿qué deuda pago primero?").
+  const asksGuide = amount || has(folded, HOW_MUCH) || has(folded, PAY_FIRST) || has(folded, SAVE_MORE) || has(folded, HOW_GOALS)
+    ? null : guideIn(folded);
   if (has(folded, HELP)) intent = 'help';
   else if (has(folded, REMINDERS_LIST)) intent = 'reminders';
   else if (has(folded, REMIND)) intent = 'remind';
+  else if (asksGuide !== null && asksGuide !== 'any') intent = 'guide';
   else if (!amount && has(folded, OPEN_PRODUCTS) && !has(folded, HOW_MUCH)) intent = 'openProducts';
   else if (!amount && has(folded, OPEN_GOAL) && !has(folded, HOW_MUCH)) intent = 'openGoal';
   else if (!amount && has(folded, OPEN_CAP) && !has(folded, HOW_MUCH)) intent = 'openCap';
@@ -874,6 +890,15 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
     const distinct = new Set(ends.map(e => `${e.account}:${e.product ?? ''}`));
     if (distinct.size >= 2 || ends.some(e => e.product !== null)) { intent = 'register'; side = 'transfer'; }
   }
+  // "Quiero pasar dinero del bolsillo a la cuenta de ahorros": with two of
+  // one's own places named it is that transfer, not how transfers are made.
+  if (intent === 'guide' && asksGuide === 'transfer' && !has(folded, EXPENSE)) {
+    const probe = tokens.map(t => ({ ...t }));
+    const ends = endsOf(probe, placesIn(probe, ctx, true), ctx);
+    if (new Set(ends.map(e => `${e.account}:${e.product ?? ''}`)).size >= 2) { intent = 'register'; side = 'transfer'; }
+  }
+  // "¿Cómo creo algo?" without saying what: asked back, only when nothing else is understood.
+  if (intent === 'unknown' && asksGuide === 'any') intent = 'guide';
 
   // Whatever the verb, two of one's own places with money between them is a
   // transfer: "pagué la tarjeta desde Bancolombia", "200 mil del bolsillo a
@@ -1070,6 +1095,7 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
     onDate: day.onDate, dayWord: day.word,
     accountId, accountChoices, toAccountId, productId, fromProductId, toProductId,
     categoryId, categoryFrom, thing, shape, period, phraseKey, fromMemory,
+    guide: intent === 'guide' ? asksGuide : null,
   };
 }
 
