@@ -43,9 +43,10 @@ export interface Receipt {
   /**
    * How an unsure total was chosen: the amount printed largest (a screenshot of
    * a bank's app shows the movement biggest), one written as money going out
-   * ("-$17.060"), or the largest figure. Null when a line said "total".
+   * ("-$17.060"), the figure printed more than once (a subtotal and a total
+   * that are the same), or the largest figure. Null when a line said "total".
    */
-  totalFrom?: 'prominent' | 'charged' | 'largest' | null;
+  totalFrom?: 'prominent' | 'charged' | 'repeated' | 'largest' | null;
   onDate: IsoDate | null;
   shop: string | null;
 }
@@ -74,6 +75,30 @@ export function amountsIn(text: string): number[] {
   return found;
 }
 
+/**
+ * The amounts of a line written as money - with a "$", thousands grouped or
+ * cents - never a bare run of digits: a resolution, a barcode, an invoice
+ * number or a logo's dots read as digits are no price (Jose, 2026-11-10: a
+ * pharmacy's logo came back as "420793159" and was taken for the total).
+ */
+export function moneyAmountsIn(text: string): number[] {
+  // A bare run of digits is blanked out, so it is neither read nor joined to a neighbour.
+  return amountsIn(text.replace(/(?<![\d$.,]|\$\s)\d{4,}(?![\d.,])/g, digits => '#'.repeat(digits.length)));
+}
+
+/**
+ * The words a phone's reader tends to misread on a receipt's thermal print,
+ * put back: "T0TAL", "TOTAI", "TOTA1", "SUBT0TAL" are the total and the
+ * subtotal (Jose, 2026-11-10: "TOTAL." was printed plainly and the app said
+ * the photo had no total). And a figure after "$" read with the letter O
+ * for a zero ("$5O,OOO"). Only these: any other letter is left as it came.
+ */
+export function mendReceiptWords(text: string): string {
+  return text
+    .replace(/\b(sub\s*-?\s*)?t[o0]ta[l1i|](?=[\s.:,;$=]|$)/gi, (_, sub: string | undefined) => sub ? 'SUBTOTAL' : 'TOTAL')
+    .replace(/\$\s*[\dOo][\dOo.,]*/g, figure => /\d/.test(figure) ? figure.replace(/[Oo]/g, '0') : figure);
+}
+
 function dateAnywhere(text: string, today: IsoDate): IsoDate | null {
   const earliest = `${Number(today.slice(0, 4)) - 2}${today.slice(4)}`;
   for (const match of text.matchAll(/\d{1,4}(?=[\s/\-.]*[\dA-Za-z])/g)) {
@@ -93,7 +118,8 @@ function dateAnywhere(text: string, today: IsoDate): IsoDate | null {
 }
 
 function tidyName(text: string): string {
-  const name = text.replace(/\s+/g, ' ').trim();
+  // A run of digits beside a name is a logo or a stamp read as numbers, never the name.
+  const name = text.replace(/(^|\s)\d+(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim() || text.trim();
   // A receipt prints its name in capitals; the note reads better in words.
   if (name === name.toUpperCase() && /[A-ZÁÉÍÓÚÑ]{2}/.test(name)) {
     return name.toLowerCase().replace(/(^|[\s.-])(\p{L})/gu, (_, sep: string, c: string) => sep + c.toUpperCase());
@@ -124,7 +150,12 @@ function shopOf(lines: readonly string[]): string | null {
   const head = lines.slice(0, 25);
   const taxAt = head.findIndex(line => TAX_ID.test(line));
   if (taxAt >= 0) {
-    const above = taxAt > 0 && looksLikeName(head[taxAt - 1]) ? head[taxAt - 1] : null;
+    let above = taxAt > 0 && looksLikeName(head[taxAt - 1]) ? head[taxAt - 1] : null;
+    // A logo's name broken in two lines ("Droguerías" / "Aliadas") is one name.
+    const short = (line: string) => line.trim().split(/\s+/).length <= 2 && !LEGAL_FORM.test(line);
+    if (above && short(above) && taxAt > 1 && looksLikeName(head[taxAt - 2]) && short(head[taxAt - 2])) {
+      above = `${head[taxAt - 2].trim()} ${above.trim()}`;
+    }
     const below = head[taxAt + 1] && looksLikeName(head[taxAt + 1]) && !LEGAL_FORM.test(head[taxAt + 1]) ? head[taxAt + 1] : null;
     if (above && LEGAL_FORM.test(above) && below) return tidyName(below);
     if (above) return tidyName(above.replace(LEGAL_FORM, '').trim() || above);
@@ -300,13 +331,13 @@ function couldBeTheTotal(line: string): boolean {
 /** The amounts of a line written with a minus in front: money that went out. */
 function chargedIn(line: string): number[] {
   const found: number[] = [];
-  for (const match of line.matchAll(/(?:^|[^\d])[-−–]\s*(\$?\s*\d[\d.,]*)/g)) found.push(...amountsIn(match[1]));
+  for (const match of line.matchAll(/(?:^|[^\d])[-−–]\s*(\$?\s*\d[\d.,]*)/g)) found.push(...moneyAmountsIn(match[1]));
   return found;
 }
 
 /** The receipt in `items` (as `itemsOfPage` lays a photo out), read on `today`. */
 export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt {
-  const lines = linesOf(items).map(l => l.text);
+  const lines = linesOf(items).map(l => mendReceiptWords(l.text));
   const rows: Row[] = lines.map(text => ({ text, amounts: figuresOf(text) }));
 
   const ways = pairings(rows);
@@ -318,8 +349,15 @@ export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt
     const candidates = lines.filter(couldBeTheTotal);
     // Money written as going out ("-$17.060,97") is what was paid.
     const charged = candidates.flatMap(chargedIn);
-    const all = candidates.flatMap(amountsIn);
+    const all = candidates.flatMap(moneyAmountsIn);
+    // A figure printed on two lines or more is the sum: a subtotal and a total
+    // with no tax between them, an item's value and the total of a one-item
+    // receipt - however the word beside it was misread.
+    const seen = new Map<number, number>();
+    for (const line of candidates) for (const minor of new Set(moneyAmountsIn(line))) seen.set(minor, (seen.get(minor) ?? 0) + 1);
+    const repeated = [...seen].filter(([, times]) => times >= 2).map(([minor]) => minor);
     if (charged.length > 0) { totalMinor = Math.max(...charged); totalFrom = 'charged'; }
+    else if (repeated.length > 0) { totalMinor = Math.max(...repeated); totalFrom = 'repeated'; }
     else if (all.length > 0) { totalMinor = Math.max(...all); totalFrom = 'largest'; }
     totalSure = false;
   }
@@ -360,12 +398,12 @@ export function readReceiptPhoto(pages: readonly OcrPage[], today: IsoDate): Rec
       const usual = middleHeight(page.lines.map(l => Math.round(l.bottom - l.top)));
       return itemsOfPage(page, i + 1, usual * factor);
     });
-    const joins = joined(linesOf(items).map(l => l.text));
+    const joins = joined(linesOf(items).map(l => mendReceiptWords(l.text)));
     const off = Math.abs(factor - 1);
     if (!best || joins < best.joins || (joins === best.joins && off < best.off)) best = { items, joins, off };
   }
   const receipt = readReceipt(best?.items ?? [], today);
-  if (receipt.totalSure) return receipt;
+  if (receipt.totalSure || receipt.totalFrom === 'repeated') return receipt;
   // No line says "total": the amount printed clearly larger than every other
   // is the one the picture is about - a bank app's movement, a ticket's sum.
   const prominent = prominentAmount(pages);
@@ -375,12 +413,13 @@ export function readReceiptPhoto(pages: readonly OcrPage[], today: IsoDate): Rec
 /** The amount on a line at least 1.4 times as tall as any other line with an amount. */
 function prominentAmount(pages: readonly OcrPage[]): number | null {
   const withMoney = pages.flatMap(page => page.lines)
-    .filter(line => couldBeTheTotal(line.text) && amountsIn(line.text).length > 0)
+    .map(line => ({ ...line, text: mendReceiptWords(line.text) }))
+    .filter(line => couldBeTheTotal(line.text) && moneyAmountsIn(line.text).length > 0)
     .map(line => ({ line, height: line.bottom - line.top }))
     .sort((a, b) => b.height - a.height);
   if (withMoney.length === 0) return null;
   const [first, second] = withMoney;
   if (second && first.height < second.height * 1.4) return null;
   const charged = chargedIn(first.line.text);
-  return charged.length > 0 ? Math.max(...charged) : Math.max(...amountsIn(first.line.text));
+  return charged.length > 0 ? Math.max(...charged) : Math.max(...moneyAmountsIn(first.line.text));
 }

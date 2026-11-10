@@ -1412,23 +1412,57 @@ export class EntryComponent implements OnInit, OnDestroy {
     return `${this.accountId()}>${this.isTransfer() ? this.toAccountId() : ''}`;
   }
 
+  /** Set by "Registrar otro": the next movement starts without the note carried in. */
+  private carriedSpent = false;
+  /** The category the form opened on, once loaded; undefined before. */
+  private startCategory: number | null | undefined = undefined;
+
+  /**
+   * Whether the person chose another category than the one a carried note
+   * came with (Jose, 2026-11-10: a bank message opened on Restaurante with
+   * the shop's note "Almuerzo...", moved to Salud, kept the lunch). A note
+   * learned for a shop belongs to the category it was saved under.
+   */
+  private categoryMoved(): boolean {
+    return !this.isTransfer() && this.startCategory !== undefined && this.startCategory !== null
+      && this.categoryId() !== this.startCategory;
+  }
+
   private async fillUsualNote(context: NoteContext): Promise<void> {
     // Never over a movement being corrected, or one the person wrote. A note
     // carried in (a bank's words, what was said to the assistant) stays while
-    // the accounts are the ones it came with; another account chosen brings
-    // that account's usual note (Jose, 2026-10-22), when it has one.
-    const carried = !!this.request().start?.note;
-    const moved = carried && (this.endsTouched || (this.startEnds !== null && this.endsNow() !== this.startEnds));
-    if (this.isEditing() || (carried && !moved) || this.noteIsTheirs) return;
+    // the accounts and the category are the ones it came with; another
+    // account or category chosen brings that one's usual note (Jose,
+    // 2026-10-22 and 2026-11-10), and coming back brings the carried note back.
+    const carriedNote = this.carriedSpent ? '' : this.request().start?.note ?? '';
+    const carried = !!carriedNote;
+    const otherCategory = carried && this.categoryMoved();
+    const moved = carried && (this.endsTouched || otherCategory
+      || (this.startEnds !== null && this.endsNow() !== this.startEnds));
+    if (this.isEditing() || this.noteIsTheirs) return;
+    if (carried && !moved) {
+      if (this.note() !== carriedNote) this.showNote(carriedNote, false);
+      return;
+    }
     if (this.database.status() !== 'ready') return;
     const asked = ++this.usualNoteAsked;
     const found = await usualNote(this.database.driver, context, todayIso());
     if (asked !== this.usualNoteAsked || this.noteIsTheirs) return;
-    if (carried && !found) return;
-    this.note.set(found ?? '');
-    this.usualNoteShown.set(found !== null && found !== '');
+    if (carried && !found) {
+      // A shop's note belongs to its category: under another one with no
+      // habit of its own, the message's words as they came stand instead.
+      const original = this.request().proposal?.original?.trim();
+      if (otherCategory && original) this.showNote(original, false);
+      return;
+    }
+    this.showNote(found ?? '', found !== null && found !== '');
+  }
+
+  private showNote(text: string, usual: boolean): void {
+    this.note.set(text);
+    this.usualNoteShown.set(usual);
     const field = this.noteField();
-    if (field) field.nativeElement.value = found ?? '';
+    if (field) field.nativeElement.value = text;
   }
 
   /** Undoes the keyboard listener when the form closes. */
@@ -1463,6 +1497,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // products to show and the row decided there was nothing to ask.
     await this.loadAccountsAndCategories();
     this.startEnds = this.endsNow();
+    this.startCategory = this.categoryId();
     await this.loadProducts();
     const editing = this.request().editing;
     if (editing) {
@@ -2201,6 +2236,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.targetAmount.set(new AmountBuffer());
     this.editingTarget.set(false);
     if (!this.isTransfer()) this.categoryId.set(null);
+    this.carriedSpent = true;
     this.noteIsTheirs = false;
     this.usualNoteShown.set(false);
     this.note.set('');

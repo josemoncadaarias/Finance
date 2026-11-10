@@ -306,6 +306,38 @@ could not prove.
   under the period instead of 46 %. Home tour step `since: 21`. Checked in a
   browser on the sample data (all accounts and a card, folded and open, dark
   and light, kept after a reload); not on the phone.
+- **Three fixes from Jose's phone, 2026-11-10** (branch
+  `claude/receipt-detection-category-bugs-8dqf67`; to name as feedback a
+  tester writes in the Play Store).
+  - **A carried note follows the category too**: in Revisar movimiento a
+    bank message opened on Restaurante with the shop's learned note
+    ("Almuerzo..."), moved to Salud, kept the lunch - the rule of 2026-10-22
+    only watched the accounts. Now another category than the one the form
+    opened on brings that category's usual note, or, with none, the
+    message's words as they came (`proposal.original`); going back to the
+    first category or accounts brings the carried note back (`startCategory`,
+    `categoryMoved`, `showNote` in `entry.component.ts`). After "Registrar
+    otro" the carried note is spent (`carriedSpent`). Checked in a browser on
+    the sample data.
+  - **A receipt's total**: a pharmacy's thermal receipt ("TOTAL." and
+    "$50,000", US style) opened on 420.793.159 with "no dice Total". The
+    phone's reading was not sent, so its cause is ASSUMED: the logo's dotted
+    picture read as digits with a tall box, and the word misread. Now the
+    reader mends "T0TAL", "TOTAI", "TOTA1", "SUBT0TAL" and "$5O,OOO"
+    (`mendReceiptWords`); a bare run of 4+ digits is never a total in the
+    fallbacks (`moneyAmountsIn`: no "$", no grouping, no cents - a barcode, a
+    resolution, a logo); with no total word, a figure printed on two lines or
+    more wins (`totalFrom: 'repeated'`, `receipt.repeatedTotal`) before the
+    largest, and over the one printed largest; a logo name in two lines is
+    joined ("Farmacias Unidas"), and digits beside a name are dropped. The
+    unsure notices now say "No pude leer la palabra «Total»" instead of
+    claiming the photo does not say it. Tests in `read-receipt.test.mjs`
+    (an invented pharmacy receipt, three readings; the old code failed all
+    three). If it happens again, "Reportar un fallo" with the reading on.
+  - **Every notice (`ToastService`) shows its time and can be swiped away**,
+    as the "Guardado" banner: a bar runs out, stops while the finger is on
+    it (`pause`/`resume`), and a swipe up, down or aside, or a tap, closes it.
+    Checked in a browser.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -344,7 +376,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1217 on 2026-11-10, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1220 on 2026-11-10, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

@@ -350,3 +350,58 @@ test('the shop is named around its tax number, not by a sticker on the photo', (
   const small = { ...page, lines: [box('Doblar aqui', 40), box('PANADERIA EL TRIGAL', 300), box('NIT 71.222.333-1', 340), box('TOTAL 8.500', 600)] };
   assert.equal(readReceiptPhoto([small], TODAY).shop, 'Panaderia El Trigal');
 });
+
+/**
+ * A pharmacy's thermal receipt, invented in the shape of Jose's of 2026-11-10:
+ * its name in a logo of two lines with a dotted picture the reader turns into
+ * digits, US-style figures ("$50,000"), and "TOTAL." printed plainly. The app
+ * said the photo had no total and took the logo's digits for it.
+ */
+function pharmacy(words = {}) {
+  const L = (text, left, top, right, bottom) => ({ text, left, top, right, bottom });
+  const total = words.total ?? 'TOTAL.', sub = words.sub ?? 'SUBTOTAL';
+  return {
+    width: 1500, height: 2000, lines: [
+      L('420793159', 600, 350, 760, 470),
+      L('Farmacias', 770, 385, 1040, 430), L('Unidas', 780, 440, 965, 470),
+      L('DISTRIBUIDORA FARMACEUTICA UNIDAS S.A.S NIT:900111222-3', 470, 480, 1090, 540),
+      L('RESOLUCION N.18700000000001 3/10/2027 RANGO:7281 al', 470, 530, 1170, 600),
+      L('100000 ACTIVIDAD ECONOMICA DIAN:4773', 470, 560, 980, 615),
+      L('CALLE 1 N° 2 - 3', 460, 695, 840, 720),
+      L('FACTURA FPO N° 12143', 465, 765, 845, 790), L('FECHA 10-Nov-2026', 940, 765, 1180, 792),
+      L('CLIENTE', 465, 815, 580, 840), L('NIT 222222222', 890, 815, 1140, 840),
+      L('CODIGO 6280741', 470, 1155, 700, 1178), L('CANTIDAD', 795, 1155, 905, 1175), L('1 IVA 0 %', 990, 1150, 1200, 1175),
+      L('MEDICAMENTO 40 MG - CAJA x 28 TAB', 470, 1200, 1000, 1225),
+      L('VLR $50,000.00 DCTO 0.00 SBTAL $ 50,000.00', 470, 1250, 1190, 1278),
+      L('Cum 19901873-10 Invima 2026M-0008948 Lote', 470, 1300, 1080, 1325),
+      L(sub, 470, 1385, 600, 1405), L('$50,000', 820, 1368, 975, 1400),
+      L('IVA.', 470, 1430, 525, 1450), L('$0', 948, 1422, 995, 1447),
+      L(total, 470, 1478, 555, 1500), L('$50,000', 820, 1468, 972, 1500),
+      L('FORMA DE PAGO', 475, 1545, 700, 1570),
+      L('2523127104', 470, 1745, 600, 1765),
+      L('CAJERO: ANA', 930, 1880, 1190, 1905),
+    ],
+  };
+}
+
+test('a pharmacy receipt: "TOTAL." and US figures, never the logo read as digits (Jose, 2026-11-10)', () => {
+  const r = readReceiptPhoto([pharmacy()], '2026-11-10');
+  assert.equal(r.totalMinor, 5000000);
+  assert.equal(r.totalSure, true);
+  assert.equal(r.onDate, '2026-11-10');
+  assert.equal(r.shop, 'Farmacias Unidas');
+  onEveryPhone(pharmacy(), 5000000);
+});
+
+test('"TOTAI." and "SUBT0TAL", misread by the phone, are still the total and the subtotal', () => {
+  const r = readReceiptPhoto([pharmacy({ total: 'TOTAI.', sub: 'SUBT0TAL' })], '2026-11-10');
+  assert.equal(r.totalMinor, 5000000);
+  assert.equal(r.totalSure, true);
+});
+
+test('with the words unreadable, the figure printed more than once - never a bare run of digits', () => {
+  const r = readReceiptPhoto([pharmacy({ total: 'IOIAL', sub: 'SUBIOIAL' })], '2026-11-10');
+  assert.equal(r.totalMinor, 5000000);
+  assert.equal(r.totalSure, false);
+  assert.equal(r.totalFrom, 'repeated');
+});
