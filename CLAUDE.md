@@ -224,6 +224,8 @@ inside an effect" under "How to work"); a picture of one's own saves (#299);
 `55a`-`55g`, 2026-11-06, #302, see "The assistant"); it understands "¿qué
 pagué este mes?" and "¿cuánto me entró?" and offers the closest questions it
 knows when it does not understand (2026-11-06, #304, "The assistant").
+The assistant guides how to do things in the app ("¿cómo registro un
+préstamo?", 2026-11-10, "The assistant").
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -339,7 +341,8 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1216 on 2026-11-06, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1217 on 2026-11-10, all must pass; a fresh cloud
+  session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6063,6 +6066,35 @@ with testers runs; the paywall is finished after them.
   with the new question as a chip. Card statements and loan installments stay
   "¿Qué pagos tengo este mes?" (offered as a chip). Checked in a browser on
   the sample data; not on the phone.
+- **The assistant guides how to do things in the app** (Jose, 2026-11-10,
+  from his partner's comment as a tester: "¿Me puedes mostrar cómo ingreso un
+  préstamo?" was not understood, and she could not find where loans are
+  entered; "debemos agregar todo eso a la base de conocimiento"). New intent
+  `guide` (`core/assistant/guide.ts`, pure): a verb of making or entering
+  ("cómo creo / registro / ingreso / agrego / pongo...", "dónde está(n)",
+  "quiero crear", "ayúdame a", "crear categoría", "nueva meta", English too)
+  and the thing - expense, income, transfer, account, card, loan, debt,
+  paying a card, paying a loan's installment, category, cap, goal, reminder,
+  product, currency, statement, receipt, bank notices, backup
+  (`GuideTopic`). Never with a figure or "cuánto", and never over "¿qué deuda
+  pago primero?", "¿cómo hago para ahorrar más?" or "¿cómo calculas lo de mis
+  metas?"; a transfer with two of one's places named stays that transfer.
+  Its words join the vocabulary, so slips are mended ("prestamso"). The
+  answer (`A.guide`) is the numbered steps through Más (which is always on
+  the bar), a note where something is easy to get wrong (a loan is no income:
+  choose where its money arrived), a button that opens that form at once -
+  `/debts?new=loan|card|debt`, `/categories?new=1` (both new), `/accounts?new=account`,
+  `/plans?new=limit`, goals, reminders, or the movement form / statement
+  reader / "+" sheet (`RichButton.compose`); paying a card or a loan goes
+  straight to it when there is only one - and related questions as chips.
+  Receipt and notices say they are Android only off Android. "¿Cómo creo
+  algo?" offers every topic; "¿y una tarjeta?" right after a guide is that
+  guide. Free, like opening a screen. A welcome group "Cómo hacer algo en la
+  app"; the guide questions join "¿Te referías a...?". Assistant tour step
+  `since: 13`. Tests in `read-phrase.test.mjs` (30 phrasings plus 12 that
+  must stay what they were); checked in a browser on the sample data (the
+  tester's sentence, the follow-up, "¿cómo creo algo?", the loan form and
+  "¿En cuál lista?" opened by the buttons); not on the phone.
 - **Reminders** (Jose, 2026-10-22: "arranca con los recordatorios, todo lo
   que se te ocurra"). `reminders` (migration 060, travels in the backup): a
   title, an optional amount, account and category, a note, `repeat` monthly

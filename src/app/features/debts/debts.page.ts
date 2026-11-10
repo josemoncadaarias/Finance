@@ -9,7 +9,7 @@
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { IonContent, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -50,6 +50,7 @@ export class DebtsPage {
   private readonly database = inject(DatabaseService);
   private readonly pro = inject(PaywallService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly i18n = inject(I18nService);
   readonly accent = inject(AccentService);
 
@@ -110,6 +111,16 @@ export class DebtsPage {
       if (this.database.status() !== 'ready') return;
       void untracked(() => this.load());
     });
+    // `?new=loan|card|debt` (from the assistant's guide): that form, or "¿Qué quieres agregar?", at once.
+    const asked = this.route.snapshot.queryParamMap.get('new');
+    if (asked === 'loan' || asked === 'card' || asked === 'debt') {
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      setTimeout(() => {
+        if (asked === 'loan') void this.startLoan();
+        else if (asked === 'card') this.startCard();
+        else this.choosing.set(true);
+      }, 200);
+    }
   }
 
   private async load(): Promise<void> {

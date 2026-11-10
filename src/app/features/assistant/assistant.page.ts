@@ -47,6 +47,9 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { nextDayOfMonth, readReminder } from '../../core/assistant/read-reminder';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
+import { GUIDE_TOPICS, topicIn } from '../../core/assistant/guide';
+import { LoansRepository } from '../../core/loans/loans.repository';
+import { Capacitor } from '@capacitor/core';
 import type { OpenCategory, RichBlock, RichButton, RichCard, Speech } from './answers';
 import type { FixedPayment } from '../../core/assistant/recurring';
 import { FilterService } from '../../core/filters/filter.service';
@@ -256,6 +259,12 @@ const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color
     { key: 'ai.example.plans', icon: 'speedometer-outline', cls: 'ui-p' },
     { key: 'ai.example.reminders', icon: 'alarm-outline', cls: 'ui-y' },
     { key: 'ai.example.perDay', icon: 'wallet-outline', cls: 'ui-g' }] },
+  { title: 'ai.group.guide', sub: 'ai.group.guide.sub', icon: 'compass-outline', color: '#f2709c', rows: [
+    { key: 'ai.guide.ask.loan', icon: 'cash-outline', cls: 'ui-p' },
+    { key: 'ai.guide.ask.card', icon: 'card-outline', cls: 'ui-p' },
+    { key: 'ai.guide.ask.category', icon: 'pricetags-outline', cls: 'ui-y' },
+    { key: 'ai.guide.ask.account', icon: 'wallet-outline', cls: 'ui-g' },
+    { key: 'ai.guide.ask.cap', icon: 'speedometer-outline', cls: 'ui-p' }] },
   { title: 'ai.group.go', sub: 'ai.group.go.sub', icon: 'navigate-outline', color: '#38bdf8', rows: [
     { key: 'ai.example.openProducts', icon: 'layers-outline', cls: 'ui-p' },
     { key: 'ai.example.openCategory', icon: 'pricetags-outline', cls: 'ui-y' },
@@ -658,7 +667,13 @@ export class AssistantPage {
       text = meant;
     }
     // "¿Y el mes pasado?", "¿y en mercado?", "con la Coral": it goes on from the last question (55a-55g).
-    const follow: FollowUp = this.fresh ? { kind: 'none' } : followUp(text, reading, this.asked);
+    // "¿Y una tarjeta?" after "¿cómo registro un préstamo?": the same guide, for that thing.
+    let guideGoesOn = false;
+    if (!this.fresh && this.asked[0]?.intent === 'guide' && reading.intent === 'unknown' && text.trim().split(/\s+/).length <= 6) {
+      const topic = topicIn(fold(text).replace(/[¿?¡!]/g, ' '));
+      if (topic) { reading = { ...reading, intent: 'guide', guide: topic }; guideGoesOn = true; }
+    }
+    const follow: FollowUp = this.fresh || guideGoesOn ? { kind: 'none' } : followUp(text, reading, this.asked);
     this.fresh = false;
     if (follow.kind !== 'none') return this.goOn(follow, text, reading);
     // Every question is kept: what the next sentence may go on from, or offer back when it is not clear.
@@ -668,7 +683,7 @@ export class AssistantPage {
         accountId: followable ? reading.accountId : null, period: followable ? reading.period : null });
     }
     // Registering is free; a question counts against the month's free ones.
-    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help', 'openProducts', 'openCategory', 'openGoal', 'openCap'].includes(reading.intent);
+    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help', 'guide', 'openProducts', 'openCategory', 'openGoal', 'openCap'].includes(reading.intent);
     if (question && !(await this.pro.askQuestion())) {
       return this.say('ai.pro.out', { free: PLAN.assistant.free });
     }
@@ -700,6 +715,7 @@ export class AssistantPage {
       case 'income': return this.give(A.income(this.speech(), await this.assistant.periodPicture(reading.period)));
       case 'saveMore': return this.give(A.saveMore(this.speech(), await this.assistant.periodPicture(null),
         await this.assistant.smallRepeated(), (await this.assistant.recurring()).fixed));
+      case 'guide': return this.give(A.guide(this.speech(), reading.guide ?? 'any', await this.guideFacts()));
       case 'openProducts': return this.give(A.openProducts(this.speech(), this.accountNamed(reading), this.earning()));
       case 'openCategory': return this.give(A.openCategory(this.speech(),
         this.categories.find(c => c.id === reading.categoryId) ?? null, currentPeriod('month'), this.usedCategories()));
@@ -719,7 +735,19 @@ export class AssistantPage {
   /** Every question the assistant offers, in words: what "¿Te referías a...?" looks among. */
   private catalog(): string[] {
     return [...this.forYou().map(f => f.text),
-      ...WELCOME.flatMap(g => g.rows.map(r => this.i18n.t(r.key).replace(/[«»“”]/g, '')))];
+      ...WELCOME.flatMap(g => g.rows.map(r => this.i18n.t(r.key).replace(/[«»“”]/g, ''))),
+      ...GUIDE_TOPICS.map(t => A.guideQuestion(this.speech(), t))];
+  }
+
+  /** The cards and loans a guide's button can go straight to, and whether this phone reads photos and notices. */
+  private async guideFacts(): Promise<A.GuideFacts> {
+    const cards = this.accounts.filter(a => a.type === 'credit' && a.archived !== 1).map(a => ({ id: a.id, name: a.name }));
+    let loans: { id: number; name: string }[] = [];
+    try {
+      loans = (await new LoansRepository(this.database.driver).all())
+        .filter(l => !l.account.archived).map(l => ({ id: l.account.id, name: l.account.name }));
+    } catch { /* No loans read: the button goes to Deudas y tarjetas. */ }
+    return { cards, loans, android: Capacitor.getPlatform() === 'android' };
   }
 
   /** The account a sentence named, with its name. */
@@ -1246,7 +1274,7 @@ export class AssistantPage {
       intent: 'register', side: card.side, amountMinor: card.amountMinor, amountGuessed: false, amountText: null,
       onDate: card.onDate, dayWord: null, accountId, accountChoices: [], toAccountId: null, productId: null,
       fromProductId: null, toProductId: null, categoryId: card.category.id, categoryFrom: 'learned',
-      thing: card.note || null, shape: null, period: null, phraseKey: card.phraseKey ?? null, fromMemory: false,
+      thing: card.note || null, shape: null, period: null, phraseKey: card.phraseKey ?? null, fromMemory: false, guide: null,
     }, text);
   }
 
@@ -1664,6 +1692,12 @@ export class AssistantPage {
       this.filter.selectAccount(null);
       this.filter.period.set(button.report);
       void this.router.navigate(['/report']);
+      return;
+    }
+    if (button.compose) {
+      if (button.compose === 'statement') void this.compose.startImport();
+      else if (button.compose === 'plus') this.compose.sheet.set(true);
+      else this.compose.open(button.compose);
       return;
     }
     if (button.route) void this.router.navigate(button.route, button.query ? { queryParams: button.query } : {});
