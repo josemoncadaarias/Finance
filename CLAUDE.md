@@ -229,6 +229,9 @@ knows when it does not understand (2026-11-06, #304, "The assistant").
 The assistant guides how to do things in the app ("¿cómo registro un
 préstamo?", 2026-11-10, #311, "The assistant"; answers the closed-test
 feedback of Jose's partner, to name when reapplying for production).
+A carried note follows its category, a receipt's total read past misread
+words and logos, and every notice can be swiped away (2026-11-10, #312;
+to go in the next closed-testing release with the tester's comment).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -306,7 +309,7 @@ could not prove.
   under the period instead of 46 %. Home tour step `since: 21`. Checked in a
   browser on the sample data (all accounts and a card, folded and open, dark
   and light, kept after a reload); not on the phone.
-- **Three fixes from Jose's phone, 2026-11-10** (branch
+- **Three fixes from Jose's phone, 2026-11-10** (#312; branch
   `claude/receipt-detection-category-bugs-8dqf67`; to name as feedback a
   tester writes in the Play Store).
   - **A carried note follows the category too**: in Revisar movimiento a
