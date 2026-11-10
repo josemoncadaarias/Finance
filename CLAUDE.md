@@ -85,7 +85,7 @@ categories, products and what the app can tell the user about them.
 
 ---
 
-## Start here: where things stand (updated 2026-11-05)
+## Start here: where things stand (updated 2026-11-10)
 
 Read this section first on any machine or in any session; everything below
 it is the detail and the reasoning.
@@ -199,7 +199,9 @@ guess. What Google wants to see, and what to aim the next 14 days at:
   jadex.apps@gmail.com) was still "In review" after three days. It does
   NOT carry #306 nor #309 (merged 2026-11-09; #309 answers feedback Jose's
   mother is to write as a tester): that goes in the next closed-testing
-  release, once 1179 passes. The same Play Console page shows "Declare
+  release, once 1179 passes. **#311 (2026-11-10) goes in that same next
+  release**: the assistant's guide, answering the partner's second Play
+  Store comment (she could not find where to enter a loan). The same Play Console page shows "Declare
   your trader status" - offered now, to be filed with Jose one step at a
   time.
 **Next**: the 14 days with real use and feedback, then apply again, one
@@ -225,7 +227,8 @@ inside an effect" under "How to work"); a picture of one's own saves (#299);
 pagué este mes?" and "¿cuánto me entró?" and offers the closest questions it
 knows when it does not understand (2026-11-06, #304, "The assistant").
 The assistant guides how to do things in the app ("¿cómo registro un
-préstamo?", 2026-11-10, "The assistant").
+préstamo?", 2026-11-10, #311, "The assistant"; answers the closed-test
+feedback of Jose's partner, to name when reapplying for production).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -6066,7 +6069,7 @@ with testers runs; the paywall is finished after them.
   with the new question as a chip. Card statements and loan installments stay
   "¿Qué pagos tengo este mes?" (offered as a chip). Checked in a browser on
   the sample data; not on the phone.
-- **The assistant guides how to do things in the app** (Jose, 2026-11-10,
+- **The assistant guides how to do things in the app** (#311; Jose, 2026-11-10,
   from his partner's comment as a tester: "¿Me puedes mostrar cómo ingreso un
   préstamo?" was not understood, and she could not find where loans are
   entered; "debemos agregar todo eso a la base de conocimiento"). New intent
