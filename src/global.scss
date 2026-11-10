@@ -1761,6 +1761,13 @@ ion-router-outlet > .ion-page > ion-content .ui-page-end { height: 0; }
   box-shadow: 0 10px 26px var(--app-shadow);
   font-size: 13.5px;
   color: var(--app-tx);
+  /* Its time, running out; still while the finger is on it. Swiped or tapped,
+     it goes at once (Jose, 2026-11-10). */
+  padding-bottom: 15px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.12s ease-out, opacity 0.12s ease-out;
 
   ion-icon { font-size: 20px; color: var(--app-grn); flex: none; }
   .said { flex: 1; min-width: 0; }
@@ -1768,7 +1775,16 @@ ion-router-outlet > .ion-page > ion-content .ui-page-end { height: 0; }
     flex: none; background: none; border: 0; padding: 4px 2px; font: inherit; font-weight: 700;
     color: var(--app-pr);
   }
+  .track {
+    position: absolute; left: 14px; right: 14px; bottom: 6px; height: 3px;
+    border-radius: 2px; background: rgba(var(--app-grn-rgb), 0.18); overflow: hidden;
+  }
+  .fill {
+    height: 100%; border-radius: 2px; background: var(--app-grn);
+    animation: toast-run linear forwards;
+  }
 }
+@keyframes toast-run { from { width: 100%; } to { width: 0; } }
 
 /* A progress bar. */
 .ui-pbar {
