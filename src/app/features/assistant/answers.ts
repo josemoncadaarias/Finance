@@ -40,7 +40,9 @@ export interface RichBlock {
   lab?: string;
   line?: { k: string; v: string; cls?: string };
   step?: { n: number; color: string; title: string; lines: string[] };
-  row?: { icon: string; color: string; round: boolean; title: string; value: string; lines: string[] };
+  row?: { icon: string; color: string; round: boolean; title: string; value: string; lines: string[];
+    /** The category's or account's own picture, and the seed of its colour (Jose, 2026-11-11: rows showed a generic icon). */
+    customId?: number | null; seed?: number | null };
   ranked?: { icon: string | null; customId: number | null; color: string | null; seed: number | null; name: string; amount: string; pct: number; change: string; cls: string };
   note?: string;
   /** A movement: the whole row opens it in the one movement form (41b-41g). */
@@ -281,6 +283,7 @@ function debtRow(s: Speech, d: DebtView): RichBlock {
     if (d.interestLeftMinor > 0) lines.push(s.t('ai.debts.interestLeft', { amount: s.pesos(d.interestLeftMinor) }));
   }
   return { row: { icon: d.account.builtin_icon ?? (d.kind === 'card' ? 'card-outline' : 'cash-outline'), color: d.account.color ?? COLORS.yel,
+      customId: d.account.custom_icon_id ?? null, seed: d.account.id,
     round: d.kind === 'card', title: d.name, value: s.pesos(d.balanceMinor), lines } };
 }
 
@@ -343,7 +346,8 @@ export function payFirst(s: Speech, list: readonly DebtView[], freeMinor: number
     blocks.push({ lab: s.t('ai.first.apart') });
     for (const x of a.apart) {
       const d = view(x.debt);
-      blocks.push({ row: { icon: d.account.builtin_icon ?? 'cash-outline', color: d.account.color ?? COLORS.cya, round: d.kind === 'card',
+      blocks.push({ row: { icon: d.account.builtin_icon ?? 'cash-outline', color: d.account.color ?? COLORS.cya,
+      customId: d.account.custom_icon_id ?? null, seed: d.account.id, round: d.kind === 'card',
         title: `${d.name} · ${s.pesos(d.balanceMinor)}`, value: '',
         lines: [leftOverMinor > 0 ? s.t('ai.first.tooBig', { save: s.pesos(leftOverMinor) }) : s.t('ai.first.nothingLeft'), s.t('ai.first.keepPaying', { rate: rate(d.rateScaled!) })] } });
     }
@@ -438,6 +442,8 @@ export interface DueIn {
   from: AccountRow | null;
   icon: string | null;
   color: string | null;
+  customId?: number | null;
+  seed?: number | null;
 }
 
 export function due(s: Speech, payments: readonly DueIn[], holds: ReadonlyMap<number, number>, monthEnd: string): Answer {
@@ -448,6 +454,7 @@ export function due(s: Speech, payments: readonly DueIn[], holds: ReadonlyMap<nu
   for (const p of payments) {
     const when = s.t(p.dueOn < s.today ? 'ai.due.late' : 'ai.due.on', { date: s.date(p.dueOn) });
     blocks.push({ row: { icon: p.icon ?? (p.kind === 'card' ? 'card-outline' : 'cash-outline'), color: p.color ?? COLORS.yel, round: p.kind === 'card',
+      customId: p.customId ?? null, seed: p.seed ?? null,
       title: p.name, value: s.pesos(p.amountMinor),
       lines: [p.from ? s.t('ai.due.from', { when, account: p.from.name }) : when] } });
   }
@@ -470,7 +477,8 @@ export function due(s: Speech, payments: readonly DueIn[], holds: ReadonlyMap<nu
       const lines = [s.t(at.names.length > 1 ? 'ai.due.leaves' : 'ai.due.leavesOne',
         { has: s.pesos(Math.max(0, has)), out: s.pesos(at.outMinor), names: names(s, at.names) })];
       lines.push(lacks > 0 ? s.t('ai.due.lacks', { amount: s.pesos(lacks), date: s.date(at.firstOn < s.today ? s.today : at.firstOn) }) : s.t('ai.due.reaches'));
-      blocks.push({ row: { icon: at.account.builtin_icon ?? 'wallet-outline', color: at.account.color ?? COLORS.blu, round: true, title: at.account.name, value: '', lines } });
+      blocks.push({ row: { icon: at.account.builtin_icon ?? 'wallet-outline', color: at.account.color ?? COLORS.blu,
+      customId: at.account.custom_icon_id ?? null, seed: at.account.id, round: true, title: at.account.name, value: '', lines } });
       if (lacks > 0 && (!short || lacks > short.minor)) short = { account: at.account, minor: lacks, firstOn: at.firstOn };
     }
   }
@@ -640,11 +648,13 @@ export function recurring(s: Speech, r: RecurringPicture): Answer {
   const blocks: RichBlock[] = [];
   const fixedRow = (f: RecurringPicture['fixed'][number]): RichBlock => ({ row: {
     icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
+    customId: face(f.category)?.customIconId ?? null, seed: face(f.category)?.seed ?? null,
     title: f.name, value: s.pesos(f.averageMinor),
     lines: [`${f.category} · ${s.t('ai.recurring.months', { seen: f.monthsSeen, of: r.looked })}`,
       s.t(f.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] }, open: { category: f.category, period: looked } });
   const categoryRow = (e: RecurringPicture['everyMonth'][number], when = false): RichBlock => ({ row: {
     icon: face(e.category)?.icon ?? 'pricetag-outline', color: face(e.category)?.color ?? COLORS.org, round: false,
+    customId: face(e.category)?.customIconId ?? null, seed: face(e.category)?.seed ?? null,
     title: e.category, value: s.t('ai.recurring.about', { amount: s.pesos(e.averageMinor) }),
     // Often but not every month: the average counts the months without it, so
     // the range is said as "when it turns up".
@@ -722,6 +732,7 @@ export function fixedLeft(s: Speech, r: RecurringPicture, accountName: (id: numb
     const when = [f.day ? s.t('plus.due.day', { day: f.day }) : '', f.accountId !== null ? accountName(f.accountId) : ''].filter(Boolean).join(' · ');
     blocks.push({ row: {
       icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
+    customId: face(f.category)?.customIconId ?? null, seed: face(f.category)?.seed ?? null,
       title: f.name, value: s.pesos(f.averageMinor), lines: [when, f.category].filter(Boolean) }, fixed: f });
   }
   blocks.push({ line: { k: s.t('ai.fixedLeft.sum'), v: s.pesos(sum), cls: 'ui-y' } });
@@ -743,7 +754,8 @@ export function yieldsAnswer(s: Speech, y: YieldsPicture | null): Answer {
   if (y === null) return { said: { key: 'ai.yields.none', values: {} }, card: null, next: ['ai.next.have'] };
   const blocks: RichBlock[] = [{ lab: s.t('ai.period.span', { label: y.label, from: s.date(y.from), to: s.date(y.to) }) }];
   for (const a of y.accounts) {
-    blocks.push({ row: { icon: a.account.builtin_icon ?? 'wallet-outline', color: a.account.color ?? COLORS.grn, round: true,
+    blocks.push({ row: { icon: a.account.builtin_icon ?? 'wallet-outline', color: a.account.color ?? COLORS.grn,
+      customId: a.account.custom_icon_id ?? null, seed: a.account.id, round: true,
       title: a.account.name, value: `+${s.pesos(a.minor)}`, lines: [] } });
   }
   blocks.push({ line: { k: s.t('ai.yields.total'), v: `+${s.pesos(y.totalMinor)}`, cls: 'ui-g' } });
@@ -802,6 +814,7 @@ export function whyMore(s: Speech, pic: PeriodPicture): Answer {
   if (up.length > 0) {
     blocks.push({ lab: s.t('ai.why.up') });
     for (const m of up) blocks.push({ row: { icon: m.slice.icon ?? 'pricetag-outline', color: m.slice.color ?? COLORS.org, round: false,
+      customId: m.slice.customIconId ?? null, seed: m.slice.seed ?? null,
       title: m.label, value: `+${s.pesos(m.by)}`, lines: [s.t('ai.why.fromTo', { before: s.pesos(m.before), now: s.pesos(m.now) })] },
       open: { category: m.label, period: pic.period } });
   }

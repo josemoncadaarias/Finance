@@ -29,7 +29,7 @@ import { ToastService } from './toast.service';
 import { AccentService } from '../../core/theme/accent.service';
 import { MOVE_COLOR } from '../../core/theme/palette';
 import { AssistantService } from '../../core/assistant/assistant.service';
-import { stillToPay, type FixedPayment } from '../../core/assistant/recurring';
+import { stillToPay, type Face, type FixedPayment } from '../../core/assistant/recurring';
 import { isoDay } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
 import type { Frequent } from '../../core/compose/frequent';
@@ -116,7 +116,11 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
             <div class="ui-list due">
               @for (f of dueFixed().slice(0, 5); track f.name) {
                 <button type="button" class="ui-row" (click)="quick.set(false); registerFixed(f)">
-                  <app-badge shape="sq" [size]="38" builtin="repeat-outline" fixed="#ff6b6b"></app-badge>
+                  @if (faceOf(f); as c) {
+                    <app-badge shape="sq" [size]="38" [builtin]="c.icon" [customId]="c.customIconId" [tone]="c.color" [seed]="c.seed"></app-badge>
+                  } @else {
+                    <app-badge shape="sq" [size]="38" builtin="repeat-outline" fixed="#ff6b6b"></app-badge>
+                  }
                   <span class="ui-tx"><b>{{ f.name }}</b><small>{{ dueLine(f) }}</small></span>
                   <b class="due-amount">{{ pesos(f.averageMinor) }}</b>
                 </button>
@@ -213,6 +217,11 @@ export class ComposeHostComponent {
 
   /** Fixed payments not seen this month, by the day they are usually paid. */
   readonly dueFixed = signal<FixedPayment[]>([]);
+  /** Each category's face, so a fixed payment wears its category's icon or picture (Jose, 2026-11-11). */
+  private fixedFaces = new Map<string, Face>();
+  faceOf(f: FixedPayment): Face | null {
+    return this.fixedFaces.get(f.category) ?? null;
+  }
   private dueRead = '';
 
   constructor() {
@@ -231,6 +240,7 @@ export class ComposeHostComponent {
           const [r, accounts] = await Promise.all([this.assistant.recurring(), new AccountsRepository(db).list()]);
           this.accountNames = new Map(accounts.map(a => [a.id, a.name]));
           this.accountCurrency = new Map(accounts.map(a => [a.id, a.currency_code]));
+          this.fixedFaces = r.faces;
           this.dueFixed.set(stillToPay(r.fixed));
           // A fixed payment has its own row above (or is paid): never twice.
           const skip = new Set(r.fixed.map(f => merchantKeyOf(f.name)).filter(Boolean));

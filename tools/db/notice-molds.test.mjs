@@ -173,3 +173,30 @@ test('a shop filed by hand follows the newest answer', async () => {
   const row = await db.queryOne('SELECT category_id FROM merchant_categories');
   assert.equal(row.category_id, mercado);
 });
+
+test('a transfer learned for one shop does not make every shop of that shape a transfer (Jose, 2026-11-11)', () => {
+  const said = shop => `Banco Rosa - Tu compra con PSE en ${shop} por valor de $250.000,00 fue aprobada.`;
+  const transfer = { note: 'Inversión en el bróker', fromProductId: null, toProductId: null };
+  const mold = moldFrom({ source: SRC, text: said('CORREDORES ANDINOS SAS'), amountMinor: P(-250000),
+    merchant: 'CORREDORES ANDINOS SAS', accountId: 7, categoryId: null, at: 1, otherAccountId: 4, transfer });
+  assert.equal(mold.hasMerchant, true);
+  // The same shop again: the transfer, as it was saved.
+  const broker = readWithMolds(SRC, said('CORREDORES ANDINOS SAS'), [mold]);
+  assert.equal(broker.otherAccountId, 4);
+  assert.deepEqual(broker.transfer, transfer);
+  // Another shop of the same shape: a spending, read with its own shop.
+  const power = readWithMolds(SRC, said('ENERGIA DEL VALLE ESP'), [mold]);
+  assert.equal(power.otherAccountId, null);
+  assert.equal(power.transfer, null);
+  assert.equal(power.merchant, 'ENERGIA DEL VALLE ESP');
+  // Saving that one as a spending keeps the broker's transfer for the broker.
+  const spent = moldFrom({ source: SRC, text: said('ENERGIA DEL VALLE ESP'), amountMinor: P(-250000),
+    merchant: 'ENERGIA DEL VALLE ESP', accountId: 7, categoryId: 9, at: 2 });
+  const both = learnMold([mold], spent);
+  assert.equal(both.length, 1);
+  assert.equal(readWithMolds(SRC, said('CORREDORES ANDINOS SAS'), both).otherAccountId, 4);
+  assert.equal(readWithMolds(SRC, said('ENERGIA DEL VALLE ESP'), both).otherAccountId, null);
+  // A transfer mold learned before the shop was kept proposes no transfer for a shop slot.
+  const old = { ...mold, transferShop: undefined };
+  assert.equal(readWithMolds(SRC, said('ENERGIA DEL VALLE ESP'), [old]).otherAccountId, null);
+});

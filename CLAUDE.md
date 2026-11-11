@@ -232,6 +232,10 @@ feedback of Jose's partner, to name when reapplying for production).
 A carried note follows its category, a receipt's total read past misread
 words and logos, and every notice can be swiped away (2026-11-10, #312;
 to go in the next closed-testing release with the tester's comment).
+A bank message's shape opens as a transfer only for the shop it was saved
+for, and leaving a transfer leaves its note (2026-11-11, "How to work"). The assistant's rows and "Pagos de
+este mes" wear each category's and account's own icon or picture
+(2026-11-11).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -341,6 +345,35 @@ could not prove.
     as the "Guardado" banner: a bar runs out, stops while the finger is on
     it (`pause`/`resume`), and a swipe up, down or aside, or a tap, closes it.
     Checked in a browser.
+- **Every category and account in the assistant's answers wears its own
+  icon or picture** (Jose, 2026-11-11, a screenshot of "Pagos fijos que aún
+  no aparecen este mes": every row showed the generic repeat icon). An
+  answer's `row` now carries `customId` and `seed` (`RichBlock.row` in
+  `answers.ts`), filled from the category's face (fixed payments,
+  every-month spending, "¿por qué gasté más?") and from the account (debts,
+  "¿qué deuda pago primero?", payments due, whether an account reaches,
+  interest); "Pagos de este mes" in the "+" wears the category's face too
+  (`faceOf` in `compose-host.component.ts`). Swept every `app-badge` of the
+  app: the rest already pass the picture (goals and screens have built-in
+  icons only). Built; not checked in a browser nor on the phone.
+- **A message's shape remembers a transfer for its shop only, and leaving
+  a transfer leaves its note** (Jose, 2026-11-11, from the phone; to name as
+  feedback a tester writes in the Play Store). A bank's "Tu compra con PSE en
+  {shop} por valor de $X fue aprobada", saved once as a transfer to a broker
+  (note "Inversión XTB"), made a PSE payment to the power company open as
+  that same transfer: the mold's shop is a slot, so its transfer fit every
+  shop (assumed from the code and the screenshots; his molds were not read).
+  Now a mold keeps the shop a transfer was saved for (`transferShop`, folded
+  by `shopKey` in `molds.ts`) and only that shop opens as the transfer; any
+  other shop of that shape is a spending with the dictionary's category. A
+  spending saved on the same shape keeps the transfer for its own shop
+  (`learnMold`). A transfer mold learned before this, with a shop slot,
+  proposes no transfer until saved again. And switching Revisar movimiento
+  from Transferir to Gasto or Ingreso no longer carries the transfer's note:
+  the shop's learned note, else the message's words (`switchKind` in
+  `entry.component.ts`), unless the person typed it. Test in
+  `notice-molds.test.mjs` (invented shops); not checked in a browser nor on
+  the phone. Only messages read after the update change.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -379,7 +412,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1220 on 2026-11-10, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1221 on 2026-11-11, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

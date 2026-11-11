@@ -38,7 +38,7 @@ import { YieldsRepository } from '../../core/database/repositories/yields.reposi
 import type { ProductEntry, YieldProduct } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository, type TransferScope } from '../../core/database/repositories/transfers.repository';
-import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
+import { ProposalsRepository, shopMemoryOf } from '../../core/database/repositories/proposals.repository';
 import { TourService } from '../../core/tour/tour.service';
 import { ComposeService } from '../../core/ui/compose.service';
 import { SavedBannerService, type Said, type SavedTarget } from '../../core/ui/saved-banner.service';
@@ -2783,11 +2783,26 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly accentColor = computed(() => this.accent.accent().color);
 
   /** The one form, opened again for another kind with what was written. */
-  switchKind(kind: EntryKind): void {
+  async switchKind(kind: EntryKind): Promise<void> {
     if (this.isEditing()) return;
     const current = this.isTransfer() ? 'transfer' : this.kind();
     if (kind === current) return;
     const proposal = this.request().proposal;
+    // A message opened as a transfer carries the note that transfer was saved
+    // with (Jose, 2026-11-11: an EPM payment opened as a transfer with
+    // "Inversión XTB", and moved to Gasto it kept that note). Leaving the
+    // transfer, the note the person did not write goes back to the shop's:
+    // the note learned for it, else the message's words as they came.
+    let note = this.noteIsTheirs || proposal ? this.note() : '';
+    if (proposal && current === 'transfer' && !this.noteIsTheirs) {
+      const original = proposal.original ?? '';
+      let shopNote: string | null = null;
+      if (this.database.status() === 'ready' && original) {
+        const memory = await new ProposalsRepository(this.database.driver).shopMemory().catch(() => null);
+        shopNote = memory ? shopMemoryOf(memory, original)?.note ?? null : null;
+      }
+      note = shopNote || original;
+    }
     // A proposal stays in this form whatever it becomes, carrying what was
     // read and typed; from a transfer back to spending or income it goes on
     // the account its reading pointed at.
@@ -2799,7 +2814,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       start: {
         amountMinor: this.amount().minor,
         onDate: this.occurredOn(),
-        note: this.noteIsTheirs || proposal ? this.note() : '',
+        note,
         again: this.again(),
       },
       ...(proposal ? { proposal: { ...proposal, accountId: account ?? proposal.accountId, categoryId: this.categoryId() ?? proposal.categoryId } } : {}),
