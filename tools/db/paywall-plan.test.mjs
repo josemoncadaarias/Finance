@@ -15,8 +15,9 @@ test('the free allowances Jose decided', () => {
   assert.equal(canUse('statements', 0, false), true);
   assert.equal(canUse('statements', 1, false), false);
   assert.equal(canUse('products', 1, false), false);
+  // Jose, 2026-11-11: every bank free; the movements are what is counted.
   assert.equal(canUse('noticeSources', 0, false), true);
-  assert.equal(canUse('noticeSources', 1, false), false);
+  assert.equal(canUse('noticeSources', 25, false), true);
   assert.equal(canUse('noticeMovements', 14, false), true);
   assert.equal(canUse('noticeMovements', 15, false), false);
   assert.equal(PLAN.noticeMovements.per, 'month');

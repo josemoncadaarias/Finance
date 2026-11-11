@@ -179,7 +179,8 @@ export class NoticeInboxService {
       // also told each source's account, to name accounts and not senders.
       // And how many banks it may read in all, so it finds a new one by
       // itself only while the free allowance or Finance Pro allows it.
-      const findLimit = this.pro.unlocked() ? -1 : PLAN.noticeSources.free;
+      const free = PLAN.noticeSources.free;
+      const findLimit = this.pro.unlocked() || !Number.isFinite(free) ? -1 : free;
       void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds, sourceNames(assignedNow, accountsNow), book, findLimit) }).catch(() => undefined);
       const { caught } = await BankNotifications.caught();
       // Whatever was waiting is about to be in Por revisar: the phone's notice goes.

@@ -383,10 +383,13 @@ could not prove.
   `READ_SMS` are NOT found by themselves**: the Permissions Declaration Form
   saved in Play Console says only senders the user selects are read
   (`store/sms-permission-declaration.md`), and changing that mid-review was
-  not worth the risk - to revisit with Jose. Never more than the free
-  allowance: the app hands the phone `findLimit` with what it teaches
-  (`quietForPhone`; -1 with Finance Pro, `PLAN.noticeSources.free` without, 0
-  with the sample data), and `MovementAlert.mayFind` counts the sources read.
+  not worth the risk - to revisit with Jose. **Every bank is free** (Jose,
+  the same day, "dale ilimitado"; `PLAN.noticeSources.free` is Infinity): a
+  second bank left unread would look broken, and the 15 movements a month
+  saved from messages are what Finance Pro opens. The app still hands the
+  phone `findLimit` with what it teaches (`quietForPhone`; -1 while nothing
+  limits it, 0 with the sample data) and `MovementAlert.mayFind` counts the
+  sources read, so a limit is one line away.
   The screen: "Encontramos N bancos nuevos" on top until "Entendido"
   (`newlyFound`, `finance.notices.foundSeen`), "Nuevo" on each, the bank's
   page saying since when it is read and **"Dejar de leer" now hides the
@@ -2411,7 +2414,8 @@ Pro's App Store products in RevenueCat.
    - Free: accounts in pesos, movements, transfers, Inicio and its chart,
      the starter categories (rename, hide), credit cards with their statement
      and reminder, ONE loan, ONE cap, ONE goal, ONE product, the first
-     statement, ONE bank source (app or SMS) with **15 movements a month**
+     statement, EVERY bank source (app or SMS; ONE until 2026-11-11, when
+     Jose made them all free) with **15 movements a month**
      saved from messages, backups (local, Drive), CSV, every preference
      (language, theme, **every accent colour**, the view, the bar, hiding
      amounts, guides, sample data, erasing), Monedas y TRM to look at, and

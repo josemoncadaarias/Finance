@@ -600,7 +600,7 @@ export class NotificationsPage {
   /** Starts or stops reading one source. */
   async watchSource(one: Source, on: boolean): Promise<void> {
     if (one.watched === on) return;
-    // One bank is free (rule 21); turning a source off is always allowed.
+    // Every bank is free since 2026-11-11; the check stays so a limit is one line away.
     if (on && !(await this.pro.allow('noticeSources', this.watchedCount()))) return;
     if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
     else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
