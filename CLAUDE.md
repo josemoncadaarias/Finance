@@ -506,6 +506,16 @@ could not prove.
   testers and its release note** (Jose, 2026-10-09): Store bundle on `main`,
   then the new version into Closed testing (Alpha) with an `<es-419>` note
   of at most 500 characters, then Send changes for review.
+- **"El comentario para Play Store" is the tester's own words** (Jose,
+  2026-11-11). When Jose asks for "el comentario para poner en Play Store"
+  after a fix or a new feature, it is the text a TESTER copies and pastes
+  as their private feedback on the listing - a short report or suggestion
+  in the first person, plain Spanish, as a user would write it ("Cuando
+  hago X pasa Y, debería Z" / "Sería útil que..."), describing the problem
+  the change answers, never what was built and never technical words. One
+  per fix, ready to paste. The release note (`<es-419>`) is a separate
+  thing and still goes with every merge. Google wants feedback written by
+  testers and an update that answers it (see "Where the store stands").
 - **A Java change is compiled before it is pushed** (2026-11-04: a second
   `wordsOf` in `MovementAlert.java` broke the Store bundle with "method
   already defined"). The session has no Android SDK, but `javac -d <tmp>
