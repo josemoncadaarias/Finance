@@ -68,8 +68,11 @@ test('"Sí era un movimiento" forgets the shapes it fits and keeps it as a movem
 test('the phone receives shapes and word weights, never a message', () => {
   const quiet = learnNotMovement(empty, APP, ADVERT, 1);
   const handed = JSON.parse(quietForPhone(quiet, [], {}, buildWordBook([{ source: APP, text: ADVERT, move: false }])));
-  assert.deepEqual(Object.keys(handed).sort(), ['book', 'molds', 'names', 'notMolds']);
+  assert.deepEqual(Object.keys(handed).sort(), ['book', 'findLimit', 'molds', 'names', 'notMolds']);
   assert.deepEqual(handed.names, {});
+  // How many banks it may read in all: -1 when nothing limits it.
+  assert.equal(handed.findLimit, -1);
+  assert.equal(JSON.parse(quietForPhone(quiet, [], {}, null, 1)).findLimit, 1);
   assert.deepEqual(Object.keys(handed.notMolds[0]).sort(), ['pattern', 'source']);
   // Java reads the same patterns: no flags, no lookbehind, anchored.
   assert.match(handed.notMolds[0].pattern, /^\^.*\$$/);

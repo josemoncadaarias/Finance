@@ -53,6 +53,18 @@
       <!-- Simple (mockups 45a-45c, Jose 2026-10-29): one status line, what
            waits, the person's banks and one button to add one. Everything
            else is one tap away, in "Ajustes de los avisos". -->
+      <!-- Banks found by themselves (57d): said once, until "Entendido". -->
+      @if (newlyFound().length > 0) {
+        <div class="ui-card found-card" data-tour="notices-found">
+          <div class="srow">
+            <app-badge shape="ci" [size]="38" builtin="sparkles-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ (newlyFound().length === 1 ? 'ui.found.title.one' : 'ui.found.title') | t:{ count: newlyFound().length } }}</b>
+              <small class="wrap">{{ 'ui.found.text' | t }}</small></span>
+          </div>
+          <button type="button" class="ui-btn ghost" (click)="foundUnderstood()">{{ 'ui.found.ok' | t }}</button>
+        </div>
+      }
+
       @if (status(); as st) {
         <div class="ui-card status" [class.warn]="st.warn" data-tour="notices-status">
           <div class="srow">
@@ -89,6 +101,7 @@
               }
               <span class="ui-tx"><b class="ui-one">{{ bank.title }}</b>
                 <small class="wrap" [class.ui-y]="bank.needsAccount">{{ bank.line }}</small></span>
+              @if (bank.fresh) { <span class="ui-tag new-tag">{{ 'ui.found.tag' | t }}</span> }
               <ion-icon class="ui-chev" [name]="bank.sources.length > 1 ? chev('bank:' + bank.key) : 'chevron-forward'"></ion-icon>
             </button>
             @if (bank.sources.length > 1 && isOpen('bank:' + bank.key)) {
@@ -104,13 +117,13 @@
             }
           }
         </div>
-        <button type="button" class="ui-btn ghost add" (click)="openAdd()" data-tour="notices-add"><ion-icon name="add"></ion-icon>{{ 'ui.notif2.add' | t }}</button>
+        <button type="button" class="ui-btn ghost add" (click)="openAdd()" data-tour="notices-add"><ion-icon name="add"></ion-icon>{{ 'ui.found.addByHand' | t }}</button>
       } @else {
         <div class="ui-card first">
           <app-badge shape="ci" [size]="56" builtin="notifications-outline" fixed="#9b7bff"></app-badge>
           <b>{{ 'ui.notif2.first.title' | t }}</b>
           <p>{{ 'ui.notif2.first.text' | t }}</p>
-          <button type="button" class="ui-btn" (click)="openAdd()" data-tour="notices-add"><ion-icon name="add"></ion-icon>{{ 'ui.notif2.add' | t }}</button>
+          <button type="button" class="ui-btn ghost" (click)="openAdd()" data-tour="notices-add"><ion-icon name="add"></ion-icon>{{ 'ui.found.addByHand' | t }}</button>
         </div>
       }
 
@@ -268,6 +281,9 @@
         <div class="grab"></div>
         <h2 class="center">{{ one.name }}<span class="chan">{{ (one.kind === 'sms' ? 'ui.notifications.chip.sms' : 'ui.notifications.chip.app') | t }}</span></h2>
         <p class="center sub">{{ one.line }}</p>
+        @if (one.foundAt > 0 && one.watched) {
+          <p class="found-since"><ion-icon name="sparkles-outline"></ion-icon>{{ foundLine(one) }}</p>
+        }
         <div class="ui-list">
           <button type="button" class="ui-row" (click)="pickingFor.set(one)">
             @if (one.several) {
@@ -295,8 +311,9 @@
         @if (one.watched) {
           <!-- Stopping is here now, beside what it reads (45a: no switch on the list). -->
           <button type="button" class="ui-btn ghost stop" (click)="stopReading(one)">
-            <ion-icon name="pause-circle-outline"></ion-icon>{{ 'ui.notif2.stop' | t }}
+            <ion-icon [name]="one.foundAt > 0 ? 'close-circle-outline' : 'pause-circle-outline'"></ion-icon>{{ (one.foundAt > 0 ? 'ui.found.notMine' : 'ui.notif2.stop') | t }}
           </button>
+          <p class="hint stop-line">{{ 'ui.found.stopLine' | t }}</p>
         }
         @if (shownLearned(); as q) {
           <div class="ui-card quiet-card">

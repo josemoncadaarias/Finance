@@ -23,6 +23,8 @@ import { DemoService } from '../demo/demo.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
+import { PaywallService } from '../paywall/paywall.service';
+import { PLAN } from '../paywall/plan';
 import { quietForPhone, sourceNames } from './molds';
 import { noticeKey, noticeSource, readNotices, type KeptNotice } from './notice-proposals';
 
@@ -31,6 +33,7 @@ export class NoticeInboxService {
   private readonly database = inject(DatabaseService);
   private readonly router = inject(Router);
   private readonly demo = inject(DemoService);
+  private readonly pro = inject(PaywallService);
   private running: Promise<number> | null = null;
   private started = false;
   /** What "Movimiento detectado" asked to open, taken from the phone once. */
@@ -156,9 +159,13 @@ export class NoticeInboxService {
     try {
       // Real messages never land among the sample's invented accounts: they
       // wait on the phone until it is erased.
-      if (this.demo.active()) return 0;
       const { supported } = await BankNotifications.isSupported();
       if (!supported) return 0;
+      // Nor is a bank found while the sample is loaded (`findLimit` 0).
+      if (this.demo.active()) {
+        void BankNotifications.setQuiet({ json: JSON.stringify({ findLimit: 0 }) }).catch(() => undefined);
+        return 0;
+      }
       const db = this.database.driver;
       const proposals = new ProposalsRepository(db);
       // "No es movimiento" on the phone's notice teaches before anything is read.
@@ -170,7 +177,10 @@ export class NoticeInboxService {
       const book = await proposals.wordBook(quiet);
       // The phone's notice learns it too, and does not ring for it; it is
       // also told each source's account, to name accounts and not senders.
-      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds, sourceNames(assignedNow, accountsNow), book) }).catch(() => undefined);
+      // And how many banks it may read in all, so it finds a new one by
+      // itself only while the free allowance or Finance Pro allows it.
+      const findLimit = this.pro.unlocked() ? -1 : PLAN.noticeSources.free;
+      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds, sourceNames(assignedNow, accountsNow), book, findLimit) }).catch(() => undefined);
       const { caught } = await BankNotifications.caught();
       // Whatever was waiting is about to be in Por revisar: the phone's notice goes.
       void BankNotifications.clearAlerts().catch(() => undefined);

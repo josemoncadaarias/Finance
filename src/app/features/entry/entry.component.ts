@@ -1504,6 +1504,27 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.loanPayment.set(await new LoansRepository(this.database.driver)
         .paymentOf({ transferId: this.editingTransferId(), transactionId: editing.id }));
     }
+    // A bank's message that came with no account - a bank the app just found
+    // by itself - asks its account first, inside this form (mockup 57c):
+    // "¿A qué cuenta llegan los avisos de {bank}?", once.
+    const asked = this.request().proposal;
+    if (asked?.bank && asked.accountId == null && this.accountId() === null && !this.isTransfer() && !this.request().many) {
+      this.askingBank.set(asked.bank);
+      this.openAccountSheet('from');
+    }
+  }
+
+  /** The bank whose account the open sheet asks for, with its own heading (57c). */
+  readonly askingBank = signal<string | null>(null);
+
+  /**
+   * Opened by itself, the sheet starts on its question: the modal hands the
+   * focus to a row at its foot, which scrolled the list to the end.
+   */
+  fromTheTop(event: Event): void {
+    const modal = event.target as HTMLElement | null;
+    (document.activeElement as HTMLElement | null)?.blur();
+    modal?.querySelector('.ui-sheet-body')?.scrollTo({ top: 0 });
   }
 
   /** The loan payment the movement being corrected belongs to: deleting it undoes the whole payment. */

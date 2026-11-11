@@ -117,16 +117,26 @@ public class NotificationCatcher extends NotificationListenerService {
                 Notification notification = one.getNotification();
                 if (notification == null || (notification.flags & Notification.FLAG_ONGOING_EVENT) != 0) continue;
                 String pkg = one.getPackageName();
-                if (NotificationStore.isHidden(this, pkg) || !NotificationStore.isWatched(this, pkg)) continue;
+                if (NotificationStore.isHidden(this, pkg)) continue;
                 Bundle extras = notification.extras;
                 if (extras == null || isConversation(pkg, notification, extras)) continue;
-                banks += 1;
+                if ((notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0 && !NotificationStore.isWatched(this, pkg)) continue;
                 String title = text(extras, Notification.EXTRA_TITLE);
                 String said = text(extras, Notification.EXTRA_TEXT);
                 String big = text(extras, Notification.EXTRA_BIG_TEXT);
                 if (big.length() > said.length()) said = big;
                 if (title.isEmpty() && said.isEmpty()) continue;
                 long at = one.getPostTime();
+                // A bank already in the status bar when the access was given
+                // is found too: the first thing the person sees is it working.
+                boolean found = false;
+                if (!NotificationStore.isWatched(this, pkg)) {
+                    if (!findsBank(pkg, said.isEmpty() ? title : said)) continue;
+                    NotificationStore.watch(this, pkg, true);
+                    NotificationStore.noteFound(this, pkg, labelOf(pkg), at);
+                    found = true;
+                }
+                banks += 1;
                 JSONObject entry = new JSONObject();
                 entry.put("package", pkg);
                 entry.put("app", labelOf(pkg));
@@ -137,7 +147,7 @@ public class NotificationCatcher extends NotificationListenerService {
                 kept += 1;
                 // Rung only while it is still news; an older one just waits in Por revisar.
                 if (now - at < 2 * 3_600_000L) {
-                    MovementAlert.post(this, pkg, labelOf(pkg), said.isEmpty() ? title : said, at);
+                    MovementAlert.post(this, pkg, labelOf(pkg), said.isEmpty() ? title : said, at, found);
                 }
             } catch (Exception broken) {
                 // One notice that will not read is not the rest.
@@ -348,7 +358,6 @@ public class NotificationCatcher extends NotificationListenerService {
             keepConversation(pkg, label, extras, at, summary);
             return;
         }
-        if (!NotificationStore.isWatched(this, pkg)) return;
         if (extras == null) return;
 
         String title = text(extras, Notification.EXTRA_TITLE);
@@ -360,6 +369,16 @@ public class NotificationCatcher extends NotificationListenerService {
 
         if (title.isEmpty() && said.isEmpty()) return;
 
+        // An app nobody turned on is read from the first message that says
+        // money moved (Jose, 2026-11-11); anything else of it stays unread.
+        boolean found = false;
+        if (!NotificationStore.isWatched(this, pkg)) {
+            if (summary || !findsBank(pkg, said.isEmpty() ? title : said)) return;
+            NotificationStore.watch(this, pkg, true);
+            NotificationStore.noteFound(this, pkg, label, at);
+            found = true;
+        }
+
         try {
             JSONObject one = new JSONObject();
             one.put("package", pkg);
@@ -367,10 +386,22 @@ public class NotificationCatcher extends NotificationListenerService {
             one.put("title", title);
             one.put("text", said);
             one.put("postedAt", at);
-            if (NotificationStore.keep(this, one)) MovementAlert.post(this, pkg, labelOf(pkg), said.isEmpty() ? title : said, at);
+            if (NotificationStore.keep(this, one)) MovementAlert.post(this, pkg, labelOf(pkg), said.isEmpty() ? title : said, at, found);
         } catch (JSONException broken) {
             // One unreadable notification is not a reason to stop reading.
         }
+    }
+
+    /**
+     * Whether an app nobody turned on - and nobody put away - just said that
+     * money moved, so the app starts reading it by itself. Never the phone's
+     * SMS app as a whole (its senders are chosen one by one), never a chat
+     * app, and only while the free allowance or Finance Pro allows one more.
+     */
+    private boolean findsBank(String pkg, String text) {
+        if (NotificationStore.isHidden(this, pkg) || NotificationStore.isSmsApp(this, pkg)) return false;
+        if (!MovementAlert.readsAsMovement(text)) return false;
+        return MovementAlert.mayFind(this);
     }
 
     /**
@@ -428,7 +459,19 @@ public class NotificationCatcher extends NotificationListenerService {
 
         if (NotificationStore.isSenderHidden(this, pkg, from)) return;
         if (money) NotificationStore.noteSender(this, pkg, label, from, at);
-        if (!NotificationStore.isSenderWatched(this, pkg, from)) return;
+        boolean found = false;
+        if (!NotificationStore.isSenderWatched(this, pkg, from)) {
+            // A bank's short code in the phone's SMS app, found by itself -
+            // only a short code (a contact's name could be a person), and only
+            // while the inbox cannot be read (then `SmsReceiver` finds it, and
+            // one SMS is never two sources).
+            boolean shortCode = from.matches("\\d{3,8}");
+            if (summary || !shortCode || !NotificationStore.isSmsApp(this, pkg) || SmsInbox.allowed(this)) return;
+            if (!MovementAlert.readsAsMovement(said) || !MovementAlert.mayFind(this)) return;
+            NotificationStore.watchSender(this, pkg, from, true);
+            NotificationStore.noteFound(this, pkg + "|" + from, from, at);
+            found = true;
+        }
 
         try {
             JSONObject one = new JSONObject();
@@ -438,7 +481,7 @@ public class NotificationCatcher extends NotificationListenerService {
             one.put("title", from);
             one.put("text", said);
             one.put("postedAt", at);
-            if (NotificationStore.keep(this, one)) MovementAlert.post(this, pkg + "|" + from, from, said, at);
+            if (NotificationStore.keep(this, one)) MovementAlert.post(this, pkg + "|" + from, from, said, at, found);
         } catch (JSONException broken) {
             // One unreadable message is not a reason to stop reading.
         }

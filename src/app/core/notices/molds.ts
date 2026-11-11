@@ -348,12 +348,15 @@ export function silencedBy(
  * the way the app does: weights of words, never a message or a figure.
  */
 export function quietForPhone(quiet: Quiet, molds: readonly Mold[], names: Record<string, string> = {},
-  book: WordBook | null = null): string {
+  book: WordBook | null = null, findLimit = -1): string {
   return JSON.stringify({
     notMolds: quiet.notMolds.map(one => ({ source: one.source, pattern: one.pattern })),
     molds: molds.map(one => ({ source: one.source, pattern: one.pattern })),
     names,
     ...(book ? { book } : {}),
+    // How many sources the phone may read in all before it stops finding
+    // banks by itself: -1 for no end (Finance Pro), 0 for none.
+    findLimit,
   });
 }
 

@@ -277,3 +277,12 @@ Pendientes, el saldo con su barra y cifras, y "Puedes gastar hoy" ocupan casi la
 - Opción B: `56f` la cifra en el encabezado y una fila de chips; `56g` un chip abre lo mismo que su bloque de hoy.
 - Opción C: `56h` igual que hoy, se reduce a una línea al bajar por la lista.
 - `56i` las tres medidas: cuánto de la pantalla queda para el gráfico.
+
+## 57 - Bancos que la app encuentra sola (2026-11-11, construido)
+
+- `57a` el aviso del teléfono la primera vez que una app de banco que nadie activó dice que se movió dinero: "Desde ahora Finance lee sus avisos", con "No es mi banco".
+- `57c` al revisar ese movimiento, el formulario pregunta una vez "¿A qué cuenta llegan los avisos de {banco}?".
+- `57d` Notificaciones del teléfono: "Encontramos N bancos nuevos" hasta "Entendido", y "Nuevo" en cada uno.
+- `57e` la página del banco: desde cuándo se lee y "No es mi banco".
+- `57g` Inicio invita a permitir leer los avisos cuando falta ese permiso.
+- Descartados por Jose, por simplicidad: preguntar antes de leer (57b) y un ajuste para elegir (57f).

@@ -32,12 +32,6 @@ S['57a-aviso-banco-nuevo'] = phone('💸 Gasto detectado · −$ 45.000',
   'Panadería Trigo · Billetera Verde<br><span style="color:#fff">Es la primera vez que Billetera Verde te avisa de dinero. Desde ahora leemos sus avisos de compras y pagos.</span>',
   '<span>Revisar y guardar</span><span>Más tarde</span><span style="color:#f2b8b5">No es mi banco</span>');
 
-// 57b - the same, for whoever chose "Preguntarme antes" (57f): nothing is
-// read until the person says so.
-S['57b-aviso-preguntar'] = phone('🏦 ¿Billetera Verde es tu banco?',
-  'Te avisó de un gasto de $ 45.000. Si lo lees, el gasto queda listo para revisar y los próximos también.',
-  '<span>Sí, leerlo</span><span style="color:#f2b8b5">No, ignorarlo</span>');
-
 // 57c - Revisar movimiento on that first message: the account is asked
 // INSIDE the form (never a step before it), with the likeliest first.
 const said = `<div style="display:flex;align-items:center;gap:8px;background:#0a1222;border:1px dashed #2a3a5c;border-radius:12px;padding:8px 11px;margin-top:10px">${ic('notifications-outline', '', `width:17px;height:17px;flex:none;color:${B}`)}<span class="one" style="font-size:12.5px;color:#b9c3d8">Compraste $45.000 en Panadería Trigo con tu tarjeta…</span></div>`;
@@ -81,19 +75,6 @@ S['57e-pagina-del-banco'] = `${top('Billetera Verde')}<main>
   <div class="row">${ci('swap-horizontal-outline', B, 36)}<div class="tx"><b>Cambiar la cuenta</b><small>Billetera Verde</small></div>${chev()}</div>
   <div class="row">${ci('close-circle-outline', R, 36)}<div class="tx"><b style="color:${R}">No es mi banco</b><small style="white-space:normal">Deja de leerla y no la vuelve a encontrar sola</small></div></div></div>
 </main>${tabs('Más')}`;
-
-// 57f - the one choice, in "Ajustes de los avisos": find banks by itself
-// (the default) or ask first.
-const opt = (title, sub, on) => `<div class="row" style="padding:13px 14px"><div class="tx"><b>${title}</b><small style="white-space:normal;line-height:1.35">${sub}</small></div>${on ? ic('checkmark', 'p') : ''}</div>`;
-S['57f-ajuste-encontrar'] = S['57d-bancos-detectados'] + sheet(`<div class="sh"><h2>Ajustes de los avisos</h2>${ic('close', 'mu')}</div>
- <div class="h" style="margin-top:4px">Cuando una app nueva te avise de dinero</div>
- <div class="list">
-  ${opt('Empezar a leerla de una vez', 'Recomendado. Te avisamos y el movimiento queda para revisar. Puedes decir «No es mi banco».', true)}
-  ${opt('Preguntarme antes', 'Te preguntamos si es tu banco. Hasta que digas que sí, no se lee nada de esa app.', false)}
-  ${opt('No buscar bancos', 'Solo se leen los bancos que agregas a mano.', false)}</div>
- <div class="list" style="margin-top:12px">
-  <div class="row">${ci('flash-outline', Y, 36)}<div class="tx"><b>Avisarme siempre al instante</b><small style="white-space:normal">El aviso llega en el momento. Gasta un poco más de batería.</small></div>${sw(false)}</div>
-  <div class="row">${ci('eye-off-outline', C.gry, 36)}<div class="tx"><b>Apps que no son tus bancos</b><small>3 apps que dijiste que no</small></div>${chev()}</div></div>`);
 
 // 57g - the way in for someone who never opened Notificaciones del teléfono:
 // right after the first account is saved, one card on Inicio.

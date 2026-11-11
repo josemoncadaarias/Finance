@@ -53,6 +53,8 @@ const TOUR_LIST = {
       { sel: 'app-movements .figures .glance', title: 'tour.home.fold.title', text: 'tour.home.fold.text', since: 21 },
       // 2026-10-29: a new app's first steps (44a).
       { sel: 'app-movements app-first-steps .ui-card', title: 'tour.home.steps.title', text: 'tour.home.steps.text', since: 16 },
+      // 2026-11-11: reading the bank's notices offered on Inicio (57g).
+      { target: 'notices-invite', title: 'tour.home.invite.title', text: 'tour.home.invite.text', since: 22 },
       // 2026-10-14: the eye that hides every amount.
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
       { sel: 'app-movements .figures .quick button.ui-round', title: 'tour.home.actions.title', text: 'tour.home.actions.text', since: 18 },
@@ -296,11 +298,12 @@ const TOUR_LIST = {
   },
   notifications: {
     steps: [
-      { title: 'tour.notifications.1.title', text: 'tour.notifications.1.text' },
-      // 2026-10-29: the simple screen (45a-45e) - "Agregar un banco" and the status line.
-      { target: 'notices-add', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text', since: 4 },
-      // 2026-10-14: a source's page, "Ignorar publicidad", "Sí era un movimiento".
-      { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 5 },
+      // 2026-11-11: banks are found by themselves (57a-57g).
+      { title: 'tour.notifications.1.title', text: 'tour.notifications.1.text', since: 6 },
+      // 2026-10-29: the simple screen (45a-45e) - "Agregar un banco a mano" since 2026-11-11.
+      { target: 'notices-add', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text', since: 6 },
+      // 2026-10-14: a source's page; "No es mi banco" since 2026-11-11.
+      { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 6 },
       { title: 'tour.notifications.4.title', text: 'tour.notifications.4.text', since: 3 },
       { target: 'notices-status', title: 'tour.notifications.5.title', text: 'tour.notifications.5.text', since: 4 },
     ],

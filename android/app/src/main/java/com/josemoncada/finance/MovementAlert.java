@@ -61,6 +61,8 @@ final class MovementAlert {
     static final String ACTION_LATER = "com.josemoncada.finance.LATER_MOVEMENT";
     /** "No es movimiento": never proposed, and the app learns its shape (mockup 24a). */
     static final String ACTION_NOT_MOVEMENT = "com.josemoncada.finance.NOT_MOVEMENT";
+    /** "No es mi banco", on the notice of a bank the app found by itself. */
+    static final String ACTION_NOT_BANK = "com.josemoncada.finance.NOT_BANK";
     /** The app's own colour (Zafiro), for the notice's icon and name. */
     private static final int ACCENT = 0xFF6378FF;
 
@@ -91,7 +93,7 @@ final class MovementAlert {
     private static final Pattern AMOUNT = Pattern.compile(
             "(?:[$€£]\\s?|(?i:COP|USD|EUR)\\s?)?(\\d{1,3}(?:[.,]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)(?:\\s?(?i:COP|USD|EUR))?");
     private static final String[] OUT = {
-            "compra", "pago", "pagaste", "retiro", "retiraste", "enviaste", "envio", "enviado", "transferiste", "debito", "cargo",
+            "compra", "pago", "pagaste", "retiro", "retiraste", "enviaste", "envio", "enviado", "enviada", "transferiste", "debito", "cargo",
             "realizaste una transferencia", "desde tu cuenta",
             "purchase", "paid", "spent", "withdraw", "sent" };
     private static final String[] IN = {
@@ -135,6 +137,56 @@ final class MovementAlert {
     static boolean isAdvert(String folded) {
         if (happened(folded)) return false;
         return has(folded, ADVERT) || PRICE_BEFORE.matcher(folded).find() || OFFER.matcher(folded).find();
+    }
+
+    /** A currency beside the figure: "$", "COP", "USD", "EUR". */
+    private static final Pattern MARKED_MONEY = Pattern.compile(
+            "[$€£]\\s?\\d|\\d\\s?(?i:cop|usd|eur)\\b|(?i:cop|usd|eur)\\s?\\d");
+
+    /**
+     * Whether a message of an app nobody turned on says that money moved,
+     * enough to start reading that app by itself (Jose, 2026-11-11). Stricter
+     * than ringing for a bank already read: never an advert, a code or a
+     * balance; an amount that is not zero; and either words said only of
+     * money that moved ("compraste", "fue aprobada") or a word of money going
+     * in or out with a currency beside the figure.
+     */
+    static boolean readsAsMovement(String text) {
+        if (text == null || text.trim().isEmpty()) return false;
+        String folded = fold(text);
+        if (isAdvert(folded)) return false;
+        if (amountIn(text) == null) return false;
+        if (happened(folded)) return true;
+        int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
+        if (direction == 0 || has(folded, NOT_A_MOVEMENT) || has(folded, DECLINED)) return false;
+        return MARKED_MONEY.matcher(text).find();
+    }
+
+    /** The first figure of a message that is money: a sign, a code or grouped thousands, never 0. */
+    static String amountIn(String text) {
+        if (text == null) return null;
+        Matcher found = AMOUNT.matcher(text);
+        while (found.find()) {
+            String number = found.group(1);
+            // A bare short number (a code, an hour) is not money without a sign.
+            if (found.group(0).length() == number.length() && !number.matches(".*\\d[.,]\\d{3}.*")) continue;
+            // "$0" is no money that moved: an offer's "$0 mínimo" (Jose, 2026-10-29).
+            if (centsOf(number) == 0) continue;
+            return number;
+        }
+        return null;
+    }
+
+    /**
+     * Whether the app may start reading one more source by itself: the app
+     * hands over how many it may read in all (`findLimit`: -1 with Finance
+     * Pro, the free allowance otherwise, 0 while the sample data is loaded).
+     * Never asked yet: the free one.
+     */
+    static boolean mayFind(Context context) {
+        int limit = quiet(context).optInt("findLimit", 1);
+        if (limit < 0) return true;
+        return NotificationStore.watchedCount(context) + SmsInbox.watchedCount(context) < limit;
     }
 
     /** How far the word book's sum must lean; kept in step with LEAN in word-book.ts. */
@@ -267,6 +319,14 @@ final class MovementAlert {
      * money that moved, once per movement.
      */
     static void post(Context context, String source, String name, String text, long at) {
+        post(context, source, name, text, at, false);
+    }
+
+    /**
+     * `found`: the first message of a source the app started reading by
+     * itself just now - the notice says so once, with "No es mi banco".
+     */
+    static void post(Context context, String source, String name, String text, long at, boolean found) {
         if (text == null || text.isEmpty()) { note(context, source, at, "empty", null); return; }
         String folded = fold(text);
         int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
@@ -281,17 +341,7 @@ final class MovementAlert {
             return;
         }
         if (!NotificationStore.looksLikeMoney(text)) { note(context, source, at, "noMoney", null); return; }
-        Matcher found = AMOUNT.matcher(text);
-        String amount = null;
-        while (found.find()) {
-            String number = found.group(1);
-            // A bare short number (a code, an hour) is not money without a sign.
-            if (found.group(0).length() == number.length() && !number.matches(".*\\d[.,]\\d{3}.*")) continue;
-            // "$0" is no money that moved: an offer's "$0 mínimo" (Jose, 2026-10-29).
-            if (centsOf(number) == 0) continue;
-            amount = number;
-            break;
-        }
+        String amount = amountIn(text);
         if (amount == null) { note(context, source, at, "noAmount", null); return; }
         // The money in cents, however the bank wrote it: "10.000" and
         // "$10.000,00" are the same 10.000 (Jose, 2026-10-28: the two halves
@@ -344,6 +394,7 @@ final class MovementAlert {
             one.put("amount", amount);
             one.put("digits", digits);
             one.put("direction", direction);
+            if (found) one.put("found", true);
             pending.put(one);
             while (pending.length() > KEEP) pending.remove(0);
             prefs(context).edit().putString(PENDING, pending.toString()).putString(RANG, rang.toString()).apply();
@@ -484,6 +535,15 @@ final class MovementAlert {
             open.putExtra(EXTRA_OPEN, "review");
         }
         String hint = spanish ? "¿Lo guardamos? Revísalo antes, no se guarda solo." : "Save it? Check it first - nothing is saved by itself.";
+        // The first message of a bank found by itself says so, once, and
+        // offers the way out (mockup 57a).
+        boolean firstOfBank = count == 1 && last.optBoolean("found");
+        if (firstOfBank) {
+            String bank = last.optString("name");
+            hint = spanish
+                    ? "Es la primera vez que " + bank + " te avisa de dinero. Desde ahora Finance lee sus avisos de compras y pagos. Si no es tu banco, toca «No es mi banco»."
+                    : "This is the first time " + bank + " tells you about money. From now on Finance reads its purchase and payment messages. If it is not your bank, tap \"Not my bank\".";
+        }
 
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         PendingIntent tap = PendingIntent.getActivity(context, ID, open, flags);
@@ -493,6 +553,8 @@ final class MovementAlert {
         PendingIntent later = PendingIntent.getBroadcast(context, ID + 1, wait, flags);
         Intent notMovement = new Intent(context, MovementAlertReceiver.class).setAction(ACTION_NOT_MOVEMENT);
         PendingIntent notOne = PendingIntent.getBroadcast(context, ID + 2, notMovement, flags);
+        Intent notBank = new Intent(context, MovementAlertReceiver.class).setAction(ACTION_NOT_BANK);
+        PendingIntent notMine = PendingIntent.getBroadcast(context, ID + 3, notBank, flags);
 
         NotificationCompat.Builder built = new NotificationCompat.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_movement)
@@ -508,8 +570,9 @@ final class MovementAlert {
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .addAction(0, spanish ? "Revisar" : "Review", tap)
                 .addAction(0, spanish ? "Más tarde" : "Later", later)
-                .addAction(0, spanish ? (count == 1 ? "Ignorar" : "Descartar") : (count == 1 ? "Ignore" : "Dismiss"),
-                        count == 1 ? notOne : drop);
+                .addAction(0, firstOfBank ? (spanish ? "No es mi banco" : "Not my bank")
+                                : spanish ? (count == 1 ? "Ignorar" : "Descartar") : (count == 1 ? "Ignore" : "Dismiss"),
+                        firstOfBank ? notMine : count == 1 ? notOne : drop);
         Bitmap logo = logoOf(context);
         if (logo != null) built.setLargeIcon(logo);
         try {
@@ -694,6 +757,34 @@ final class MovementAlert {
         while (marked.length() > 200) marked.remove(0);
         prefs(context).edit().putString(NOT_MOVEMENT, marked.toString()).putString(PENDING, "[]").apply();
         NotificationManagerCompat.from(context).cancel(ID);
+    }
+
+    /**
+     * "No es mi banco": the source found by itself is put away for good -
+     * nothing of it is read again, nor found again - and its message is
+     * never proposed.
+     */
+    static void notBank(Context context) {
+        JSONArray pending = array(context, PENDING);
+        for (int i = 0; i < pending.length(); i += 1) {
+            JSONObject one = pending.optJSONObject(i);
+            if (one != null && one.optBoolean("found")) putAway(context, one.optString("source"));
+        }
+        dismissAll(context);
+    }
+
+    /** Hides one source, whatever kind it is: an app, a sender inside one, an SMS sender. */
+    static void putAway(Context context, String source) {
+        if (source == null || source.isEmpty()) return;
+        int bar = source.indexOf('|');
+        if (bar < 0) {
+            NotificationStore.hide(context, source, true);
+            return;
+        }
+        String pkg = source.substring(0, bar);
+        String sender = source.substring(bar + 1);
+        if (SmsInbox.PACKAGE.equals(pkg)) SmsInbox.hide(context, sender, true);
+        else NotificationStore.hideSender(context, pkg, sender, true);
     }
 
     /** The messages marked "No es movimiento", handed to the app once. */

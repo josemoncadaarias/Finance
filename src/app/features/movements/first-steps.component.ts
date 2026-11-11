@@ -10,6 +10,8 @@
 
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -168,6 +170,12 @@ export class FirstStepsComponent {
       if (this.database.status() !== 'ready' || this.prefs.hidden()) return;
       void untracked(() => this.load());
     });
+    // Back from Android's screen that allows reading notifications: ticked.
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive && this.database.status() === 'ready' && !this.prefs.hidden()) void this.load();
+      });
+    }
   }
 
   /** A step's own word: `steps.<id>.<part>`. */
@@ -202,15 +210,15 @@ export class FirstStepsComponent {
     }
   }
 
-  /** A bank's app or SMS sender being read; null where the phone cannot. */
+  /**
+   * The app may read notifications; null where the phone cannot. Since
+   * 2026-11-11 that is the whole step: the banks are found by themselves.
+   */
   private async noticesOn(): Promise<boolean | null> {
     try {
       const { supported } = await BankNotifications.isSupported();
       if (!supported) return null;
-      const { apps } = await BankNotifications.apps();
-      if (apps.some(app => app.watched)) return true;
-      const { senders } = await BankNotifications.senders();
-      return senders.some(sender => sender.watched);
+      return (await BankNotifications.isEnabled()).enabled;
     } catch {
       return null;
     }
@@ -219,6 +227,8 @@ export class FirstStepsComponent {
   async go(id: StepId): Promise<void> {
     this.opened.set(null);
     if (id === 'expense') return this.compose.open('expense');
+    // Android's own screen to allow it: no bank has to be chosen (57g).
+    if (id === 'notices') return BankNotifications.openSettings();
     const where: Record<StepId, string> = {
       account: '/accounts?new=account', expense: '', cap: '/plans?new=limit',
       drive: '/account', notices: '/notifications',
