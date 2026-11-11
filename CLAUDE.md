@@ -443,6 +443,20 @@ could not prove.
   Tests in `read-notice.test.mjs` (invented shop); the Java checked with
   the JDK on the same texts. Only messages read after the update change;
   the one waiting is switched to Gasto by hand.
+- **A fixed payment saved another way still counts as paid** (Jose,
+  2026-11-11, two screenshots: "Mercado OR", usually paid from Ualá, saved
+  from another account with the note "Mercado OR mas impuesto 4x1000", still
+  showed in "Pagos fijos que aún no aparecen este mes"). A fixed payment was
+  seen this month only under its exact folded key, and the longer note made
+  another key ("MERCADO OR MAS IMPUESTO"). Now `paidThisMonth` in
+  `core/assistant/recurring.ts` gives each of this month's spendings to one
+  fixed payment in three passes: the same key; one name holding every word
+  of the other; the same category for about the usual amount (within
+  `STEADY`) - the closest amounts first, so two subscriptions of one
+  category each take their own. The account does not matter. The "+"'s
+  "Pagos de este mes" and the assistant read the same rule. Test in
+  `recurring.test.mjs` (invented shops); not checked on the phone. To name as
+  feedback a tester writes in the Play Store.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -481,7 +495,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1223 on 2026-11-11, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1224 on 2026-11-11, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
