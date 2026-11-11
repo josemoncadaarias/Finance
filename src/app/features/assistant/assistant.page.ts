@@ -1467,7 +1467,8 @@ export class AssistantPage {
       const account = this.accounts.find(a => a.id === p.id) ?? null;
       return { name: p.name, kind: p.kind, id: p.id, amountMinor: p.amountMinor, dueOn: p.dueOn,
         from: p.fromAccountId !== null ? this.accounts.find(a => a.id === p.fromAccountId) ?? null : null,
-        icon: account?.builtin_icon ?? null, color: account?.color ?? null };
+        icon: account?.builtin_icon ?? null, color: account?.color ?? null,
+        customId: account?.custom_icon_id ?? null, seed: account?.id ?? null };
     });
     return { list, monthEnd: picture.free.monthEnd };
   }

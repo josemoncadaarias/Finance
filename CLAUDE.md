@@ -233,7 +233,9 @@ A carried note follows its category, a receipt's total read past misread
 words and logos, and every notice can be swiped away (2026-11-10, #312;
 to go in the next closed-testing release with the tester's comment).
 A bank message's shape opens as a transfer only for the shop it was saved
-for, and leaving a transfer leaves its note (2026-11-11, "How to work").
+for, and leaving a transfer leaves its note (2026-11-11, "How to work"). The assistant's rows and "Pagos de
+este mes" wear each category's and account's own icon or picture
+(2026-11-11).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -343,6 +345,17 @@ could not prove.
     as the "Guardado" banner: a bar runs out, stops while the finger is on
     it (`pause`/`resume`), and a swipe up, down or aside, or a tap, closes it.
     Checked in a browser.
+- **Every category and account in the assistant's answers wears its own
+  icon or picture** (Jose, 2026-11-11, a screenshot of "Pagos fijos que aún
+  no aparecen este mes": every row showed the generic repeat icon). An
+  answer's `row` now carries `customId` and `seed` (`RichBlock.row` in
+  `answers.ts`), filled from the category's face (fixed payments,
+  every-month spending, "¿por qué gasté más?") and from the account (debts,
+  "¿qué deuda pago primero?", payments due, whether an account reaches,
+  interest); "Pagos de este mes" in the "+" wears the category's face too
+  (`faceOf` in `compose-host.component.ts`). Swept every `app-badge` of the
+  app: the rest already pass the picture (goals and screens have built-in
+  icons only). Built; not checked in a browser nor on the phone.
 - **A message's shape remembers a transfer for its shop only, and leaving
   a transfer leaves its note** (Jose, 2026-11-11, from the phone; to name as
   feedback a tester writes in the Play Store). A bank's "Tu compra con PSE en

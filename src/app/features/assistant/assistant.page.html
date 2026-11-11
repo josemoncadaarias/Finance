@@ -403,7 +403,11 @@
       [attr.role]="b.open || b.fixed ? 'button' : null" [attr.tabindex]="b.open || b.fixed ? 0 : null" (keydown.enter)="tapRow(b)"
       [attr.aria-label]="b.fixed ? ('ai.fixedLeft.label' | t:{ name: b.fixed.name }) : b.open ? ('ai.open.label' | t:{ name: b.open.category }) : null">
       <div class="head">
-        <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [fixed]="r.color"></app-badge>
+        @if (r.customId != null || r.seed != null) {
+          <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [customId]="r.customId ?? null" [tone]="r.color" [seed]="r.seed ?? null"></app-badge>
+        } @else {
+          <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [fixed]="r.color"></app-badge>
+        }
         <b class="name">{{ r.title }}</b>
         @if (r.value) { <b class="value">{{ r.value }}</b> }
         @if (b.open || b.fixed) { <ion-icon name="chevron-forward" class="chev"></ion-icon> }
