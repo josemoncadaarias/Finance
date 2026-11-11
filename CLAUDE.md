@@ -235,7 +235,8 @@ to go in the next closed-testing release with the tester's comment).
 A bank message's shape opens as a transfer only for the shop it was saved
 for, and leaving a transfer leaves its note (2026-11-11, "How to work"). The assistant's rows and "Pagos de
 este mes" wear each category's and account's own icon or picture
-(2026-11-11).
+(2026-11-11, #314; to go in the next closed-testing release with the
+tester's comment).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
