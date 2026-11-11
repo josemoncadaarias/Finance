@@ -356,7 +356,7 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
   const inAt = firstOf(folded, IN);
   // The word said first decides: "Recibiste un pago" is money in.
   const said = !outAt ? inAt : !inAt ? outAt : (inAt.start < outAt.start ? inAt : outAt);
-  const direction: 'out' | 'in' | null = !said ? null : said === inAt ? 'in' : 'out';
+  let direction: 'out' | 'in' | null = !said ? null : said === inAt ? 'in' : 'out';
 
   if (moved.length === 0) {
     // Only a balance: nothing moved.
@@ -365,6 +365,7 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
 
   // The movement is the first amount that is not a balance.
   const amount = moved[0];
+  direction = settledDirection(whole, folded, amount, money, said, direction);
   if (direction === null && hasAny(folded, NOT_A_MOVEMENT)) return empty;
 
   // Where: after the amount ("$45.900 en EXITO"), or after the word that said
@@ -389,6 +390,48 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
     digits,
     date,
   };
+}
+
+/**
+ * A reward a purchase earned, said beside the purchase: "$91.514. Cashback
+ * +$911,50" (Jose, 2026-11-11: a supermarket purchase rang as income, read
+ * from "Cashback"). Such a word, said after the movement's amount and
+ * before an amount of its own, speaks of that other amount.
+ */
+const REWARD = ['cashback', 'cash back', 'reembolsamos'];
+
+/**
+ * The direction the words gave, mended by two things the bank itself
+ * printed: a sign stuck to the amount ("-$91.514" is money out, "+$500"
+ * in - a sign printed is no guess), and a reward said after the amount
+ * with its own figure, which is earned on spending, so the amount before
+ * it was spent. Neither says anything otherwise, and the words stand.
+ */
+function settledDirection(
+  whole: string,
+  folded: string,
+  amount: Found,
+  money: readonly Found[],
+  said: { start: number; end: number } | null,
+  direction: 'out' | 'in' | null,
+): 'out' | 'in' | null {
+  const sign = signStuckTo(whole, amount.start);
+  if (sign) return sign;
+  if (said && said.start >= amount.end && REWARD.some(word => folded.startsWith(word, said.start))
+    && money.some(other => other.start > said.start)) {
+    // `said` is the first direction word of all: nothing before it said otherwise.
+    return 'out';
+  }
+  return direction;
+}
+
+/** A minus or plus printed right against an amount, never after a digit (a range, a date). */
+function signStuckTo(whole: string, start: number): 'out' | 'in' | null {
+  const ch = whole[start - 1];
+  if (!ch || /\d/.test(whole[start - 2] ?? '')) return null;
+  if (ch === '-' || ch === '\u2212' || ch === '\u2013') return 'out';
+  if (ch === '+') return 'in';
+  return null;
 }
 
 /** Whether a message looks like a bank's: money moved, or a balance. */

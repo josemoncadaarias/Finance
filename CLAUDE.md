@@ -427,6 +427,22 @@ could not prove.
   `entry.component.ts`), unless the person typed it. Test in
   `notice-molds.test.mjs` (invented shops); not checked in a browser nor on
   the phone. Only messages read after the update change.
+- **A purchase with its cashback beside it is a spending** (Jose,
+  2026-11-11, his partner's phone; to name as feedback a tester writes in
+  the Play Store). A card app's notice - the shop as its title, "$91.514.
+  Cashback +$911,50" as its text - rang and opened as an income: the only
+  direction word was "cashback". The " - " seen in Revisar movimiento is
+  the app joining title and text (`evidenceOf`), not a minus. Now, after
+  the words decide, two things the bank printed mend the direction
+  (`settledDirection` in `read-notice.ts`, `directionOf` in
+  `MovementAlert.java`, kept in step): a sign stuck to the amount ("-$X",
+  "\u2212$X" out, "+$X" in; never after a digit, never with a space
+  between, which is a separator), and a cashback said after the amount
+  with a figure of its own (earned on spending, so the amount was spent).
+  A cashback said first ("Cashback +$X por tu compra") stays money in.
+  Tests in `read-notice.test.mjs` (invented shop); the Java checked with
+  the JDK on the same texts. Only messages read after the update change;
+  the one waiting is switched to Gasto by hand.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -465,7 +481,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1221 on 2026-11-11, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1223 on 2026-11-11, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
