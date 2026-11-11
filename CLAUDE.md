@@ -239,8 +239,9 @@ este mes" wear each category's and account's own icon or picture
 tester's comment).
 Banks are found by themselves: an app that says money moved starts being
 read, with "No es mi banco" to undo it, and Inicio invites to allow the
-notices (2026-11-11, mockups `57*`, "How to work"; answers Jose's partner,
-who never found "Agregar un banco" - to name as tester feedback).
+notices (2026-11-11, #316, mockups `57*`, "How to work"; every bank free
+since then; answers Jose's partner, who never found "Agregar un banco" - to
+name as tester feedback; goes in the next closed-testing release).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -361,7 +362,7 @@ could not prove.
   (`faceOf` in `compose-host.component.ts`). Swept every `app-badge` of the
   app: the rest already pass the picture (goals and screens have built-in
   icons only). Built; not checked in a browser nor on the phone.
-- **Banks are found by themselves** (Jose, 2026-11-11, mockups `57a`,
+- **Banks are found by themselves** (#316; Jose, 2026-11-11, mockups `57a`,
   `57c`-`57e`, `57g`; "hazlo como sugieras que sea mejor y más simple"). His
   partner's bank app posted purchases and nothing rang: an app was read only
   after Notificaciones del teléfono → Agregar un banco → Activar, which nobody
