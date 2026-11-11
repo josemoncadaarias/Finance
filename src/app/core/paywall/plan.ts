@@ -40,7 +40,10 @@ export const PLAN: Record<Feature, Allowance> = {
   currencies: { free: 0, per: 'ever' },
   statements: { free: 1, per: 'ever' },
   products: { free: 1, per: 'ever' },
-  noticeSources: { free: 1, per: 'ever' },
+  // Jose, 2026-11-11: every bank free - the app finds them by itself, and
+  // a second bank left unread would look broken. What is paid is the
+  // movements saved from messages past 15 a month.
+  noticeSources: { free: Infinity, per: 'ever' },
   noticeMovements: { free: 15, per: 'month' },
   loans: { free: 1, per: 'ever' },
   limits: { free: 1, per: 'ever' },

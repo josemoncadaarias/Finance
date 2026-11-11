@@ -62,7 +62,12 @@ export interface Source {
   accounts: number[];
   /** Said by the person: this SMS sender writes for several of their accounts. */
   several: boolean;
+  /** When the app started reading it by itself (57d); 0 when turned on by hand. */
+  foundAt: number;
 }
+
+/** Where the moment of the last bank found that the person already saw is kept. */
+const FOUND_SEEN = 'finance.notices.foundSeen';
 
 type SectionKey = 'banks' | 'unknown' | 'recent' | 'found' | 'hidden';
 
@@ -306,6 +311,7 @@ export class NotificationsPage {
         line: this.i18n.t('ui.notifications.appLine', { count: app.count, package: app.package }),
         watched: app.watched, hidden: app.hidden, bySender: !!app.messaging && !app.watched,
         app, sender: null, accounts: this.accountsOf(app.package), several: false,
+        foundAt: app.foundAt ?? 0,
       });
     }
     for (const one of this.senders()) {
@@ -315,6 +321,7 @@ export class NotificationsPage {
         watched: one.watched, hidden: one.hidden, bySender: false,
         app: null, sender: one, accounts: this.accountsOf(key),
         several: this.assigned().get(key) === SEVERAL_ACCOUNTS,
+        foundAt: one.foundAt ?? 0,
       });
     }
     const term = this.term();
@@ -433,6 +440,38 @@ export class NotificationsPage {
     else if (fix === 'battery') await this.openAppSettings();
   }
 
+  // --- banks found by themselves (mockups 57d, 57e; Jose 2026-11-11) -------
+
+  /** The newest "found" moment the person already acknowledged with "Entendido". */
+  readonly foundSeen = signal(readFoundSeen());
+
+  /** Banks the app started reading by itself and the person has not seen yet. */
+  readonly newlyFound = computed(() => this.sources()
+    .filter(one => one.watched && !one.hidden && one.foundAt > this.foundSeen()));
+
+  isNew(one: Source): boolean {
+    return one.foundAt > this.foundSeen();
+  }
+
+  /** "Entendido": the card goes, the "Nuevo" tags with it. */
+  foundUnderstood(): void {
+    const newest = Math.max(this.foundSeen(), ...this.newlyFound().map(one => one.foundAt));
+    this.foundSeen.set(newest);
+    try { localStorage.setItem(FOUND_SEEN, String(newest)); } catch { /* the card comes back next time */ }
+  }
+
+  /** "Finance lee este banco desde hoy a las 9:41 a. m., cuando te avisó de...". */
+  foundLine(one: Source): string {
+    const at = new Date(one.foundAt);
+    const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    const hour = this.hour(one.foundAt);
+    const when = at.toDateString() === today.toDateString() ? this.i18n.t('ui.found.today', { hour })
+      : at.toDateString() === yesterday.toDateString() ? this.i18n.t('ui.found.yesterday', { hour })
+      : this.i18n.t('ui.found.on', { day: this.short(one.foundAt) });
+    return this.i18n.t('ui.found.since', { when });
+  }
+
   /** "Tus bancos": each bank read, and each source read whose account is still to say. */
   readonly myBanks = computed(() => {
     const kinds = (list: Source[]) => {
@@ -442,10 +481,12 @@ export class NotificationsPage {
     const banks = this.banks().map(bank => ({
       key: bank.key, ids: bank.ids, title: bank.title, sources: bank.sources,
       several: bank.key.startsWith('several:'), needsAccount: false, line: kinds(bank.sources),
+      fresh: bank.sources.some(one => this.isNew(one)),
     }));
     const unknown = this.of('unknown').map(one => ({
       key: `unknown:${one.key}`, ids: [] as number[], title: one.name, sources: [one],
       several: false, needsAccount: true, line: this.i18n.t('ui.notifications.whichAccount'),
+      fresh: this.isNew(one),
     }));
     return [...unknown, ...banks];
   });
@@ -497,10 +538,14 @@ export class NotificationsPage {
     await this.watchSource(one, true);
   }
 
-  /** "Dejar de leer este banco", on its page. */
+  /**
+   * "Dejar de leer este banco" or "No es mi banco", on its page: the source
+   * is put away, so it is neither read nor found again by itself (it comes
+   * back from the hidden ones in "Ajustes de los avisos").
+   */
   async stopReading(one: Source): Promise<void> {
     this.openSource.set(null);
-    await this.watchSource(one, false);
+    await this.hideSources([one]);
   }
 
   // --- folding: everything starts closed (Jose, 2026-10-05) -----------------
@@ -555,7 +600,7 @@ export class NotificationsPage {
   /** Starts or stops reading one source. */
   async watchSource(one: Source, on: boolean): Promise<void> {
     if (one.watched === on) return;
-    // One bank is free (rule 21); turning a source off is always allowed.
+    // Every bank is free since 2026-11-11; the check stays so a limit is one line away.
     if (on && !(await this.pro.allow('noticeSources', this.watchedCount()))) return;
     if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
     else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
@@ -1023,4 +1068,8 @@ export class NotificationsPage {
     this.asking.set(null);
     this.hiding.set([]);
   }
+}
+
+function readFoundSeen(): number {
+  try { return Number(localStorage.getItem(FOUND_SEEN) ?? 0) || 0; } catch { return 0; }
 }

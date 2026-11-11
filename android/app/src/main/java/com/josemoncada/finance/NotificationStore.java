@@ -137,6 +137,40 @@ final class NotificationStore {
         prefs(context).edit().putString(WATCHED, toggled(context, WATCHED, pkg, on)).apply();
     }
 
+    private static final String FOUND = "found";
+
+    /**
+     * A source the app started reading by itself, because a message of it
+     * said money moved (Jose, 2026-11-11: his partner's bank posted purchases
+     * and nothing rang until she found "Agregar un banco"). Kept per source
+     * (`package`, `package|sender` or `sms|sender`): when, and the app's name.
+     * No word of the message.
+     */
+    static void noteFound(Context context, String source, String label, long at) {
+        JSONObject found = object(context, FOUND);
+        try {
+            if (found.has(source)) return;
+            JSONObject one = new JSONObject();
+            one.put("at", at);
+            one.put("label", label);
+            found.put(source, one);
+            prefs(context).edit().putString(FOUND, found.toString()).commit();
+        } catch (JSONException broken) {
+            // Finding a bank is not worth crashing a phone for.
+        }
+    }
+
+    /** When the app started reading this source by itself; 0 when the person turned it on. */
+    static long foundAt(Context context, String source) {
+        JSONObject one = object(context, FOUND).optJSONObject(source);
+        return one == null ? 0 : one.optLong("at", 0);
+    }
+
+    /** How many sources are read today: apps and senders ticked, by hand or found. */
+    static int watchedCount(Context context) {
+        return array(context, WATCHED).length() + array(context, WATCHED_SENDERS).length();
+    }
+
     private static final String HEARD_AT = "heardAt";
     private static final String CONNECTED_AT = "connectedAt";
     private static final String DISCONNECTED_AT = "disconnectedAt";
@@ -370,6 +404,8 @@ final class NotificationStore {
                 if (isHidden(context, pkg) && !isSmsApp(context, pkg)) continue;
                 copy.put("watched", isSenderWatched(context, pkg, sender));
                 copy.put("hidden", isSenderHidden(context, pkg, sender));
+                long found = foundAt(context, pkg + "|" + sender);
+                if (found > 0) copy.put("foundAt", found);
                 list.put(copy);
             } catch (JSONException broken) {
                 // Skip the one that will not copy rather than lose the rest.
@@ -438,6 +474,8 @@ final class NotificationStore {
                 one.put("package", pkg);
                 one.put("watched", isWatched(context, pkg));
                 one.put("hidden", isHidden(context, pkg));
+                long found = foundAt(context, pkg);
+                if (found > 0) one.put("foundAt", found);
                 list.put(one);
             } catch (JSONException broken) {
                 // Skip the one that will not copy rather than lose the rest.

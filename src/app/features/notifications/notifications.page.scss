@@ -218,3 +218,12 @@
   .tech { font-size: 12px; }
 }
 .source-page .stop { width: 100%; margin-top: 10px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; ion-icon { font-size: 18px; } }
+
+/* Banks found by themselves (mockups 57d, 57e). */
+.found-card { padding: 14px; margin-bottom: 10px; border-color: rgba(var(--app-pr-rgb), 0.5); background: rgba(var(--app-pr-rgb), 0.1);
+  .srow { display: flex; gap: 12px; align-items: flex-start; }
+  .ui-btn { width: 100%; margin-top: 12px; } }
+.new-tag { flex: none; margin-left: 6px; background: rgba(var(--app-pr-rgb), 0.18); color: var(--ion-color-primary); }
+.source-page .found-since { display: flex; gap: 6px; align-items: flex-start; margin: 4px 6px 10px; font-size: 13px; line-height: 1.4; color: var(--app-mu);
+  ion-icon { flex: none; font-size: 16px; margin-top: 1px; color: var(--ion-color-primary); } }
+.source-page .stop-line { margin: 6px 6px 0; text-align: center; }

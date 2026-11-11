@@ -441,15 +441,22 @@
 <!-- Where the money leaves from or arrives at: the one account list, drawn
      the one way (1k), with the products of the account chosen as a second
      step (1l). -->
-<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null); askingBank.set(null)" (didPresent)="askingBank() && fromTheTop($event)">
   <ng-template>
     <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="closeAccountSheet()">{{ 'entry.cancel' | t }}</button>
-        <h2>{{ (picking() === 'to' || (!isTransfer() && kind() === 'income') ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
+        @if (askingBank() && picking() === 'from') {
+          <h2 class="wrap">{{ 'ui.found.whichAccount' | t:{ bank: askingBank()! } }}</h2>
+        } @else {
+          <h2>{{ (picking() === 'to' || (!isTransfer() && kind() === 'income') ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
+        }
         <span class="right"></span>
       </div>
+      @if (askingBank() && picking() === 'from') {
+        <p class="ui-sheet-lead">{{ 'ui.found.whichAccount.line' | t }}</p>
+      }
       @if (newBankFor() && accounts().length === 0) {
         <div class="ui-empty-new">
           <app-badge shape="ci" [size]="56" builtin="wallet" fixed="#6378ff"></app-badge>

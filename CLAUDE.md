@@ -237,6 +237,10 @@ for, and leaving a transfer leaves its note (2026-11-11, "How to work"). The ass
 este mes" wear each category's and account's own icon or picture
 (2026-11-11, #314; to go in the next closed-testing release with the
 tester's comment).
+Banks are found by themselves: an app that says money moved starts being
+read, with "No es mi banco" to undo it, and Inicio invites to allow the
+notices (2026-11-11, mockups `57*`, "How to work"; answers Jose's partner,
+who never found "Agregar un banco" - to name as tester feedback).
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -357,6 +361,53 @@ could not prove.
   (`faceOf` in `compose-host.component.ts`). Swept every `app-badge` of the
   app: the rest already pass the picture (goals and screens have built-in
   icons only). Built; not checked in a browser nor on the phone.
+- **Banks are found by themselves** (Jose, 2026-11-11, mockups `57a`,
+  `57c`-`57e`, `57g`; "hazlo como sugieras que sea mejor y más simple"). His
+  partner's bank app posted purchases and nothing rang: an app was read only
+  after Notificaciones del teléfono → Agregar un banco → Activar, which nobody
+  finds (verified in `NotificationCatcher.read`: an app not ticked was only
+  noted as posting). Now the listener weighs every message of an app not read
+  and not hidden with `MovementAlert.readsAsMovement` (never an advert, a code
+  or a balance; an amount that is not 0; words said only of money that moved -
+  "compraste", "fue aprobada" - or a word of money going in or out with a
+  currency beside the figure); one that passes turns the app on
+  (`NotificationStore.watch`), records it (`noteFound`: source, when, the
+  app's name, no words; `foundAt` on `apps()`/`senders()`), keeps the message
+  and rings with the hint "Es la primera vez que {app} te avisa de dinero.
+  Desde ahora Finance lee sus avisos" and a third action **"No es mi banco"**
+  (`ACTION_NOT_BANK` → `notBank`: the source is hidden for good and its
+  message never proposed). The catch-up of the status bar finds the same way,
+  so a bank's notice already there when the access is given is found too. In
+  the phone's SMS app, a short code (3-8 digits, never a contact's name) is
+  found the same way only while the SMS inbox cannot be read. **SMS read with
+  `READ_SMS` are NOT found by themselves**: the Permissions Declaration Form
+  saved in Play Console says only senders the user selects are read
+  (`store/sms-permission-declaration.md`), and changing that mid-review was
+  not worth the risk - to revisit with Jose. **Every bank is free** (Jose,
+  the same day, "dale ilimitado"; `PLAN.noticeSources.free` is Infinity): a
+  second bank left unread would look broken, and the 15 movements a month
+  saved from messages are what Finance Pro opens. The app still hands the
+  phone `findLimit` with what it teaches (`quietForPhone`; -1 while nothing
+  limits it, 0 with the sample data) and `MovementAlert.mayFind` counts the
+  sources read, so a limit is one line away.
+  The screen: "Encontramos N bancos nuevos" on top until "Entendido"
+  (`newlyFound`, `finance.notices.foundSeen`), "Nuevo" on each, the bank's
+  page saying since when it is read and **"Dejar de leer" now hides the
+  source** (a source only stopped would be found again at its next message),
+  "Agregar un banco a mano" for the rest. Revisar movimiento on a message with
+  no account opens the account list by itself with "¿A qué cuenta llegan los
+  avisos de {bank}?" (`askingBank` in `entry.component.ts`); saving teaches the
+  source as before. Inicio: `app-notices-invite` (57g) when the phone can read
+  notifications, the access is not given, there is an account, no sample data
+  and no "Primeros pasos" on show; "Ahora no" puts it away
+  (`finance.noticesInvite.away`). "Primeros pasos"' notices step is now the
+  access itself and opens Android's screen. Words: notifications tour 1-3
+  `since: 6`, home `since: 22`; the privacy policy says it (`site/`, live once
+  Netlify deploys). Checked: the rule on 16 invented messages with the JDK
+  (adverts, codes, balances, refusals, chats out; purchases, transfers in);
+  the screens in a browser on the sample data with the phone's answers faked;
+  the Java compiled with `javac` (only Android's classes missing). Not seen on
+  the phone: the notice, "No es mi banco", the catch-up.
 - **A message's shape remembers a transfer for its shop only, and leaving
   a transfer leaves its note** (Jose, 2026-11-11, from the phone; to name as
   feedback a tester writes in the Play Store). A bank's "Tu compra con PSE en
@@ -2363,7 +2414,8 @@ Pro's App Store products in RevenueCat.
    - Free: accounts in pesos, movements, transfers, Inicio and its chart,
      the starter categories (rename, hide), credit cards with their statement
      and reminder, ONE loan, ONE cap, ONE goal, ONE product, the first
-     statement, ONE bank source (app or SMS) with **15 movements a month**
+     statement, EVERY bank source (app or SMS; ONE until 2026-11-11, when
+     Jose made them all free) with **15 movements a month**
      saved from messages, backups (local, Drive), CSV, every preference
      (language, theme, **every accent colour**, the view, the bar, hiding
      amounts, guides, sample data, erasing), Monedas y TRM to look at, and
@@ -7693,4 +7745,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06), `57*` (banks found by themselves, built 2026-11-11)

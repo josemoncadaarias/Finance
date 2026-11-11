@@ -2758,3 +2758,7 @@ app-amounts-eye.corner { position: absolute; top: 12px; right: 12px; }
   small { color: var(--app-mu); font-size: 13.5px; }
   .ui-btn { margin-top: 14px; width: 100%; display: flex; gap: 6px; justify-content: center; align-items: center; }
 }
+
+/* One line under a sheet's title that says why it asks (mockup 57c). */
+.ui-sheet-lead { margin: -4px 4px 10px; font-size: 13px; line-height: 1.4; color: var(--app-mu); text-align: center; }
+.sheet-head h2.wrap { white-space: normal; line-height: 1.3; }

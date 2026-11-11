@@ -143,6 +143,11 @@ final class SmsInbox {
         return out;
     }
 
+    /** How many senders are read: counted against the free allowance before a bank is found by itself. */
+    static int watchedCount(Context context) {
+        return watched(context).length();
+    }
+
     /** Whether the person ticked this sender. */
     static boolean isWatched(Context context, String sender) {
         return watched(context).has(sender);

@@ -42,6 +42,11 @@ export interface SeenApp {
   blank?: number;
   plain?: number;
   money?: number;
+  /**
+   * When the app started reading it by itself, because one of its messages
+   * said money moved (Jose, 2026-11-11); absent when the person turned it on.
+   */
+  foundAt?: number;
 }
 
 /**
@@ -61,6 +66,8 @@ export interface SeenSender {
   last: number;
   watched: boolean;
   hidden: boolean;
+  /** When the app started reading it by itself (see `SeenApp.foundAt`). */
+  foundAt?: number;
 }
 
 /** What the listener is handed, never a word of it (the diagnosis, 2026-10-05). */
