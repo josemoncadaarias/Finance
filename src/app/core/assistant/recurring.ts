@@ -119,16 +119,19 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
   });
   const fixed: FixedPayment[] = [];
   const fixedKeys = new Set<string>();
+  const fixedKeyOf = new Map<FixedPayment, string>();
   for (const [key, x] of shops) {
     if (x.amounts.length < needed) continue;
     const average = Math.round(x.amounts.reduce((sum, v) => sum + v, 0) / x.amounts.length);
     if (average <= 0 || x.amounts.some(v => Math.abs(v - average) > average * STEADY)) continue;
     fixedKeys.add(key);
     fixed.push({ name: x.last.name, category: x.last.category, monthsSeen: x.amounts.length, averageMinor: average,
-      thisMonthMinor: current.shops.get(key)?.minor ?? 0,
+      thisMonthMinor: 0,
       accountId: x.last.accountId ?? null, categoryId: x.last.categoryId ?? null, day: x.last.day ?? null });
+    fixedKeyOf.set(fixed[fixed.length - 1], key);
   }
   fixed.sort((a, b) => b.averageMinor - a.averageMinor);
+  const paidNow = paidThisMonth(fixed, fixedKeyOf, current);
 
   // A category's month, the fixed payments in it taken out.
   const rest = (month: MonthSpend): Map<string, number> => {
@@ -140,7 +143,12 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
     return out;
   };
   const rests = list.map(rest);
-  const now = rest(current);
+  // This month, the payments matched to a fixed one are taken out the same way.
+  const now = new Map(current.categories);
+  for (const key of paidNow) {
+    const at = current.shops.get(key);
+    if (at) now.set(at.category, (now.get(at.category) ?? 0) - at.minor);
+  }
   const categories = new Set(rests.flatMap(m => [...m.keys()]));
   const everyMonth: EveryMonthSpend[] = [];
   const frequent: EveryMonthSpend[] = [];
@@ -168,6 +176,54 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
     everyMonthMinor: everyMonth.reduce((sum, e) => sum + e.averageMinor, 0),
     spendMinor: Math.round(all / looked),
   };
+}
+
+/**
+ * Which of this month's spendings is each fixed payment (Jose, 2026-11-11:
+ * "Mercado OR", saved from another account with the note "Mercado OR mas
+ * impuesto 4x1000", still showed as not paid - its words made another key).
+ * One spending settles one fixed payment, in three passes, each only with
+ * what the passes before left:
+ * 1. the same shop or note, folded (`merchantKeyOf`);
+ * 2. one name holding every word of the other ("MERCADO OR" in "MERCADO OR
+ *    MAS IMPUESTO"), the closest amount first;
+ * 3. the same category for about the usual amount (within `STEADY`), the
+ *    closest first - a note written another way altogether.
+ * Sets each payment's `thisMonthMinor` and hands back the keys used.
+ */
+function paidThisMonth(fixed: FixedPayment[], keyOf: ReadonlyMap<FixedPayment, string>, current: MonthSpend): Set<string> {
+  const used = new Set<string>();
+  const open = new Set(fixed);
+  const settle = (f: FixedPayment, key: string, minor: number) => {
+    f.thisMonthMinor = minor; used.add(key); open.delete(f);
+  };
+  for (const f of fixed) {
+    const key = keyOf.get(f) ?? '';
+    const at = current.shops.get(key);
+    if (at && at.minor > 0) settle(f, key, at.minor);
+  }
+  const wordsOf = (key: string) => key.split(' ').filter(w => w.length > 0);
+  const within = (a: string[], b: string[]) => a.length > 0 && a.some(w => w.length >= 3) && a.every(w => b.includes(w));
+  const pass = (fits: (f: FixedPayment, key: string, at: ShopMonth) => boolean) => {
+    // Every pair that fits, the closest amounts first, so two payments of
+    // one category each take their own spending.
+    const pairs: { f: FixedPayment; key: string; minor: number; gap: number }[] = [];
+    for (const f of fixed) {
+      if (!open.has(f)) continue;
+      for (const [key, at] of current.shops) {
+        if (used.has(key) || at.minor <= 0 || !fits(f, key, at)) continue;
+        pairs.push({ f, key, minor: at.minor, gap: Math.abs(at.minor - f.averageMinor) });
+      }
+    }
+    pairs.sort((a, b) => a.gap - b.gap);
+    for (const p of pairs) if (open.has(p.f) && !used.has(p.key)) settle(p.f, p.key, p.minor);
+  };
+  pass((f, key) => {
+    const mine = wordsOf(keyOf.get(f) ?? ''), theirs = wordsOf(key);
+    return within(mine, theirs) || within(theirs, mine);
+  });
+  pass((f, _key, at) => at.category === f.category && Math.abs(at.minor - f.averageMinor) <= f.averageMinor * STEADY);
+  return used;
 }
 
 /**

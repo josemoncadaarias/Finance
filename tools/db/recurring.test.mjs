@@ -91,3 +91,20 @@ test('a fixed payment remembers where and when it was paid last, for "Pagos de e
   const gym = r.fixed.find(f => f.name === 'Gimnasio');
   assert.deepEqual([gym.accountId, gym.categoryId, gym.day, gym.thisMonthMinor], [2, 7, 5, 0]);
 });
+
+test('a fixed payment saved with a longer note, another account or other words still counts as paid', () => {
+  // Newest first: a grocery shop and two subscriptions of one category.
+  const regular = () => month([['TIENDA SOL', 'Tienda Sol', 'Mercado Sol', 1_000_000],
+    ['PLAN MUSICA', 'Plan música', 'Suscripciones', 24_000], ['PLAN VIDEO', 'Plan video', 'Suscripciones', 25_000]]);
+  const past = [1, 2, 3, 4, 5, 6].map(regular);
+  // This month: the shop with more words in its note, and the music plan
+  // under another name. The video plan was not paid.
+  const now = month([['TIENDA SOL MAS IMPUESTO', 'Tienda Sol más impuesto 4x1000', 'Mercado Sol', 1_100_000],
+    ['PAGO MENSUAL APP', 'Pago mensual app', 'Suscripciones', 24_000]]);
+  const r = recurringOf(past, now);
+  const by = name => r.fixed.find(f => f.name === name).thisMonthMinor;
+  assert.equal(by('Tienda Sol'), P(1_100_000));
+  // One spending settles one payment: the closest amount takes it.
+  assert.equal(by('Plan música'), P(24_000));
+  assert.equal(by('Plan video'), 0);
+});
