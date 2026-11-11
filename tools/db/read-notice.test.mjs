@@ -147,3 +147,23 @@ test('money that did move stays a movement beside advert words', () => {
   assert.equal(readNotice('Recibiste $50.000 de Ana. Aprovecha y paga tus facturas desde la app', '', ON).kind, 'movement');
   assert.equal(readNotice('Your card was charged $12.00 at CAFE. Shop now for more deals', '', ON).kind, 'movement');
 });
+
+test('a purchase with its cashback beside it is money out (2026-11-11)', () => {
+  // Invented shop; the shape of the message a card app sent: the shop as the
+  // title, the purchase, then the cashback it earned with its own figure.
+  const got = readNotice('$84.320. Cashback +$843,20', 'Fruver La Esquina 🛒', ON);
+  assert.equal(got.kind, 'movement');
+  assert.equal(got.direction, 'out');
+  assert.equal(got.amountMinor, P(84320));
+  // The cashback alone, or said first, is still money in.
+  assert.equal(readNotice('Cashback +$843,20 por tu compra', '', ON).direction, 'in');
+  assert.equal(readNotice('Ganaste $843,20 de cashback en tu compra de $84.320', '', ON).direction, 'in');
+});
+
+test('a sign printed against the amount decides', () => {
+  assert.equal(readNotice('-$84.320 Fruver La Esquina', '', ON).direction, 'out');
+  assert.equal(readNotice('Fruver La Esquina −$84.320', '', ON).direction, 'out');
+  assert.equal(readNotice('+$50.000 de Ana', '', ON).direction, 'in');
+  // A sign apart from the amount is a separator, not a sign.
+  assert.equal(readNotice('Recibiste - $50.000 de Ana', '', ON).direction, 'in');
+});

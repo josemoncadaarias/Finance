@@ -157,9 +157,42 @@ final class MovementAlert {
         if (isAdvert(folded)) return false;
         if (amountIn(text) == null) return false;
         if (happened(folded)) return true;
-        int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
+        int direction = directionOf(folded);
         if (direction == 0 || has(folded, NOT_A_MOVEMENT) || has(folded, DECLINED)) return false;
         return MARKED_MONEY.matcher(text).find();
+    }
+
+    /**
+     * Money out (-1), in (1) or not said (0), kept in step with
+     * `settledDirection` in read-notice.ts: the words first, then a sign
+     * printed against the first amount ("-$91.514"), and a cashback said
+     * after that amount with a figure of its own - earned on a purchase, so
+     * the amount before it was spent (Jose, 2026-11-11: "$91.514. Cashback
+     * +$911,50" rang as income).
+     */
+    static int directionOf(String folded) {
+        int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
+        Matcher found = AMOUNT.matcher(folded);
+        while (found.find()) {
+            String number = found.group(1);
+            if (found.group(0).length() == number.length() && !number.matches(".*\\d[.,]\\d{3}.*")) continue;
+            if (centsOf(number) == 0) continue;
+            int start = found.start();
+            char before = start > 0 ? folded.charAt(start - 1) : ' ';
+            boolean afterDigit = start > 1 && Character.isDigit(folded.charAt(start - 2));
+            if (!afterDigit && (before == '-' || before == '\u2212' || before == '\u2013')) return -1;
+            if (!afterDigit && before == '+') return 1;
+            int reward = folded.indexOf("cashback", found.end());
+            if (reward >= 0 && !hasBefore(folded, reward) && AMOUNT.matcher(folded.substring(reward)).find()) return -1;
+            return direction;
+        }
+        return direction;
+    }
+
+    /** Whether a word of money in or out is said before `at`. */
+    private static boolean hasBefore(String folded, int at) {
+        String head = folded.substring(0, at);
+        return has(head, IN) || has(head, OUT);
     }
 
     /** The first figure of a message that is money: a sign, a code or grouped thousands, never 0. */
@@ -329,7 +362,7 @@ final class MovementAlert {
     static void post(Context context, String source, String name, String text, long at, boolean found) {
         if (text == null || text.isEmpty()) { note(context, source, at, "empty", null); return; }
         String folded = fold(text);
-        int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
+        int direction = directionOf(folded);
         // What every answer of the person taught the app (Jose, 2026-10-29).
         String learned = happened(folded) ? null : verdict(quiet(context), source, text, direction != 0);
         if (!"movement".equals(learned) && isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
