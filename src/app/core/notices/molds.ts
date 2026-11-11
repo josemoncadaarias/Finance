@@ -40,6 +40,18 @@ export interface Mold {
    * exactly as it was saved, only its amount new.
    */
   transfer?: TransferMemory | null;
+  /**
+   * The shop the transfer was saved for, folded (Jose, 2026-11-11: one
+   * bank's "Tu compra con PSE en {shop}" saved once as a transfer to a broker
+   * made the next PSE payment - to the power company - open as that same
+   * transfer). Where the shop is a slot, only that shop opens as the
+   * transfer; any other shop of the same shape is a spending again. A
+   * transfer mold with a shop slot and no shop on record (learned before
+   * this) proposes no transfer.
+   */
+  transferShop?: string | null;
+  /** The shop it was last saved with, folded; null where the shop is no slot. */
+  shop?: string | null;
   /** How many saves taught it, and when last: the newest is tried first. */
   uses: number;
   at: number;
@@ -75,6 +87,11 @@ function fold(text: string): string {
 
 function normalise(text: string): string {
   return text.normalize('NFC').replace(/\s+/g, ' ').trim();
+}
+
+/** A shop's name as compared: folded, its spaces collapsed. */
+export function shopKey(text: string | null | undefined): string {
+  return fold(text ?? '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function escape(text: string): string {
@@ -127,6 +144,7 @@ export function moldFrom(input: {
     from = slot.end;
   }
   pattern += numbersLoose(text.slice(from));
+  const shop = hasMerchant ? shopKey(merchant) : null;
   return {
     source: input.source,
     pattern: `^${pattern}$`,
@@ -136,6 +154,8 @@ export function moldFrom(input: {
     categoryId: input.categoryId,
     otherAccountId: input.otherAccountId ?? null,
     ...(input.transfer ? { transfer: input.transfer } : {}),
+    ...(input.otherAccountId != null && shop ? { transferShop: shop } : {}),
+    shop,
     uses: 1,
     at: input.at,
   };
@@ -150,8 +170,15 @@ function numbersLoose(piece: string): string {
 export function learnMold(molds: readonly Mold[], mold: Mold): Mold[] {
   const same = molds.find(one => one.source === mold.source && one.pattern === mold.pattern);
   const others = molds.filter(one => one !== same);
+  // A spending saved for another shop than the one a transfer was learned
+  // for leaves that transfer as it was: each shop keeps what it was saved as.
+  const keepTransfer = same && mold.otherAccountId == null && same.otherAccountId != null
+    && !!same.transferShop && same.transferShop !== mold.shop;
   const merged: Mold = same
-    ? { ...mold, uses: same.uses + 1, accountId: mold.accountId ?? same.accountId, categoryId: mold.categoryId ?? same.categoryId }
+    ? {
+      ...mold, uses: same.uses + 1, accountId: mold.accountId ?? same.accountId, categoryId: mold.categoryId ?? same.categoryId,
+      ...(keepTransfer ? { otherAccountId: same.otherAccountId, transfer: same.transfer ?? null, transferShop: same.transferShop } : {}),
+    }
     : mold;
   const mine = [merged, ...others.filter(one => one.source === mold.source)]
     .sort((a, b) => b.uses - a.uses || b.at - a.at)
@@ -179,16 +206,19 @@ export function readWithMolds(source: string, text: string, molds: readonly Mold
     const found = moneyIn(whole.slice(amountAt[0], amountAt[1]))[0];
     if (!found) continue;
     const merchantAt = match.indices?.groups?.['merchant'];
+    const merchant = merchantAt ? whole.slice(merchantAt[0], merchantAt[1]).trim() : '';
+    const asTransfer = mold.otherAccountId != null
+      && (!mold.hasMerchant || (!!mold.transferShop && mold.transferShop === shopKey(merchant)));
     return {
       amountMinor: found.minor,
       direction: mold.sign > 0 ? 'in' : 'out',
-      merchant: merchantAt ? whole.slice(merchantAt[0], merchantAt[1]).trim() : '',
+      merchant,
       accountId: mold.accountId,
       // A shop in the slot lets the dictionary say the category; without one,
       // the mold's is the one the person gave.
       categoryId: mold.hasMerchant ? null : mold.categoryId,
-      otherAccountId: mold.otherAccountId ?? null,
-      transfer: mold.otherAccountId != null ? mold.transfer ?? null : null,
+      otherAccountId: asTransfer ? mold.otherAccountId ?? null : null,
+      transfer: asTransfer ? mold.transfer ?? null : null,
     };
   }
   return null;
