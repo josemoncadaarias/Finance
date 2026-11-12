@@ -1,0 +1,642 @@
+<!-- Bolsa de valores (Jose, 2026-11-12). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'stocks.title' | t }}</h1>
+    <app-ask-button></app-ask-button>
+  </header>
+
+  <div class="ui-main">
+    @if (!stocks.loaded()) {
+      <div class="waiting"><ion-spinner name="crescent"></ion-spinner></div>
+    } @else if (stocks.trades().length === 0) {
+      <app-empty icon="stats-chart-outline" color="#34c98b" [title]="'stocks.empty.title' | t" [text]="'stocks.empty.text' | t"
+                 [action]="'stocks.empty.import' | t" actionIcon="document-text-outline" (act)="chooseFile()"
+                 [second]="'stocks.empty.byHand' | t" (secondAct)="newTrade()"></app-empty>
+      <p class="hint center">{{ (images ? 'stocks.empty.formats.images' : 'stocks.empty.formats') | t }}</p>
+    } @else {
+      @if (currencies().length > 1) {
+        <div class="ui-seg currencies">
+          @for (code of currencies(); track code) {
+            <button type="button" [class.on]="code === currency()" (click)="chooseCurrency(code)">{{ code }}</button>
+          }
+        </div>
+      }
+
+      <!-- What it is all worth today, or what was paid while there are no prices. -->
+      @if (total(); as sum) {
+        <section class="ui-hero" data-tour="stocks-hero">
+          <app-amounts-eye class="corner"></app-amounts-eye>
+          <div class="ui-lab">{{ (priced() ? 'stocks.hero.value' : 'stocks.hero.invested') | t }}</div>
+          <div class="ui-big">{{ money(sum.valueMinor) }}</div>
+          @if (sum.gainMinor !== null && sum.gainPct !== null) {
+            <div class="gain" [class.ui-g]="sum.gainMinor >= 0" [class.ui-r]="sum.gainMinor < 0">
+              <ion-icon [name]="sum.gainMinor >= 0 ? 'trending-up' : 'trending-down'"></ion-icon>
+              <b>{{ signed(sum.gainMinor) }} ({{ pct(sum.gainPct) }})</b>
+              <span>{{ (sum.gainMinor >= 0 ? 'stocks.hero.gained' : 'stocks.hero.lost') | t }}</span>
+            </div>
+          }
+          @if (sum.dayMinor !== null && sum.dayMinor !== 0) {
+            <div class="line">{{ 'stocks.hero.today' | t }}
+              <b [class.ui-g]="sum.dayMinor > 0" [class.ui-r]="sum.dayMinor < 0">{{ signed(sum.dayMinor) }}</b></div>
+          }
+          @if (inPesos(); as pesos) { <div class="line">{{ 'stocks.hero.pesos' | t:{ amount: pesos } }}</div> }
+          <div class="line" [class.ui-y]="pricesOld()">{{ pricesLine() }}</div>
+          @if (sum.unquoted > 0 && priced()) {
+            <div class="line">{{ 'stocks.hero.unquoted' | t:{ count: sum.unquoted } }}</div>
+          }
+          <div class="actions">
+            <button type="button" class="ui-btn small" (click)="refresh()" [disabled]="stocks.pricesState() === 'working'">
+              <ion-icon name="refresh-outline"></ion-icon>{{ (priced() ? 'stocks.hero.refresh' : 'stocks.hero.fetch') | t }}
+            </button>
+            <button type="button" class="ui-btn small ghost" (click)="chooseFile()">
+              <ion-icon name="document-text-outline"></ion-icon>{{ 'stocks.hero.import' | t }}
+            </button>
+          </div>
+        </section>
+
+        @if (stateWords(); as state) {
+          <div class="ui-banner state" [class]="'ui-banner state ' + state.tone">
+            <ion-icon [name]="state.icon"></ion-icon>
+            <span class="ui-tx"><b>{{ state.title }}</b><small class="wrap">{{ state.text }}</small>
+              @if (stocks.failure() && (state.tone === 'bad')) { <small class="wrap detail">{{ stocks.failure() }}</small> }</span>
+            @if (state.action) { <button type="button" class="ui-btn small" (click)="refresh()">{{ state.action }}</button> }
+          </div>
+        } @else if (!priced() && stocks.pricesState() === 'idle') {
+          <div class="ui-banner info state">
+            <ion-icon name="logo-google"></ion-icon>
+            <span class="ui-tx"><b>{{ (stocks.canAskGoogle ? 'stocks.google.title' : 'stocks.google.titleBrowser') | t }}</b>
+              <small class="wrap">{{ (stocks.canAskGoogle ? 'stocks.google.text' : 'stocks.google.textBrowser') | t }}</small></span>
+          </div>
+        }
+
+        <div class="tiles" data-tour="stocks-tiles">
+          <div class="tile"><small>{{ 'stocks.tile.cost' | t }}</small><b>{{ money(sum.costMinor) }}</b></div>
+          <div class="tile"><small>{{ 'stocks.tile.dividends' | t }}</small>
+            <b [class.ui-g]="sum.dividendsMinor > 0">{{ money(sum.dividendsMinor) }}</b></div>
+          <div class="tile"><small>{{ 'stocks.tile.realized' | t }}</small>
+            <b [class.ui-g]="sum.realizedMinor > 0" [class.ui-r]="sum.realizedMinor < 0">{{ sum.realizedMinor === 0 ? money(0) : signed(sum.realizedMinor) }}</b></div>
+          @if (sum.cashMinor !== null) {
+            <div class="tile"><small>{{ 'stocks.tile.cash' | t }}</small><b>{{ money(sum.cashMinor) }}</b></div>
+          } @else {
+            <div class="tile"><small>{{ 'stocks.tile.held' | t }}</small><b>{{ sum.held }}</b></div>
+          }
+        </div>
+      }
+
+      <div class="ui-seg faces" data-tour="stocks-faces">
+        <button type="button" [class.on]="face() === 'positions'" (click)="face.set('positions')">{{ 'stocks.face.positions' | t }}</button>
+        <button type="button" [class.on]="face() === 'charts'" (click)="face.set('charts')">{{ 'stocks.face.charts' | t }}</button>
+        <button type="button" [class.on]="face() === 'history'" (click)="face.set('history')">{{ 'stocks.face.history' | t }}</button>
+      </div>
+
+      <!-- ---------------------------------------------------------------- Positions -->
+      @if (face() === 'positions') {
+        @if (held().length === 0) {
+          <app-empty [compact]="true" icon="pie-chart-outline" [title]="'stocks.positions.none' | t" [text]="'stocks.positions.none.text' | t"></app-empty>
+        } @else {
+          <div class="ui-list positions" data-tour="stocks-positions">
+            @for (one of held(); track one.position.symbol) {
+              <button type="button" class="ui-row position" (click)="openPosition(one.position.symbol)">
+                <span class="ticker" [style.background]="colorOf(one.position.symbol)">{{ one.position.symbol.slice(0, 4) }}</span>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ one.position.symbol }}@if (nameOf(one.position.symbol); as name) { <i>{{ name }}</i> }</b>
+                  <small class="wrap">{{ 'stocks.position.line' | t:{ quantity: quantity(one.position.quantityE8), price: price(one.position.averageE6 ?? 0, one.position.currency) } }}</small>
+                  <span class="sharebar"><i [style.width.%]="share(one.position.symbol)" [style.background]="colorOf(one.position.symbol)"></i></span>
+                </span>
+                <span class="figures">
+                  <b>{{ money(one.valueMinor) }}</b>
+                  @if (one.gainPct !== null) {
+                    <small [class.ui-g]="one.gainPct >= 0" [class.ui-r]="one.gainPct < 0">{{ pct(one.gainPct) }}</small>
+                  } @else {
+                    <small class="ui-mu">{{ 'stocks.position.atCost' | t }}</small>
+                  }
+                </span>
+              </button>
+            }
+          </div>
+        }
+        @if (sold().length > 0) {
+          <button type="button" class="fold" (click)="soldOpen.set(!soldOpen())">
+            <span>{{ 'stocks.positions.sold' | t:{ count: sold().length } }}</span>
+            <ion-icon [name]="soldOpen() ? 'chevron-up' : 'chevron-down'"></ion-icon>
+          </button>
+          @if (soldOpen()) {
+            <div class="ui-list">
+              @for (one of sold(); track one.position.symbol) {
+                <button type="button" class="ui-row position" (click)="openPosition(one.position.symbol)">
+                  <span class="ticker gone">{{ one.position.symbol.slice(0, 4) }}</span>
+                  <span class="ui-tx"><b class="ui-one">{{ one.position.symbol }}</b>
+                    <small class="wrap">{{ 'stocks.position.soldLine' | t:{ day: dayWords(one.position.lastDay) } }}</small></span>
+                  <span class="figures">
+                    <b [class.ui-g]="one.position.realizedMinor > 0" [class.ui-r]="one.position.realizedMinor < 0">{{ signed(one.position.realizedMinor) }}</b>
+                    <small class="ui-mu">{{ 'stocks.position.realized' | t }}</small>
+                  </span>
+                </button>
+              }
+            </div>
+          }
+        }
+      }
+
+      <!-- ------------------------------------------------------------------- Charts -->
+      @if (face() === 'charts') {
+        @if (donut().length > 0) {
+          <section class="ui-card chart">
+            <h3>{{ 'stocks.chart.spread' | t }}</h3>
+            <p class="about">{{ (priced() ? 'stocks.chart.spread.about' : 'stocks.chart.spread.aboutCost') | t }}</p>
+            <div class="donut">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <g transform="rotate(-90 60 60)">
+                  @for (arc of donut(); track arc.name) {
+                    <circle cx="60" cy="60" r="52" fill="none" [attr.stroke]="arc.color" stroke-width="13"
+                            [attr.stroke-dasharray]="arc.dash" [attr.stroke-dashoffset]="arc.offset"></circle>
+                  }
+                </g>
+                <text x="60" y="56" text-anchor="middle" class="mid-count">{{ held().length }}</text>
+                <text x="60" y="72" text-anchor="middle" class="mid-label">{{ 'stocks.chart.positions' | t }}</text>
+              </svg>
+              <ul>
+                @for (arc of donut(); track arc.name) {
+                  <li><i [style.background]="arc.color"></i><span class="ui-one">{{ arc.name }}</span><b>{{ arc.share.toFixed(0) }} %</b></li>
+                }
+              </ul>
+            </div>
+            @if (kinds().length > 0) {
+              <div class="stack">
+                @for (kind of kinds(); track kind.name) { <i [style.width.%]="kind.share" [style.background]="kind.color"></i> }
+              </div>
+              <div class="stack-key">
+                @for (kind of kinds(); track kind.name) {
+                  <span><i [style.background]="kind.color"></i>{{ kind.name }} · {{ kind.share.toFixed(0) }} %</span>
+                }
+              </div>
+            }
+          </section>
+        }
+
+        @if (gains().length > 0) {
+          <section class="ui-card chart">
+            <h3>{{ 'stocks.chart.gains' | t }}</h3>
+            <p class="about">{{ 'stocks.chart.gains.about' | t }}</p>
+            <div class="gains">
+              @for (row of gains(); track row.symbol) {
+                <div class="gain-row">
+                  <span class="name">{{ row.symbol }}</span>
+                  <span class="track"><i [class.up]="row.pct >= 0" [class.down]="row.pct < 0" [style.width.%]="row.width"></i></span>
+                  <span class="num" [class.ui-g]="row.pct >= 0" [class.ui-r]="row.pct < 0">{{ pct(row.pct) }}<small>{{ signed(row.minor) }}</small></span>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        @if (worthLine(); as worth) {
+          <section class="ui-card chart">
+            <h3>{{ 'stocks.chart.worth' | t }}</h3>
+            <p class="about">{{ 'stocks.chart.worth.about' | t }}</p>
+            <svg class="lines" viewBox="0 0 300 110" preserveAspectRatio="none" aria-hidden="true">
+              <polyline [attr.points]="worth.cost" class="cost"></polyline>
+              <polyline [attr.points]="worth.value" class="value"></polyline>
+            </svg>
+            <div class="axis"><span>{{ worth.from }}</span><span>{{ worth.to }}</span></div>
+            <div class="stack-key"><span><i class="k-value"></i>{{ 'stocks.chart.worth.value' | t }}</span><span><i class="k-cost"></i>{{ 'stocks.chart.worth.cost' | t }}</span></div>
+          </section>
+        }
+
+        <section class="ui-card chart">
+          <h3>{{ 'stocks.chart.bought' | t }}</h3>
+          <p class="about">{{ 'stocks.chart.bought.about' | t }}</p>
+          @if (tappedBought() !== null && boughtBars()[tappedBought()!]; as bar) {
+            <div class="tapped"><b>{{ money(bar.minor) }}</b> · {{ bar.long }}</div>
+          } @else {
+            <div class="tapped ui-mu">{{ 'stocks.chart.tap' | t }}</div>
+          }
+          <div class="bars">
+            @for (bar of boughtBars(); track $index) {
+              <button type="button" class="bar" [class.on]="tappedBought() === $index" (click)="tappedBought.set($index)">
+                <span class="col"><i [style.height.%]="bar.height"></i></span><small>{{ bar.label }}</small>
+              </button>
+            }
+          </div>
+        </section>
+
+        @if (investedLine(); as invested) {
+          <section class="ui-card chart">
+            <h3>{{ 'stocks.chart.invested' | t }}</h3>
+            <p class="about">{{ 'stocks.chart.invested.about' | t }}</p>
+            <svg class="lines" viewBox="0 0 300 110" preserveAspectRatio="none" aria-hidden="true">
+              <polygon [attr.points]="invested.area" class="area"></polygon>
+              <polyline [attr.points]="invested.line" class="value"></polyline>
+            </svg>
+            <div class="axis"><span>{{ invested.from }}</span><span>{{ 'stocks.chart.invested.now' | t:{ amount: money(invested.now) } }}</span></div>
+          </section>
+        }
+
+        @if (hasDividends()) {
+          <section class="ui-card chart">
+            <h3>{{ 'stocks.chart.dividends' | t }}</h3>
+            <p class="about">{{ 'stocks.chart.dividends.about' | t }}</p>
+            @if (tappedDividend() !== null && dividendBars()[tappedDividend()!]; as bar) {
+              <div class="tapped"><b>{{ money(bar.minor) }}</b> · {{ bar.long }}</div>
+            } @else {
+              <div class="tapped ui-mu">{{ 'stocks.chart.tap' | t }}</div>
+            }
+            <div class="bars green">
+              @for (bar of dividendBars(); track $index) {
+                <button type="button" class="bar" [class.on]="tappedDividend() === $index" (click)="tappedDividend.set($index)">
+                  <span class="col"><i [style.height.%]="bar.height"></i></span><small>{{ bar.label }}</small>
+                </button>
+              }
+            </div>
+            <div class="years">
+              @for (year of dividendYears(); track year[0]) {
+                <div><span>{{ year[0] }}</span><b>{{ money(year[1]) }}</b></div>
+              }
+            </div>
+          </section>
+        }
+      }
+
+      <!-- ------------------------------------------------------------------ History -->
+      @if (face() === 'history') {
+        <button type="button" class="ui-add" (click)="newTrade()" data-tour="stocks-new">
+          <span class="plus"><ion-icon name="add"></ion-icon></span>
+          <span class="ui-tx"><b class="wrap">{{ 'stocks.history.new' | t }}</b><small class="wrap">{{ 'stocks.history.new.hint' | t }}</small></span>
+        </button>
+        <div class="chips">
+          @for (one of ['all', 'trades', 'dividends', 'cash']; track one) {
+            <button type="button" class="ui-chip" [class.on]="filter() === one" (click)="filter.set($any(one))">{{ word('stocks.history.filter.' + one) }}</button>
+          }
+        </div>
+        @if (historyMonths().length === 0) {
+          <app-empty [compact]="true" icon="list-outline" [title]="'stocks.history.none' | t"></app-empty>
+        }
+        @for (month of historyMonths(); track month.month) {
+          <button type="button" class="fold" (click)="toggleMonth(month.month)">
+            <span>{{ month.title }} · {{ 'stocks.history.count' | t:{ count: month.trades.length } }}</span>
+            <ion-icon [name]="isMonthOpen(month.month) ? 'chevron-up' : 'chevron-down'"></ion-icon>
+          </button>
+          @if (isMonthOpen(month.month)) {
+            <div class="ui-list">
+              @for (trade of month.trades; track trade.id) {
+                <button type="button" class="ui-row" (click)="openTrade(trade)">
+                  <app-badge shape="ci" [size]="38" [builtin]="kindIcon(trade.kind)" [fixed]="kindColor(trade.kind)"></app-badge>
+                  <span class="ui-tx"><b class="wrap">{{ tradeTitle(trade) }}</b><small class="wrap">{{ tradeLine(trade) }}</small></span>
+                  @if (trade.kind !== 'split') {
+                    <span class="figures"><b [class.ui-g]="trade.amountMinor > 0">{{ signed(trade.amountMinor, trade.currency) }}</b></span>
+                  }
+                </button>
+              }
+            </div>
+          }
+        }
+      }
+
+      <p class="hint foot">{{ 'stocks.disclaimer' | t }}</p>
+    }
+  </div>
+</ion-content>
+
+<input #file type="file" [accept]="accept" [multiple]="images" hidden (change)="picked($any($event.target))">
+
+<!-- ------------------------------------------------------------- One position -->
+<ion-modal class="entry-sheet" [isOpen]="position() !== null" (didDismiss)="openSymbol.set(null)">
+  <ng-template>
+    <ion-content>
+      @if (position(); as one) {
+        <header class="ui-titlebar">
+          <button type="button" class="back" (click)="openSymbol.set(null)" [attr.aria-label]="'entry.cancel' | t"><ion-icon name="close"></ion-icon></button>
+          <h1>{{ one.position.symbol }}</h1>
+        </header>
+        <div class="ui-main detail">
+          <section class="ui-hero">
+            <div class="head">
+              <span class="ticker big" [style.background]="colorOf(one.position.symbol)">{{ one.position.symbol.slice(0, 4) }}</span>
+              <span class="ui-tx"><b>{{ instrument()?.name || one.position.symbol }}</b>
+                <small>{{ word('stocks.kind.' + (one.position.asset ?? 'unknown')) }} · {{ one.position.currency }}</small></span>
+            </div>
+            <div class="ui-lab">{{ (one.position.quantityE8 === 0 ? 'stocks.detail.soldAll' : one.quote ? 'stocks.detail.value' : 'stocks.detail.cost') | t }}</div>
+            <div class="ui-big">{{ money(one.position.quantityE8 === 0 ? one.position.soldMinor : one.valueMinor, one.position.currency) }}</div>
+            @if (one.gainMinor !== null && one.gainPct !== null) {
+              <div class="gain" [class.ui-g]="one.gainMinor >= 0" [class.ui-r]="one.gainMinor < 0">
+                <ion-icon [name]="one.gainMinor >= 0 ? 'trending-up' : 'trending-down'"></ion-icon>
+                <b>{{ signed(one.gainMinor, one.position.currency) }} ({{ pct(one.gainPct) }})</b>
+                <span>{{ (one.gainMinor >= 0 ? 'stocks.hero.gained' : 'stocks.hero.lost') | t }}</span>
+              </div>
+            }
+            @if (one.dayMinor !== null && one.dayPct !== null && one.dayMinor !== 0) {
+              <div class="line">{{ 'stocks.hero.today' | t }}
+                <b [class.ui-g]="one.dayMinor > 0" [class.ui-r]="one.dayMinor < 0">{{ signed(one.dayMinor, one.position.currency) }} ({{ pct(one.dayPct) }})</b></div>
+            }
+          </section>
+
+          @if (one.position.incomplete) {
+            <div class="ui-banner warn"><ion-icon name="alert-circle-outline"></ion-icon>
+              <span>{{ 'stocks.detail.incomplete' | t:{ symbol: one.position.symbol } }}</span></div>
+          }
+
+          @if (one.position.quantityE8 > 0) {
+            <h3 class="ui-h">{{ 'stocks.detail.price' | t }}</h3>
+            <div class="ui-card price-card">
+              <div class="price-now">
+                <span class="ui-tx"><b>{{ one.quote ? price(one.quote.priceE6, one.position.currency) : ('stocks.detail.noPrice' | t) }}</b>
+                  <small class="wrap" [class.ui-y]="one.quote?.source === 'manual'">{{ sourceWords(one) }}</small></span>
+                <button type="button" class="ui-chip" (click)="startPrice()"><ion-icon name="create-outline"></ion-icon>{{ 'stocks.detail.typePrice' | t }}</button>
+              </div>
+              @if (typingPrice()) {
+                <label class="field">
+                  <span class="lab">{{ 'stocks.detail.priceOf' | t:{ symbol: one.position.symbol, currency: one.position.currency } }}</span>
+                  <input class="ui-input" inputmode="decimal" [value]="priceText()" (input)="priceText.set($any($event.target).value)" placeholder="0,00">
+                </label>
+                <div class="row-buttons">
+                  <button type="button" class="ui-btn small ghost" (click)="typingPrice.set(false)">{{ 'entry.cancel' | t }}</button>
+                  <button type="button" class="ui-btn small" (click)="savePrice()">{{ 'stocks.detail.savePrice' | t }}</button>
+                </div>
+              } @else if (one.quote?.source === 'manual') {
+                <button type="button" class="link" (click)="forgetPrice()">{{ 'stocks.detail.forgetPrice' | t }}</button>
+              }
+              @if (range(); as r) {
+                <div class="range">
+                  <small>{{ 'stocks.detail.range' | t }}</small>
+                  <div class="range-bar"><i [style.left.%]="r.at"></i></div>
+                  <div class="axis"><span>{{ r.low }}</span><span>{{ r.high }}</span></div>
+                </div>
+              }
+            </div>
+          }
+
+          <h3 class="ui-h">{{ 'stocks.detail.yours' | t }}</h3>
+          <div class="ui-card facts">
+            @if (one.position.quantityE8 > 0) {
+              <div><span>{{ 'stocks.detail.quantity' | t }}</span><b>{{ quantity(one.position.quantityE8) }}</b></div>
+              <div><span>{{ 'stocks.detail.average' | t }}</span><b>{{ price(one.position.averageE6 ?? 0, one.position.currency) }}</b></div>
+              <div><span>{{ 'stocks.detail.paid' | t }}</span><b>{{ money(one.position.costMinor, one.position.currency) }}</b></div>
+              <div><span>{{ 'stocks.detail.share' | t }}</span><b>{{ sharePct(one.position.symbol) }}</b></div>
+            }
+            @if (one.position.soldMinor > 0) {
+              <div><span>{{ 'stocks.detail.realized' | t }}</span>
+                <b [class.ui-g]="one.position.realizedMinor > 0" [class.ui-r]="one.position.realizedMinor < 0">{{ signed(one.position.realizedMinor, one.position.currency) }}</b></div>
+            }
+            @if (one.position.dividendsMinor !== 0) {
+              <div><span>{{ 'stocks.detail.dividends' | t }}</span><b class="ui-g">{{ money(one.position.dividendsMinor, one.position.currency) }}</b></div>
+            }
+            @if (one.position.taxMinor !== 0) {
+              <div><span>{{ 'stocks.detail.tax' | t }}</span><b>{{ money(one.position.taxMinor, one.position.currency) }}</b></div>
+            }
+            <div><span>{{ 'stocks.detail.since' | t }}</span><b>{{ dayWords(one.position.firstDay) }}</b></div>
+          </div>
+
+          @if (instrument()?.facts; as facts) {
+            @if (facts.pe || facts.eps || facts.marketCap) {
+              <h3 class="ui-h">{{ 'stocks.detail.company' | t }}</h3>
+              <div class="ui-card facts">
+                @if (factNumber(facts.pe); as pe) { <div><span>{{ 'stocks.fact.pe' | t }}</span><b>{{ pe }}</b></div> }
+                @if (factNumber(facts.eps); as eps) { <div><span>{{ 'stocks.fact.eps' | t }}</span><b>{{ eps }}</b></div> }
+                @if (factNumber(facts.marketCap, true); as cap) { <div><span>{{ 'stocks.fact.cap' | t }}</span><b>{{ cap }} {{ facts.currency ?? '' }}</b></div> }
+              </div>
+              <p class="hint">{{ 'stocks.fact.source' | t }}</p>
+            }
+          }
+
+          <h3 class="ui-h">{{ 'stocks.detail.google' | t }}</h3>
+          <div class="ui-card price-card">
+            <div class="price-now">
+              <span class="ui-tx"><b>{{ instrument()?.quote || ('stocks.detail.google.unknown' | t) }}</b>
+                <small class="wrap">{{ 'stocks.detail.google.hint' | t }}</small></span>
+              <button type="button" class="ui-chip" (click)="startQuote()"><ion-icon name="create-outline"></ion-icon>{{ 'stocks.detail.google.change' | t }}</button>
+            </div>
+            @if (typingQuote()) {
+              <label class="field"><span class="lab">{{ 'stocks.detail.google.symbol' | t }}</span>
+                <input class="ui-input" type="text" autocapitalize="characters" [value]="quoteText()" (input)="quoteText.set($any($event.target).value)" placeholder="NASDAQ:NVDA"></label>
+              <label class="field"><span class="lab">{{ 'stocks.detail.google.name' | t }}</span>
+                <input class="ui-input" type="text" [value]="nameText()" (input)="nameText.set($any($event.target).value)" maxlength="60"></label>
+              <div class="row-buttons">
+                <button type="button" class="ui-btn small ghost" (click)="typingQuote.set(false)">{{ 'entry.cancel' | t }}</button>
+                <button type="button" class="ui-btn small" (click)="saveQuote()">{{ 'stocks.detail.google.save' | t }}</button>
+              </div>
+            }
+          </div>
+
+          <h3 class="ui-h">{{ 'stocks.detail.trades' | t:{ count: positionTrades().length } }}</h3>
+          <button type="button" class="ui-add" (click)="newTrade(one.position.symbol)">
+            <span class="plus"><ion-icon name="add"></ion-icon></span>
+            <span class="ui-tx"><b class="wrap">{{ 'stocks.detail.add' | t:{ symbol: one.position.symbol } }}</b></span>
+          </button>
+          <div class="ui-list">
+            @for (trade of positionTrades(); track trade.id) {
+              <button type="button" class="ui-row" (click)="openTrade(trade)">
+                <app-badge shape="ci" [size]="36" [builtin]="kindIcon(trade.kind)" [fixed]="kindColor(trade.kind)"></app-badge>
+                <span class="ui-tx"><b class="wrap">{{ word('stocks.trade.' + trade.kind) }}</b><small class="wrap">{{ tradeLine(trade) }}</small></span>
+                @if (trade.kind !== 'split') {
+                  <span class="figures"><b [class.ui-g]="trade.amountMinor > 0">{{ signed(trade.amountMinor, trade.currency) }}</b></span>
+                }
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- ------------------------------------------- A statement read: look, then save -->
+<ion-modal class="entry-sheet" [isOpen]="pending() !== null" (didDismiss)="pending.set(null)">
+  <ng-template>
+    <ion-content>
+      @if (pending(); as read) {
+        <header class="ui-titlebar">
+          <button type="button" class="back" (click)="pending.set(null)" [attr.aria-label]="'entry.cancel' | t"><ion-icon name="close"></ion-icon></button>
+          <h1>{{ 'stocks.import.title' | t }}</h1>
+        </header>
+        <div class="ui-main import">
+          <p class="lead">{{ 'stocks.import.lead' | t:{ file: read.name } }}</p>
+          @if (read.reading.from && read.reading.to) {
+            <p class="hint">{{ 'stocks.import.period' | t:{ from: dayWords(read.reading.from), to: dayWords(read.reading.to) } }}</p>
+          }
+
+          <div class="ui-list">
+            <button type="button" class="ui-row" (click)="pickingAccount.set('import')">
+              <app-badge shape="ci" [size]="38" builtin="business-outline" fixed="#6378ff"></app-badge>
+              <span class="ui-tx"><b>{{ 'stocks.import.account' | t }}</b><small class="wrap">{{ accountName(pendingAccount()) }}</small></span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
+          </div>
+          <span class="lab">{{ 'stocks.import.currency' | t }}</span>
+          <div class="chips">
+            @for (code of currencyChoices(); track code) {
+              <button type="button" class="ui-chip" [class.on]="pendingCurrency() === code" (click)="pendingCurrency.set(code)">{{ code }}</button>
+            }
+          </div>
+
+          @if (pendingNew().length === 0) {
+            <div class="ui-banner good"><ion-icon name="checkmark-circle-outline"></ion-icon>
+              <span>{{ 'stocks.import.allKnown' | t:{ count: read.reading.rows.length } }}</span></div>
+          } @else {
+            <h3 class="ui-h">{{ 'stocks.import.found' | t }}</h3>
+            <div class="ui-list">
+              @for (one of pendingKinds(); track one.kind) {
+                <div class="ui-row">
+                  <app-badge shape="ci" [size]="36" [builtin]="kindIcon(one.kind)" [fixed]="kindColor(one.kind)"></app-badge>
+                  <span class="ui-tx"><b>{{ word('stocks.import.kind.' + one.kind, { count: one.count }) }}</b></span>
+                  @if (one.kind !== 'split') { <span class="figures"><b>{{ money(one.minor, pendingCurrency()) }}</b></span> }
+                </div>
+              }
+            </div>
+            @if (pendingSymbols().length > 0) {
+              <div class="symbols">
+                @for (symbol of pendingSymbols(); track symbol) { <span [style.background]="colorOf(symbol)">{{ symbol }}</span> }
+              </div>
+            }
+            @if (pendingOff().length === 0) {
+              <div class="ui-banner good"><ion-icon name="checkmark-circle-outline"></ion-icon><span>{{ 'stocks.import.adds' | t }}</span></div>
+            } @else {
+              <div class="ui-banner warn"><ion-icon name="alert-circle-outline"></ion-icon>
+                <span class="ui-tx"><b>{{ 'stocks.import.off' | t:{ count: pendingOff().length } }}</b>
+                  @for (row of pendingOff().slice(0, 5); track $index) { <small class="wrap">{{ row.text }}</small> }</span></div>
+            }
+            @if (pendingKnown() > 0) { <p class="hint">{{ 'stocks.import.known' | t:{ count: pendingKnown() } }}</p> }
+          }
+
+          @if (read.reading.unread.length > 0) {
+            <button type="button" class="fold" (click)="unreadOpen.set(!unreadOpen())">
+              <span>{{ 'stocks.import.unread' | t:{ count: read.reading.unread.length } }}</span>
+              <ion-icon [name]="unreadOpen() ? 'chevron-up' : 'chevron-down'"></ion-icon>
+            </button>
+            @if (unreadOpen()) {
+              <div class="ui-card unread">@for (line of read.reading.unread; track $index) { <small>{{ line }}</small> }</div>
+            }
+          }
+
+          <p class="hint">{{ 'stocks.import.note' | t }}</p>
+          @if (pendingNew().length > 0) {
+            <button type="button" class="ui-btn save" (click)="saveImport()" [disabled]="saving()">
+              {{ 'stocks.import.save' | t:{ count: pendingNew().length } }}
+            </button>
+          } @else {
+            <button type="button" class="ui-btn save ghost" (click)="pending.set(null)">{{ 'stocks.import.close' | t }}</button>
+          }
+        </div>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- -------------------------------------------------------- One trade, by hand -->
+<ion-modal class="entry-sheet" [isOpen]="editing() !== null" (didDismiss)="editing.set(null)">
+  <ng-template>
+    <ion-content>
+      <header class="ui-titlebar">
+        <button type="button" class="back" (click)="editing.set(null)" [attr.aria-label]="'entry.cancel' | t"><ion-icon name="close"></ion-icon></button>
+        <h1>{{ (editing() === 'new' ? 'stocks.form.new' : 'stocks.form.edit') | t }}</h1>
+        @if (editingTrade(); as trade) {
+          <button type="button" class="ui-round" (click)="askDelete(trade)" [attr.aria-label]="'stocks.trade.delete' | t"><ion-icon name="trash-outline"></ion-icon></button>
+        }
+      </header>
+      <div class="ui-main form">
+        <div class="ui-seg">
+          <button type="button" [class.on]="formKind() === 'buy'" (click)="formKind.set('buy')">{{ 'stocks.form.buy' | t }}</button>
+          <button type="button" [class.on]="formKind() === 'sell'" (click)="formKind.set('sell')">{{ 'stocks.form.sell' | t }}</button>
+          <button type="button" [class.on]="formKind() === 'dividend'" (click)="formKind.set('dividend')">{{ 'stocks.form.dividend' | t }}</button>
+        </div>
+
+        <label class="field">
+          <span class="lab">{{ 'stocks.form.symbol' | t }}</span>
+          <input class="ui-input" type="text" autocapitalize="characters" maxlength="10" [value]="formSymbol()"
+                 (input)="formSymbol.set($any($event.target).value.toUpperCase())" [placeholder]="'stocks.form.symbol.placeholder' | t">
+          <small class="sub">{{ 'stocks.form.symbol.hint' | t }}</small>
+          @if (tried() && formMissing() === 'symbol') { <small class="err">{{ 'stocks.form.symbol.missing' | t }}</small> }
+        </label>
+
+        <span class="lab">{{ 'stocks.form.asset' | t }}</span>
+        <div class="chips">
+          @for (kind of ['stock', 'etf', 'crypto', 'other']; track kind) {
+            <button type="button" class="ui-chip" [class.on]="formAsset() === kind" (click)="formAsset.set($any(kind))">{{ word('stocks.kind.' + kind) }}</button>
+          }
+        </div>
+
+        <span class="lab">{{ 'stocks.form.day' | t }}</span>
+        <app-date-field look="box" [value]="formDay()" [max]="null" (changed)="formDay.set($event ?? formDay())"></app-date-field>
+
+        @if (formKind() !== 'dividend') {
+          <div class="two">
+            <label class="field">
+              <span class="lab">{{ 'stocks.form.quantity' | t }}</span>
+              <input class="ui-input" inputmode="decimal" [value]="formQuantity()" (input)="typed('quantity', $any($event.target).value)" placeholder="0,5">
+              @if (tried() && formMissing() === 'quantity') { <small class="err">{{ 'stocks.form.quantity.missing' | t }}</small> }
+            </label>
+            <label class="field">
+              <span class="lab">{{ 'stocks.form.price' | t:{ currency: formCurrency() } }}</span>
+              <input class="ui-input" inputmode="decimal" [value]="formPrice()" (input)="typed('price', $any($event.target).value)" placeholder="0,00">
+              @if (tried() && formMissing() === 'price') { <small class="err">{{ 'stocks.form.price.missing' | t }}</small> }
+            </label>
+          </div>
+        }
+
+        <label class="field">
+          <span class="lab">{{ (formKind() === 'buy' ? 'stocks.form.total.buy' : formKind() === 'sell' ? 'stocks.form.total.sell' : 'stocks.form.total.dividend') | t:{ currency: formCurrency() } }}</span>
+          <input class="ui-input" inputmode="decimal" [value]="formAmount().text" [appAmountInput]="formAmount()" (amountChange)="typedAmount($event)" placeholder="0,00">
+          @if (formKind() !== 'dividend') { <small class="sub">{{ 'stocks.form.total.hint' | t }}</small> }
+          @if (tried() && formMissing() === 'amount') { <small class="err">{{ 'stocks.form.amount.missing' | t }}</small> }
+        </label>
+
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="pickingAccount.set('form')">
+            <app-badge shape="ci" [size]="36" builtin="business-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b>{{ 'stocks.import.account' | t }}</b><small class="wrap">{{ accountName(formAccount()) }}</small></span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+        <span class="lab">{{ 'stocks.import.currency' | t }}</span>
+        <div class="chips">
+          @for (code of ['USD', 'EUR', 'COP']; track code) {
+            <button type="button" class="ui-chip" [class.on]="formCurrency() === code" (click)="formCurrency.set(code)">{{ code }}</button>
+          }
+        </div>
+
+        <label class="field">
+          <span class="lab">{{ 'stocks.form.note' | t }}</span>
+          <input class="ui-input" type="text" maxlength="120" [value]="formNote()" (input)="formNote.set($any($event.target).value)">
+        </label>
+
+        <button type="button" class="ui-btn save" (click)="saveTrade()">{{ word('stocks.form.save.' + formKind()) }}</button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- A row a statement brought: what it says, and deleting it. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="viewing() !== null" (didDismiss)="viewing.set(null)">
+  <ng-template>
+    @if (viewing(); as trade) {
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="viewing.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <div class="sheet-head view-head">
+          <b>{{ tradeTitle(trade) }}</b>
+          <small>{{ tradeLine(trade) }}</small>
+          @if (trade.kind !== 'split') { <small>{{ signed(trade.amountMinor, trade.currency) }}</small> }
+          <small>{{ (trade.source === 'statement' ? 'stocks.view.fromStatement' : 'stocks.view.byHand') | t:{ account: accountName(trade.accountId) } }}</small>
+        </div>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="askDelete(trade)">
+            <app-badge shape="ci" [size]="36" builtin="trash-outline" fixed="#ef5b66"></app-badge>
+            <span class="ui-tx"><b class="danger">{{ 'stocks.trade.delete' | t }}</b><small class="wrap">{{ 'stocks.trade.delete.hint' | t }}</small></span>
+          </button>
+        </div>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="deleting() !== null" icon="trash-outline" tone="danger" [title]="'stocks.trade.delete.ask' | t"
+             [body]="'stocks.trade.delete.body' | t" [confirmLabel]="'stocks.trade.delete' | t"
+             (confirmed)="remove()" (cancelled)="deleting.set(null)"></app-confirm>
+
+<app-account-picker [open]="pickingAccount() !== null" [accounts]="accounts()"
+                    [selectedId]="pickingAccount() === 'form' ? formAccount() : pendingAccount()"
+                    [heading]="'stocks.import.account' | t" detail="kind" [showAll]="true" [allLabel]="'stocks.account.none' | t"
+                    [allDetail]="'stocks.account.none.hint' | t" (chosen)="chooseAccount($event)" (chosenAll)="chooseAccount(null)"
+                    (closed)="pickingAccount.set(null)"></app-account-picker>

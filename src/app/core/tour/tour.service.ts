@@ -107,6 +107,17 @@ const TOUR_LIST = {
       // 2026-10-22: reporting a fault or an idea, under Ayuda.
       { target: 'more-help', title: 'tour.more.9.title', text: 'tour.more.9.text', since: 5 },
       { target: 'more-report', title: 'tour.more.10.title', text: 'tour.more.10.text', since: 6 },
+      // 2026-11-12: the stock market, under Tus finanzas.
+      { target: 'more-stocks', title: 'tour.more.11.title', text: 'tour.more.11.text', since: 7 },
+    ],
+  },
+  // Bolsa de valores (2026-11-12).
+  stocks: {
+    steps: [
+      { target: 'stocks-hero', title: 'tour.stocks.1.title', text: 'tour.stocks.1.text' },
+      { sel: 'app-stocks .ui-hero .actions .ui-btn', title: 'tour.stocks.2.title', text: 'tour.stocks.2.text' },
+      { sel: 'app-stocks .ui-hero .actions .ui-btn.ghost', title: 'tour.stocks.3.title', text: 'tour.stocks.3.text' },
+      { target: 'stocks-faces', title: 'tour.stocks.4.title', text: 'tour.stocks.4.text' },
     ],
   },
   reminders: {
@@ -345,7 +356,7 @@ export const TOURS: Record<TourId, Tour> = TOUR_LIST;
 const ROUTE_TOURS: [RegExp, TourId][] = [
   [/^\/more/, 'more'], [/^\/pro/, 'pro'], [/^\/view\/bar/, 'bar'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
   [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/plan/, 'debtPlan'], [/^\/debts\/\d/, 'card'],
-  [/^\/debts/, 'debts'], [/^\/reminders/, 'reminders'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
+  [/^\/debts/, 'debts'], [/^\/reminders/, 'reminders'], [/^\/stocks/, 'stocks'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
   [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],
   [/^\/account(\?|$)/, 'google'], [/^\/erase/, 'erase'], [/^\/assistant/, 'assistant'],
 ];

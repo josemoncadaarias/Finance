@@ -55,6 +55,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/reminders/reminders.page').then(m => m.RemindersPage),
   },
   {
+    // Bolsa de valores (2026-11-12): what was bought at a broker and what it is worth.
+    path: 'stocks',
+    loadComponent: () => import('./features/stocks/stocks.page').then(m => m.StocksPage),
+  },
+  {
     path: 'plans',
     loadComponent: () => import('./features/plans/plans.page').then(m => m.PlansPage),
   },

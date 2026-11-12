@@ -34,6 +34,8 @@ const ALLOWED = [
   'core/i18n/translations-ui.ts',
   // Finance Pro's words, spread into translations.ts the same way.
   'core/i18n/translations-pro.ts',
+  // The stock market's words, spread the same way.
+  'core/i18n/translations-stocks.ts',
   'core/database/category-icons.ts',
   // The categories a new install starts with, each written in both languages
   // in the same row: they become the user's own data the moment they land, so
@@ -89,6 +91,8 @@ const ALLOWED = [
   // The words a receipt prints - 'total a pagar', 'cambio', 'NIT', 'desde' -
   // read out of the photo, never shown.
   'core/receipts/read-receipt.ts',
+  // The words a broker's statement says a row with, in both languages.
+  'core/stocks/read-broker.ts',
   // The words a person says to be reminded ("cada mes", "todos los 5"), read
   // out of what was typed or dictated, never shown.
   'core/assistant/read-reminder.ts',

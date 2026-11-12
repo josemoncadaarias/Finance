@@ -243,6 +243,15 @@
         ninguna otra aplicación puede leer esa carpeta.
       </li>
       <li>
+        Si usas «Bolsa de valores» y pides los precios de hoy, se solicita
+        además el permiso <code>drive.file</code>, que da acceso únicamente a
+        los archivos que esta aplicación crea. La aplicación crea
+        <strong>una sola hoja de cálculo</strong> en tu Google Drive, escribe
+        en ella los símbolos de las acciones que tienes y lee los precios que
+        calcula Google Finance. No puede ver tus otros archivos, y puedes
+        borrar esa hoja cuando quieras.
+      </li>
+      <li>
         La copia de seguridad viaja directamente desde tu dispositivo a tu
         Google Drive. <strong>No pasa por ningún servidor nuestro</strong>, y
         Jadex Labs no tiene acceso a ella.
@@ -302,6 +311,10 @@
       <li><strong>Inicio de sesión de Google y Google Drive</strong> (Google
         LLC), solo si conectas tu cuenta: guarda la copia de seguridad en tu
         propio Drive, en un espacio que solo la aplicación ve.</li>
+      <li><strong>Google Sheets y Google Finance</strong> (Google LLC), solo
+        si pides los precios en «Bolsa de valores»: reciben los símbolos de
+        las acciones y fondos que tienes, dentro de una hoja de cálculo de tu
+        propia cuenta. No reciben cantidades ni valores.</li>
       <li><strong>RevenueCat</strong> (RevenueCat, Inc.): verifica la
         suscripción Finance Pro. Recibe el identificador descrito arriba, el
         producto y el estado de la suscripción.</li>

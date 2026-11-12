@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 40 tables and how they relate. The authority is always
+The 43 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -317,6 +317,30 @@ erDiagram
         TEXT shop
         TEXT done_month
     }
+    stock_trades {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT kind
+        TEXT symbol
+        TEXT traded_on
+        INTEGER quantity_e8
+        INTEGER price_e6
+        INTEGER amount_minor
+        TEXT currency
+        TEXT dedupe
+    }
+    stock_instruments {
+        TEXT symbol PK
+        TEXT name
+        TEXT quote
+        TEXT facts
+    }
+    stock_prices {
+        TEXT symbol PK
+        TEXT day PK
+        INTEGER price_e6
+        TEXT source
+    }
     uvr_values {
         TEXT day PK
         INTEGER value_scaled
@@ -419,6 +443,7 @@ erDiagram
     accounts       ||--o{ card_statements : "was billed by the bank in"
     accounts       ||--o{ reminders : "is what a reminder opens the form on"
     categories     ||--o{ reminders : "is what a reminder files under"
+    accounts       ||--o{ stock_trades : "is the broker of"
     transactions   ||--o{ product_entries : "cashed in by"
     transfers      ||--o{ product_entries : "one end of"
     product_kinds  ||--o{ product_entries : "is a"
@@ -546,6 +571,16 @@ filled in; they never write a movement. `repeat` is `monthly` (on
 the current ring. `shop` ties one to a fixed payment, whose sight in the month
 settles it. Both pointers are `SET NULL`: a reminder outlives its account.
 
+`stock_trades`, `stock_instruments` and `stock_prices` (migration 063) are
+the stock market's own book, apart from the ledger: a trade is not a movement
+and changes no balance. `amount_minor` is what the row did to the cash at the
+broker, signed; `quantity_e8` and `price_e6` are integers scaled by 10^8 and
+10^6. `dedupe` is what makes a row itself, so a statement read twice adds
+nothing. `account_id` is `SET NULL`: the history outlives the account. A
+ticker's `quote` is how Google Finance writes it; `stock_prices` keeps one
+price per ticker and day, fetched (`sheet`), typed (`manual`) or the sample
+data's (`demo`).
+
 ### 4. Import bookkeeping
 
 `import_batches`, `review_queue`, `settings`. Not finance — the paper trail of
@@ -636,4 +671,6 @@ outright:
 | `idx_review_queue_open` | listing what is still unresolved |
 | `idx_credit_limit_changes_day` | unique; one credit limit per card per day |
 | `idx_reminders_active` | the reminders still ringing |
+| `idx_stock_trades_symbol` | a ticker's trades in order |
+| `idx_stock_trades_dedupe` | whether a statement's row is already on record |
 | `idx_transfers_covers` | the move between products that covered a movement |

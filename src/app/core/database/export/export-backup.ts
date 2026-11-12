@@ -82,6 +82,10 @@ export const TABLES = [
   'card_statements',
   // Reminders (migration 060): after the accounts and categories they point at.
   'reminders',
+  // The stock market (migration 063): trades after the accounts they name.
+  'stock_trades',
+  'stock_instruments',
+  'stock_prices',
   // What the app has read and nobody has answered yet, and what it has learned
   // about where a merchant is filed. After the movements and the categories,
   // which a proposal points at.
