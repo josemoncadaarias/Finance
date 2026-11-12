@@ -8,10 +8,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { readBroker, rowKey, scaledOf, QUANTITY_SCALE, PRICE_SCALE } from '../../src/app/core/stocks/read-broker.ts';
-import { bookOf, monthsOf, spreadOf, totalsOf, valueOf, worthByDay, worthOf, formatQuantity } from '../../src/app/core/stocks/positions.ts';
+import { bookOf, monthsOf, sameDayPairs, spreadOf, totalsOf, valueOf, worthByDay, worthOf, formatQuantity } from '../../src/app/core/stocks/positions.ts';
 import { candidatesFor, inCurrency, quotesFrom, sheetRows, stillLoading, toE6 } from '../../src/app/core/stocks/quotes.ts';
 import { askSheet, createSheet, SheetsError } from '../../src/app/core/stocks/sheets-client.ts';
-import { StocksRepository } from '../../src/app/core/stocks/stocks.repository.ts';
+import { StocksRepository, unknownRows } from '../../src/app/core/stocks/stocks.repository.ts';
 import { NodeSqlDriver } from './node-sql-driver.mjs';
 import { migrate } from '../../src/app/core/database/migrations/migration-runner.ts';
 import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statements.generated.ts';
@@ -140,10 +140,37 @@ test('a statement with no headings and its own wording still reads by the sum of
   ].map(([kind, quantity, minor, check]) => [kind, kind === 'dividend' ? 0 : quantity, minor, check]));
 });
 
-test('what is not a history is left out: today\'s positions, and a row with its opening and closing day', () => {
+const HELD = [
+  [[40, 'Cuenta 700 - Reporte generado: 2026-05-10 02:25 UTC']],
+  [[30, 'ID operación'], [130, 'Ticker'], [200, 'Tipo'], [250, 'Unidades'], [330, 'Valor (USD)'], [420, 'Precio actual'], [510, 'Precio apertura'], [600, 'Fecha apertura (UTC)'], [720, 'Rend. neto']],
+  // Figures are printed from their right edge: the value sits nearer the NEXT heading than its own.
+  [[30, '700000001'], [130, 'SOLR.US'], [200, 'BUY'], [280, '2.0000'], [380, '88.20'], [460, '44.10'], [550, '41.50'], [600, '2026-02-03 09:05'], [730, '6.27%']],
+  [[30, '700000002'], [130, 'TECX.UK'], [200, 'BUY'], [280, '1.2500'], [380, '200.00'], [460, '160.00'], [550, '148.32'], [600, '2026-02-03 09:06'], [730, '7.87%']],
+];
+
+test('a list of what is held today: each row a purchase with its own day and price, and today\'s price beside it', () => {
+  const read = readBroker(page(HELD));
+  assert.equal(read.heldOnly, true);
+  assert.deepEqual(read.rows.map(row => [row.kind, row.symbol, row.day, row.quantityE8 / QUANTITY_SCALE, row.priceE6 / PRICE_SCALE, row.amountMinor]), [
+    ['buy', 'SOLR', '2026-02-03', 2, 41.5, -8300],
+    ['buy', 'TECX.UK', '2026-02-03', 1.25, 148.32, -18540],
+  ]);
+  assert.equal(read.currency, 'USD', 'said inside a heading');
+  assert.deepEqual(read.prices, [
+    { symbol: 'SOLR', day: '2026-05-10', priceE6: 44.1 * PRICE_SCALE },
+    { symbol: 'TECX.UK', day: '2026-05-10', priceE6: 160 * PRICE_SCALE },
+  ], 'the price of the day the list was made, never taken for the price paid');
+});
+
+test('a history beats a picture: with both in one file, the list of what is held adds no purchase', () => {
+  const read = readBroker([...CASH_STYLE, ...page(HELD, { top: 400 })]);
+  assert.equal(read.heldOnly, false);
+  assert.equal(read.rows.filter(row => row.kind === 'buy').length, 3);
+  assert.equal(read.prices.length, 2, 'its prices are still worth keeping');
+});
+
+test('a row with the day it was opened and the day it was closed retells the history, and is left out', () => {
   const read = readBroker(page([
-    [[40, 'Position'], [120, 'Symbol'], [200, 'Type'], [270, 'Volume'], [340, 'Open time'], [470, 'Open price'], [560, 'Market price'], [650, 'Purchase value']],
-    [[40, '700000001'], [120, 'SOLR.US'], [200, 'BUY'], [270, '2'], [340, '03/02/2026 10:05:10'], [470, '41.50'], [560, '44.10'], [650, '83.00']],
     [[40, 'Position'], [120, 'Symbol'], [200, 'Type'], [270, 'Volume'], [340, 'Open time'], [470, 'Open price'], [560, 'Close time'], [650, 'Close price']],
     [[40, '700000002'], [120, 'CAFE.US'], [200, 'BUY'], [270, '1'], [340, '03/02/2026 10:05:10'], [470, '67.00'], [560, '04/03/2026 11:00:00'], [650, '66.00']],
   ]));
@@ -466,4 +493,124 @@ test('the ranges, as the tools people know write them', () => {
   assert.equal(rangeStart('YTD', '2026-03-31'), '2026-01-01');
   assert.equal(rangeStart('5Y', '2026-03-31'), '2021-03-31');
   assert.equal(rangeStart('MAX', '2026-03-31'), null);
+});
+
+// ---- The same purchase told by two files -----------------------------------------------
+
+test('the same purchases told by another file of the broker are not added twice', async () => {
+  const db = await openMigratedDatabase();
+  const repository = new StocksRepository(db, () => '2026-05-10T10:00:00Z');
+  await repository.importRows(null, 'USD', 'historia.pdf', readBroker(CASH_STYLE).rows);
+
+  // The list of what is held: other numbers, another time zone, and the two
+  // fills of TECX told as one purchase of 1.25.
+  const held = readBroker(page(HELD));
+  assert.deepEqual((await repository.newOnes(null, held.rows)).map(row => row.symbol), [],
+    'two units of SOLR on that day and 1.25 of TECX are already on record');
+
+  // The other way round: the list first, then the history.
+  const other = new StocksRepository(await openMigratedDatabase(), () => '2026-05-10T10:00:00Z');
+  await other.importRows(null, 'USD', 'abiertas.pdf', held.rows);
+  const fresh = await other.newOnes(null, readBroker(CASH_STYLE).rows);
+  assert.deepEqual(fresh.filter(row => row.kind === 'buy').length, 0);
+  assert.ok(fresh.some(row => row.kind === 'sell') && fresh.some(row => row.kind === 'dividend'), 'what the list does not tell is still new');
+
+  await repository.keepStatedPrices(held.prices);
+  assert.equal((await repository.latestPrices('2026-05-10')).get('SOLR').source, 'statement');
+  await repository.setPrice('SOLR', '2026-05-10', 45_000_000, null, 'manual');
+  await repository.keepStatedPrices(held.prices);
+  assert.equal((await repository.latestPrices('2026-05-10')).get('SOLR').priceE6, 45_000_000, 'a typed price wins');
+  await db.close();
+});
+
+test('two real purchases of the same units on one day are two', () => {
+  const row = { kind: 'buy', symbol: 'SOLR', day: '2026-02-03', time: null, quantityE8: QUANTITY_SCALE, priceE6: 41_000_000, amountMinor: -4100, ratio: null, ref: null, asset: null, check: 'adds', text: '' };
+  const have = [{ dedupe: 'x', kind: 'buy', symbol: 'SOLR', traded_on: '2026-02-03', quantity_e8: QUANTITY_SCALE }];
+  assert.equal(unknownRows(have, [{ ...row, ref: 'a' }, { ...row, ref: 'b' }]).length, 1, 'one is on record, the other is new');
+});
+
+test('erasing the stock market leaves the rest of the app alone, and one account can go by itself', async () => {
+  const db = await openMigratedDatabase();
+  const repository = new StocksRepository(db, () => '2026-05-10T10:00:00Z');
+  const before = (await db.queryOne('SELECT COUNT(*) AS n FROM categories')).n;
+  await repository.importRows(null, 'USD', 'a.pdf', readBroker(CASH_STYLE).rows);
+  await repository.setPrice('SOLR', '2026-05-10', 45_000_000, null, 'manual');
+  await repository.saveInstrument('SOLR', { name: 'Solar Andina' });
+  assert.equal(await repository.eraseTrades({ accountId: 99 }), 0);
+  assert.equal(await repository.count(), 9);
+  assert.equal(await repository.eraseTrades('all'), 9);
+  assert.equal((await repository.latestPrices('2026-05-10')).size, 0);
+  assert.equal((await repository.instruments()).size, 0);
+  assert.equal((await db.queryOne('SELECT COUNT(*) AS n FROM categories')).n, before);
+  await db.close();
+});
+
+test('bought and sold again the same day is told apart from a position that was closed', () => {
+  const history = trades([
+    { kind: 'buy', symbol: 'NUBE', day: '2026-01-10', time: '14:31:00', quantityE8: 4 * QUANTITY_SCALE, amountMinor: -5500, ref: 'A' },
+    { kind: 'sell', symbol: 'NUBE', day: '2026-01-10', time: '15:08:00', quantityE8: 4 * QUANTITY_SCALE, amountMinor: 5355, ref: 'A' },
+    { kind: 'buy', symbol: 'CAFE', day: '2026-01-10', time: '10:00:00', quantityE8: QUANTITY_SCALE, amountMinor: -1000, ref: 'B' },
+    { kind: 'sell', symbol: 'CAFE', day: '2026-03-01', time: '10:00:00', quantityE8: QUANTITY_SCALE, amountMinor: 900, ref: 'B' },
+  ]);
+  assert.deepEqual([...sameDayPairs(history)].sort(), [1, 2]);
+});
+
+// ---- One position from a picture --------------------------------------------------------
+
+import { readPosition, numberIn, dayIn } from '../../src/app/core/stocks/read-position.ts';
+
+/** Lines as the phone's reader hands them: [left, top, text], 40 px tall. */
+function picture(lines, width = 1080) {
+  return [{ width, height: 2400, lines: lines.map(([left, top, text]) => ({ text, left, top, right: left + text.length * 22, bottom: top + 40 })) }];
+}
+
+test('a position\'s screen with each label and its value on one row', () => {
+  const read = readPosition(picture([
+    [270, 420, 'SOLR 24/5'], [270, 480, 'Solar Andina S.A.'], [790, 430, '160.87'],
+    [250, 980, 'Información de la posición'],
+    [200, 1170, 'Comprar SOLR'],
+    [110, 1270, 'Valor: $136.47'], [450, 1270, '$36.86'],
+    [110, 1400, 'ID'], [700, 1400, '#2735473380'],
+    [70, 1580, 'Acciones'], [830, 1580, '0.848395'],
+    [70, 1680, 'Precio de apertura'], [880, 1680, '$117.41'],
+    [70, 1785, 'Fecha de apertura'], [650, 1785, '10 Jun 2024, 08:53'],
+    [70, 1885, 'SL/TP'], [740, 1885, 'Sin SL / Sin TP'],
+  ]));
+  assert.equal(read.symbol, 'SOLR');
+  assert.equal(read.quantityE8, 84_839_500);
+  assert.equal(read.priceE6, 117_410_000);
+  assert.equal(read.day, '2024-06-10');
+  assert.equal(read.amountMinor, 9961, 'worked out: 0.848395 x 117.41');
+  assert.equal(read.currency, 'USD');
+  assert.deepEqual(read.found.sort(), ['day', 'price', 'quantity', 'symbol']);
+});
+
+test('a position printed as a small table: labels on two and three lines, values under them', () => {
+  const read = readPosition(picture([
+    [48, 30, 'Tipo'], [272, 30, 'Volumen de la'], [272, 76, 'posición'], [535, 30, 'Precio de'], [535, 76, 'apertura'], [535, 122, '(USD)'],
+    [812, 30, 'Beneficio neto'], [940, 76, '(USD)'],
+    [70, 195, 'Comprar'], [272, 195, '0.2792'], [535, 195, '179.08'], [935, 195, '-1.54'], [920, 245, '-3.08%'],
+    [48, 395, 'Último precio'], [815, 395, '173.55 USD'],
+    [48, 555, 'Valor de mercado'], [838, 555, '48.46 USD'],
+    [48, 715, 'Valor de apertura'], [838, 715, '50.00 USD'],
+    [48, 885, 'Fecha de apertura'], [830, 860, '09.11.2026'],
+  ]));
+  assert.equal(read.symbol, null, 'the picture does not show it: the form asks');
+  assert.equal(read.quantityE8, 27_920_000);
+  assert.equal(read.priceE6, 179_080_000);
+  assert.equal(read.amountMinor, 5000, 'what the screen says it cost, not the market value');
+  assert.equal(read.day, '2026-11-09');
+  assert.equal(read.currentE6, 173_550_000);
+  assert.equal(read.currency, 'USD');
+});
+
+test('numbers and days as screens write them', () => {
+  assert.equal(numberIn('$1,234.56'), '1234.56');
+  assert.equal(numberIn('1.234,56 EUR'), '1234.56');
+  assert.equal(numberIn('0.848'), '0.848');
+  assert.equal(numberIn('1.250'), '1250');
+  assert.equal(numberIn('-3.08%'), null);
+  assert.equal(dayIn('Jun 10, 2024'), '2024-06-10');
+  assert.equal(dayIn('10 de junio de 2024'), '2024-06-10');
+  assert.equal(dayIn('2026-11-09 14:20'), '2026-11-09');
 });

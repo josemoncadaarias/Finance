@@ -20,11 +20,15 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import type { AccountRow, IsoDate } from '../../core/database/types';
 import { amountsHidden, formatMoney, HIDDEN_AMOUNT } from '../../core/database/money';
 import { fromIsoDay, isoDay } from '../../core/filters/period';
-import { canReadImages, statementAccept, statementFiles } from '../../core/statements/image-text';
+import { ReaderNotReady, canReadImages, lastPages, statementAccept, statementFiles, textOfImages } from '../../core/statements/image-text';
+import { readPosition } from '../../core/stocks/read-position';
+import { currencyName, flagOf } from '../../core/currencies/catalog';
+import { foldText } from '../../core/text/fold-text';
+import { JumpComponent } from '../../shared/ui/jump.component';
 import { StatementFlowService } from '../../core/statements/statement-flow.service';
 import { StocksService, type StockImport } from '../../core/stocks/stocks.service';
 import {
-  formatQuantity, monthsOf, spreadOf, worthByDay, worthOf, type Trade, type Valued,
+  formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
 } from '../../core/stocks/positions';
 import { PRICE_SCALE, QUANTITY_SCALE, scaledOf, type AssetKind, type BrokerRow, type TradeKind } from '../../core/stocks/read-broker';
 import type { TradeInput } from '../../core/stocks/stocks.repository';
@@ -43,7 +47,21 @@ import { MainCurrencyService } from '../../core/currencies/main-currency.service
 import { ReturnsChartComponent } from './returns-chart.component';
 
 type Face = 'positions' | 'charts' | 'history';
-type HistoryFilter = 'all' | 'trades' | 'dividends' | 'cash';
+type HistoryFilter = 'all' | 'trades' | 'dividends' | 'cash' | 'sameDay';
+type HistoryGroup = 'month' | 'day' | 'symbol' | 'asset';
+
+const DETAIL_KEY = 'finance.stocks.detail';
+const GROUP_KEY = 'finance.stocks.group';
+
+const ASSET_ICON: Record<AssetKind, string> = { stock: 'business-outline', etf: 'layers-outline', crypto: 'logo-bitcoin', other: 'shapes-outline' };
+const ASSET_COLOR: Record<AssetKind, string> = { stock: '#6378ff', etf: '#34c98b', crypto: '#f6b93b', other: '#9b7bff' };
+
+function kept(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function keep(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* a private window: the choice lasts while the screen is open */ }
+}
 
 /** The chart's own colours, told apart on the dark and the light card. */
 const PALETTE = ['#6378ff', '#34c98b', '#f6b93b', '#f2709c', '#2ec4b6', '#9b7bff', '#ff8a4c', '#4aa3ff'];
@@ -86,7 +104,7 @@ interface Bar { label: string; long: string; minor: number; height: number; }
   templateUrl: './stocks.page.html',
   styleUrls: ['./stocks.page.scss'],
   imports: [TranslatePipe, IonContent, IonIcon, IonModal, IonSpinner, BadgeComponent, AskButtonComponent, AmountsEyeComponent,
-    EmptyStateComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, AmountInputDirective, ReturnsChartComponent],
+    EmptyStateComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, AmountInputDirective, ReturnsChartComponent, JumpComponent],
 })
 export class StocksPage {
   readonly stocks = inject(StocksService);
@@ -101,6 +119,7 @@ export class StocksPage {
   private readonly mainCurrency = inject(MainCurrencyService);
 
   private readonly file = viewChild.required<ElementRef<HTMLInputElement>>('file');
+  private readonly photo = viewChild.required<ElementRef<HTMLInputElement>>('photo');
   readonly accept = statementAccept();
   readonly images = canReadImages();
 
@@ -147,8 +166,23 @@ export class StocksPage {
   readonly held = computed(() => this.stocks.valued()
     .filter(one => one.position.quantityE8 > 0 && one.position.currency === this.currency())
     .sort((a, b) => b.valueMinor - a.valueMinor));
+  /** Bought and sold again the same day: the broker undoing an order, not a sale somebody decided. */
+  readonly pairs = computed(() => sameDayPairs(this.stocks.trades()));
+  /** Tickers whose every purchase and sale was undone the same day: nothing was ever really held. */
+  private readonly undoneOnly = computed(() => {
+    const pairs = this.pairs();
+    const all = new Map<string, boolean>();
+    for (const trade of this.stocks.trades()) {
+      if (trade.symbol === null || (trade.kind !== 'buy' && trade.kind !== 'sell')) continue;
+      all.set(trade.symbol, (all.get(trade.symbol) ?? true) && pairs.has(trade.id));
+    }
+    return new Set([...all.entries()].filter(([, only]) => only).map(([symbol]) => symbol));
+  });
+  readonly undoneCount = computed(() => this.stocks.trades()
+    .filter(trade => trade.kind === 'sell' && trade.currency === this.currency() && this.pairs().has(trade.id)).length);
   readonly sold = computed(() => this.stocks.valued()
     .filter(one => one.position.quantityE8 === 0 && one.position.currency === this.currency()
+      && !this.undoneOnly().has(one.position.symbol)
       && (one.position.soldMinor > 0 || one.position.dividendsMinor !== 0))
     .sort((a, b) => b.position.lastDay.localeCompare(a.position.lastDay)));
   readonly soldOpen = signal(false);
@@ -169,12 +203,50 @@ export class StocksPage {
       const time = new Intl.DateTimeFormat(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' }).format(new Date(at));
       return this.i18n.t('stocks.prices.today', { time });
     }
+    if (day !== today && quotes.some(quote => quote.source === 'statement' && quote.day === day)) return this.i18n.t('stocks.prices.fromStatement', { day: this.dayWords(day) });
     return this.i18n.t(day === today ? 'stocks.prices.typedToday' : 'stocks.prices.from', { day: this.dayWords(day) });
   });
   readonly pricesOld = computed(() => {
     const quotes = this.held().map(one => one.quote).filter(quote => quote !== null);
     return quotes.length > 0 && quotes.some(quote => quote.day !== isoDay(new Date()));
   });
+
+  /** The state of the prices in three words, as Monedas y TRM says its own. */
+  readonly pricesChip = computed((): { tone: 'good' | 'warn' | 'none' | 'info'; icon: string; text: string } => {
+    if (this.stocks.pricesState() === 'working') return { tone: 'info', icon: 'sync-outline', text: this.i18n.t('stocks.chip.working') };
+    const quotes = this.held().map(one => one.quote).filter(quote => quote !== null);
+    if (quotes.length === 0) return { tone: 'none', icon: 'help-circle-outline', text: this.i18n.t('stocks.chip.none') };
+    if (quotes.some(quote => quote.source === 'demo')) return { tone: 'info', icon: 'flask-outline', text: this.i18n.t('stocks.chip.demo') };
+    const day = quotes.map(quote => quote.day).sort()[0];
+    const today = isoDay(new Date());
+    if (day !== today) return { tone: 'warn', icon: 'time-outline', text: this.i18n.t('stocks.chip.from', { day: this.shortDay(day) }) };
+    const at = this.stocks.pricesAt();
+    const total = this.total();
+    if (total && total.unquoted > 0) return { tone: 'warn', icon: 'alert-circle-outline', text: this.i18n.t('stocks.chip.some', { count: total.unquoted }) };
+    if (at && quotes.some(quote => quote.source === 'sheet')) {
+      const time = new Intl.DateTimeFormat(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' }).format(new Date(at));
+      return { tone: 'good', icon: 'checkmark-circle', text: this.i18n.t('stocks.chip.today', { time }) };
+    }
+    return { tone: 'good', icon: 'checkmark-circle', text: this.i18n.t('stocks.chip.todayPlain') };
+  });
+
+  /** "1 USD = 3.182,99 COP": the rate the value in the main currency was worked out at. */
+  readonly rateLine = computed(() => {
+    const main = this.mainCurrency.code();
+    const pesos = this.stocks.pesosPer();
+    const [from, to] = [pesos.get(this.currency()), pesos.get(main)];
+    if (!from || !to || this.currency() === main) return null;
+    const rate = new Intl.NumberFormat(this.i18n.dateLocale(), { minimumFractionDigits: 2, maximumFractionDigits: from / to < 10 ? 4 : 2 }).format(from / to);
+    return `1 ${this.currency()} = ${rate} ${main}`;
+  });
+
+  readonly detailOpen = signal(kept(DETAIL_KEY) === '1');
+  toggleDetail(): void {
+    this.detailOpen.set(!this.detailOpen());
+    keep(DETAIL_KEY, this.detailOpen() ? '1' : '0');
+  }
+  readonly pricesSheet = signal(false);
+  readonly addSheet = signal(false);
 
   // ---- Charts ---------------------------------------------------------------------
 
@@ -288,36 +360,110 @@ export class StocksPage {
   // ---- History --------------------------------------------------------------------
 
   readonly filter = signal<HistoryFilter>('all');
-  private readonly openMonths = signal<Set<string> | null>(null);
+  readonly group = signal<HistoryGroup>((['month', 'day', 'symbol', 'asset'] as const).find(one => one === kept(GROUP_KEY)) ?? 'month');
+  readonly search = signal('');
+  readonly searching = signal(false);
+  readonly filterSheet = signal(false);
+  /** The sections the person opened or closed; null while only the first is open. */
+  private readonly openSections = signal<Set<string> | null>(null);
+  readonly filters: HistoryFilter[] = ['all', 'trades', 'dividends', 'cash', 'sameDay'];
+  readonly groups: HistoryGroup[] = ['month', 'day', 'symbol', 'asset'];
+  readonly filterIcons: Record<HistoryFilter, string> = {
+    all: 'list-outline', trades: 'swap-vertical-outline', dividends: 'gift-outline', cash: 'wallet-outline', sameDay: 'repeat-outline',
+  };
+  readonly groupIcons: Record<HistoryGroup, string> = {
+    month: 'calendar-outline', day: 'today-outline', symbol: 'pricetag-outline', asset: 'shapes-outline',
+  };
 
-  readonly historyMonths = computed(() => {
+  /** What each row says, folded once: the search reads it on every key. */
+  private readonly searchable = computed(() => new Map(this.stocks.trades().map(trade => [trade.id, foldText([
+    trade.symbol ?? '', this.nameOf(trade.symbol ?? '') ?? '', this.i18n.t(`stocks.trade.${trade.kind}` as 'stocks.trade.buy'),
+    trade.note ?? '', this.dayWords(trade.day), trade.day, String(Math.abs(trade.amountMinor) / 100), formatMoney(Math.abs(trade.amountMinor), trade.currency, { shown: true }),
+  ].join(' '))])));
+
+  private readonly historyRows = computed(() => {
     const filter = this.filter();
-    const rows = this.stocks.trades().filter(trade => trade.currency === this.currency() && (
+    const pairs = this.pairs();
+    const words = foldText(this.search().trim()).split(/\s+/).filter(word => word !== '');
+    const said = this.searchable();
+    return this.stocks.trades().filter(trade => trade.currency === this.currency() && (
       filter === 'all' ? true
-        : filter === 'trades' ? trade.kind === 'buy' || trade.kind === 'sell' || trade.kind === 'split'
-          : filter === 'dividends' ? trade.kind === 'dividend' || trade.kind === 'tax'
-            : trade.kind === 'deposit' || trade.kind === 'withdrawal' || trade.kind === 'fee' || trade.kind === 'interest'));
-    const months = new Map<string, Trade[]>();
-    for (const trade of [...rows].reverse()) {
-      const month = trade.day.slice(0, 7);
-      months.set(month, [...(months.get(month) ?? []), trade]);
+        : filter === 'trades' ? (trade.kind === 'buy' || trade.kind === 'sell' || trade.kind === 'split') && !pairs.has(trade.id)
+          : filter === 'sameDay' ? pairs.has(trade.id)
+            : filter === 'dividends' ? trade.kind === 'dividend' || trade.kind === 'tax'
+              : trade.kind === 'deposit' || trade.kind === 'withdrawal' || trade.kind === 'fee' || trade.kind === 'interest')
+      && words.every(word => (said.get(trade.id) ?? '').includes(word)));
+  });
+  readonly historyCount = computed(() => this.historyRows().length);
+
+  /** The history in folding sections: by month, by day, by ticker or by kind of asset. */
+  readonly historySections = computed(() => {
+    const group = this.group();
+    const assets = new Map(this.stocks.valued().map(one => [one.position.symbol, one.position.asset ?? null]));
+    const sections = new Map<string, Trade[]>();
+    for (const trade of [...this.historyRows()].reverse()) {
+      const key = group === 'month' ? trade.day.slice(0, 7)
+        : group === 'day' ? trade.day
+          : group === 'symbol' ? trade.symbol ?? ''
+            : trade.symbol === null ? '' : assets.get(trade.symbol) ?? trade.asset ?? 'unknown';
+      sections.set(key, [...(sections.get(key) ?? []), trade]);
     }
-    return [...months.entries()].map(([month, trades]) => ({
-      month,
-      title: new Intl.DateTimeFormat(this.i18n.dateLocale(), { month: 'long', year: 'numeric' }).format(fromIsoDay(`${month}-01`)),
-      trades,
-    }));
+    const title = (key: string): string => group === 'month'
+      ? new Intl.DateTimeFormat(this.i18n.dateLocale(), { month: 'long', year: 'numeric' }).format(fromIsoDay(`${key}-01`))
+      : group === 'day' ? new Intl.DateTimeFormat(this.i18n.dateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(fromIsoDay(key))
+        : key === '' ? this.i18n.t('stocks.history.noSymbol')
+          : group === 'symbol' ? key : this.i18n.t(`stocks.kind.${key}` as 'stocks.kind.stock');
+    const list = [...sections.entries()].map(([key, trades]) => ({ key, title: title(key), trades }));
+    // By ticker or kind: the one with most movements first; what names no ticker last.
+    if (group === 'symbol' || group === 'asset') list.sort((a, b) => (a.key === '' ? 1 : 0) - (b.key === '' ? 1 : 0) || b.trades.length - a.trades.length);
+    return list;
   });
 
-  isMonthOpen(month: string): boolean {
-    const open = this.openMonths();
-    return open === null ? this.historyMonths()[0]?.month === month : open.has(month);
+  isSectionOpen(key: string): boolean {
+    if (this.search().trim() !== '') return true;
+    const open = this.openSections();
+    return open === null ? this.historySections()[0]?.key === key : open.has(key);
   }
 
-  toggleMonth(month: string): void {
-    const open = new Set(this.openMonths() ?? [this.historyMonths()[0]?.month ?? '']);
-    if (open.has(month)) open.delete(month); else open.add(month);
-    this.openMonths.set(open);
+  toggleSection(key: string): void {
+    const open = new Set(this.openSections() ?? [this.historySections()[0]?.key ?? '']);
+    if (open.has(key)) open.delete(key); else open.add(key);
+    this.openSections.set(open);
+  }
+
+  readonly allFolded = computed(() => {
+    const open = this.openSections();
+    const sections = this.historySections();
+    return open === null ? sections.length === 0 : !sections.some(section => open.has(section.key));
+  });
+
+  foldAll(): void {
+    this.openSections.set(this.allFolded() ? new Set(this.historySections().map(section => section.key)) : new Set());
+  }
+
+  chooseFilter(filter: HistoryFilter): void {
+    this.filter.set(filter);
+    this.openSections.set(null);
+  }
+
+  chooseGroup(group: HistoryGroup): void {
+    this.group.set(group);
+    keep(GROUP_KEY, group);
+    this.openSections.set(null);
+  }
+
+  showUndone(): void {
+    this.face.set('history');
+    this.chooseFilter('sameDay');
+  }
+
+  startSearch(): void {
+    this.searching.set(true);
+  }
+
+  endSearch(): void {
+    this.search.set('');
+    this.searching.set(false);
   }
 
   // ---- One position ---------------------------------------------------------------
@@ -371,7 +517,6 @@ export class StocksPage {
   readonly pendingOff = computed(() => this.pendingNew().filter(row => row.check === 'off'));
   readonly pendingSymbols = computed(() => [...new Set(this.pendingNew().map(row => row.symbol).filter(symbol => symbol !== null))]);
   readonly pendingKnown = computed(() => (this.pending()?.reading.rows.length ?? 0) - this.pendingNew().length);
-  readonly currencyChoices = computed(() => [...new Set([this.pendingCurrency(), 'USD', 'EUR', 'COP'])]);
 
   // ---- The form: one trade by hand -----------------------------------------------------
 
@@ -389,6 +534,14 @@ export class StocksPage {
   readonly formCurrency = signal('USD');
   readonly formNote = signal('');
   readonly tried = signal(false);
+  /** Account, currency and note: folded until wanted. */
+  readonly moreOpen = signal(false);
+  readonly assetSheet = signal(false);
+  readonly currencySheet = signal<'form' | 'import' | null>(null);
+  readonly assets: AssetKind[] = ['stock', 'etf', 'crypto', 'other'];
+  /** What a photo of a position could not say: the form marks it. */
+  readonly fromPhoto = signal<string | null>(null);
+  readonly erasing = signal(false);
   readonly deleting = signal<Trade | null>(null);
   /** A row read from a statement, opened: it is shown, and can only be deleted. */
   readonly viewing = signal<Trade | null>(null);
@@ -439,7 +592,27 @@ export class StocksPage {
 
   chooseCurrency(code: string): void {
     this.chosenCurrency.set(code);
-    this.openMonths.set(null);
+    this.openSections.set(null);
+  }
+
+  assetIcon(kind: AssetKind): string { return ASSET_ICON[kind]; }
+  assetColor(kind: AssetKind): string { return ASSET_COLOR[kind]; }
+  flag(code: string): string { return flagOf(code); }
+  currencyWords(code: string): string { return currencyName(code, code, this.i18n.language() === 'en' ? 'en' : 'es'); }
+
+  /** The currencies offered: the one chosen, those the app has a rate for, and the usual ones. */
+  readonly currencyOptions = computed(() => [...new Set([
+    this.currencySheet() === 'import' ? this.pendingCurrency() : this.formCurrency(), ...this.currencies(), 'USD', 'EUR', 'GBP', 'COP',
+    ...this.stocks.pesosPer().keys(),
+  ])]);
+
+  chooseMoney(code: string): void {
+    if (this.currencySheet() === 'import') this.pendingCurrency.set(code); else this.formCurrency.set(code);
+    this.currencySheet.set(null);
+  }
+
+  shortDay(day: string): string {
+    return new Intl.DateTimeFormat(this.i18n.dateLocale(), { day: 'numeric', month: 'short' }).format(fromIsoDay(day)).replace('.', '');
   }
 
   // ---- Words ------------------------------------------------------------------------
@@ -518,7 +691,8 @@ export class StocksPage {
   sourceWords(valued: Valued): string {
     const quote = valued.quote;
     if (!quote) return this.i18n.t('stocks.position.noPrice');
-    const key = quote.source === 'sheet' ? 'stocks.position.fromGoogle' : quote.source === 'manual' ? 'stocks.position.typed' : 'stocks.position.demoPrice';
+    const key = quote.source === 'sheet' ? 'stocks.position.fromGoogle' : quote.source === 'manual' ? 'stocks.position.typed'
+      : quote.source === 'statement' ? 'stocks.position.fromStatement' : 'stocks.position.demoPrice';
     return this.i18n.t(key, { day: this.dayWords(quote.day) });
   }
 
@@ -556,6 +730,7 @@ export class StocksPage {
 
   async refresh(): Promise<void> {
     if (!(await this.allowed())) return;
+    this.pricesSheet.set(false);
     void this.stocks.refreshPrices({ ask: true });
   }
 
@@ -607,8 +782,57 @@ export class StocksPage {
   // ---- Importing ----------------------------------------------------------------------
 
   async chooseFile(): Promise<void> {
+    this.addSheet.set(false);
     if (!(await this.allowed())) return;
     this.file().nativeElement.click();
+  }
+
+  /** A photo or a screenshot of one position: its purchase, in the form, to check and save. */
+  async choosePhoto(): Promise<void> {
+    this.addSheet.set(false);
+    if (!(await this.allowed())) return;
+    this.photo().nativeElement.click();
+  }
+
+  async pickedPhoto(input: HTMLInputElement): Promise<void> {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.toast.say(this.i18n.t('stocks.photo.reading'), 20_000, { icon: 'camera-outline' });
+    let read;
+    try {
+      await textOfImages([file]);
+      read = readPosition(lastPages);
+    } catch (problem) {
+      this.toast.say(this.i18n.t(problem instanceof ReaderNotReady ? 'receipt.notReady' : 'stocks.photo.noText'), 7000, { icon: 'alert-circle' });
+      return;
+    }
+    if (read.found.length === 0) {
+      this.toast.say(this.i18n.t('stocks.photo.nothing'), 8000, { icon: 'alert-circle' });
+      return;
+    }
+    await this.newTrade(read.symbol);
+    if (this.editing() !== 'new') return;
+    const plain = (value: number, scale: number): string => String(value / scale).replace('.', ',');
+    if (read.day) this.formDay.set(read.day);
+    if (read.currency) this.formCurrency.set(read.currency);
+    if (read.quantityE8 !== null) this.formQuantity.set(plain(read.quantityE8, QUANTITY_SCALE));
+    if (read.priceE6 !== null) this.formPrice.set(plain(read.priceE6, PRICE_SCALE));
+    if (read.amountMinor !== null) {
+      this.formAmount.set(AmountBuffer.from(read.amountMinor));
+      this.amountTouched.set(read.found.includes('amount'));
+    }
+    const missing = (['symbol', 'quantity', 'price', 'day'] as const).filter(one => !read.found.includes(one))
+      .map(one => this.i18n.t(`stocks.photo.part.${one}` as 'stocks.photo.part.symbol'));
+    this.fromPhoto.set(missing.length === 0 ? this.i18n.t('stocks.photo.check') : this.i18n.t('stocks.photo.missing', { parts: missing.join(', ') }));
+    this.toast.say(this.i18n.t('stocks.photo.read'), 5000, { icon: 'camera-outline' });
+  }
+
+  async eraseAll(): Promise<void> {
+    this.erasing.set(false);
+    const gone = await this.stocks.erase('all');
+    this.face.set('positions');
+    this.toast.say(this.i18n.t('stocks.erase.done', { count: gone }));
   }
 
   async picked(input: HTMLInputElement): Promise<void> {
@@ -664,9 +888,12 @@ export class StocksPage {
   // ---- By hand ------------------------------------------------------------------------
 
   async newTrade(symbol: string | null = null): Promise<void> {
+    this.addSheet.set(false);
     if (!(await this.allowed())) return;
     this.editing.set('new');
     this.tried.set(false);
+    this.moreOpen.set(false);
+    this.fromPhoto.set(null);
     this.formKind.set('buy');
     this.formSymbol.set(symbol ?? '');
     const position = symbol ? this.stocks.valued().find(one => one.position.symbol === symbol)?.position : null;
@@ -690,6 +917,8 @@ export class StocksPage {
     }
     this.editing.set(trade.id);
     this.tried.set(false);
+    this.moreOpen.set(trade.note !== null && trade.note !== '');
+    this.fromPhoto.set(null);
     this.formKind.set(trade.kind as 'buy' | 'sell' | 'dividend');
     this.formSymbol.set(trade.symbol ?? '');
     this.formAsset.set(trade.asset ?? 'stock');

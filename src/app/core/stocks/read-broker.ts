@@ -58,6 +58,15 @@ export interface BrokerRow {
   check: 'adds' | 'derived' | 'off' | 'none';
   /** The line as it was read, for the screen that shows what was understood. */
   text: string;
+  /** Read from a table of today's positions rather than from a history. */
+  held?: boolean;
+}
+
+/** A ticker's price on the day the statement was made, as the statement prints it. */
+export interface StatedPrice {
+  symbol: string;
+  day: IsoDate;
+  priceE6: number;
 }
 
 export interface BrokerReading {
@@ -68,6 +77,10 @@ export interface BrokerReading {
   to: IsoDate | null;
   /** Lines with a date and money on them that could not be understood. */
   unread: string[];
+  /** Today's price of each ticker, where the statement is a picture of what is held. */
+  prices: StatedPrice[];
+  /** True when the purchases come from a list of what is held today, not from a history. */
+  heldOnly: boolean;
 }
 
 // ---- Words ------------------------------------------------------------------
@@ -106,11 +119,13 @@ function assetOf(cell: string): AssetKind | null {
 
 // ---- Column headings ----------------------------------------------------------
 
-type Role = 'quantity' | 'price' | 'amount' | 'ref' | 'symbol' | 'type' | 'other';
+type Role = 'quantity' | 'price' | 'current' | 'amount' | 'ref' | 'symbol' | 'type' | 'other';
 
 const HEADINGS: readonly [Role, RegExp][] = [
   ['quantity', /^(unidades|units|cantidad|quantity|qty|volumen|volume|shares|titulos|nominal)\b/],
-  ['price', /^(precio|price|open price|cotizacion|tasa de apertura)\b/],
+  // Today's price, told apart from the price paid: checked first.
+  ['current', /^(precio actual|precio de mercado|ultimo precio|market price|current price|last price)\b/],
+  ['price', /^(precio|price|open price|purchase price|cotizacion|tasa de apertura)\b/],
   ['amount', /^(importe|amount|monto|valor|value|total|neto|net|efectivo|purchase value)\b/],
   ['ref', /^(id|ref|referencia|numero|no\.|order|orden|position|posicion|ticket)\b/],
   ['symbol', /^(simbolo|symbol|ticker|instrumento|instrument|activo|asset)\b/],
@@ -140,16 +155,65 @@ function headingOf(line: StatementLine): Heading | null {
     if (seen.has(column.role)) column.role = 'other';
     else seen.add(column.role);
   }
-  return { columns, snapshot: SNAPSHOT.test(fold(line.text)) };
+  const snapshot = SNAPSHOT.test(fold(line.text));
+  if (snapshot) {
+    // Beside today's price, "Valor" is what it is worth today, not what was
+    // paid: only a column that says so (apertura, compra, purchase) is the cost.
+    line.items.forEach((item, at) => {
+      if (columns[at].role === 'amount' && !/(apertura|compra|purchase|invertido|invested|cost)/.test(fold(item.text))) {
+        columns[at].role = 'other';
+      }
+    });
+  }
+  return { columns, snapshot };
 }
 
-function roleAt(heading: Heading | null, x: number): Role | null {
-  if (!heading) return null;
-  let best: Column | null = null;
-  for (const column of heading.columns) {
-    if (best === null || Math.abs(column.x - x) < Math.abs(best.x - x)) best = column;
+/** What leaving a cell under no heading costs, in the page's own units. */
+const NO_COLUMN = 70;
+
+/**
+ * The heading each cell of a row sits under.
+ *
+ * Not the nearest heading: a heading is printed from its left edge or its
+ * middle and a figure from its right, so the nearest one is often the
+ * neighbour. Cells and headings both run left to right, so the cells are
+ * laid over the headings in order, at the least total distance; a cell
+ * with no heading of its own (a column whose title wrapped onto another
+ * line) is left without one.
+ */
+function rolesOf(heading: Heading | null, xs: readonly number[]): (Role | null)[] {
+  if (!heading) return xs.map(() => null);
+  const columns = [...heading.columns].sort((a, b) => a.x - b.x);
+  const order = xs.map((x, at) => ({ x, at })).sort((a, b) => a.x - b.x);
+  const n = order.length;
+  const m = columns.length;
+  // best[i][j]: the least cost of placing the first i cells among the first j headings.
+  const best: number[][] = Array.from({ length: n + 1 }, () => Array<number>(m + 1).fill(0));
+  const took: number[][] = Array.from({ length: n + 1 }, () => Array<number>(m + 1).fill(0));
+  for (let i = 1; i <= n; i += 1) {
+    for (let j = 0; j <= m; j += 1) {
+      // 0: the cell has no heading; 1: this heading is skipped; 2: the cell sits under it.
+      let cost = best[i - 1][j] + NO_COLUMN;
+      let how = 0;
+      if (j > 0) {
+        if (best[i][j - 1] < cost) { cost = best[i][j - 1]; how = 1; }
+        const under = best[i - 1][j - 1] + Math.abs(order[i - 1].x - columns[j - 1].x);
+        if (under < cost) { cost = under; how = 2; }
+      }
+      best[i][j] = cost;
+      took[i][j] = how;
+    }
   }
-  return best && Math.abs(best.x - x) <= 60 ? best.role : null;
+  const roles: (Role | null)[] = xs.map(() => null);
+  let i = n;
+  let j = m;
+  while (i > 0) {
+    const how = took[i][j];
+    if (how === 2) { roles[order[i - 1].at] = columns[j - 1].role; i -= 1; j -= 1; }
+    else if (how === 1) j -= 1;
+    else i -= 1;
+  }
+  return roles;
 }
 
 // ---- Dates --------------------------------------------------------------------
@@ -284,7 +348,7 @@ const MARKETS = new Set([
 ]);
 
 /** Upper-case words a column of tickers also holds, which are not one. */
-const NOT_A_TICKER = new Set([
+export const NOT_A_TICKER = new Set([
   'USD', 'EUR', 'GBP', 'COP', 'ETF', 'BUY', 'SELL', 'OPEN', 'CLOSE', 'CFD', 'N/A', 'NA', 'ID', 'SL', 'TP', 'SHR', 'WHT',
   'TOTAL', 'LONG', 'SHORT',
 ]);
@@ -353,6 +417,7 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
   const drafts: Draft[] = [];
   const unread: string[] = [];
   const currencies = new Map<string, number>();
+  const stated = new Map<string, number>();
   let heading: Heading | null = null;
 
   lines.forEach((line, index) => {
@@ -362,9 +427,10 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
       if (found) heading = found;
       return;
     }
-    // A table of today's positions, and a row with the day it was opened AND
-    // the day it was closed: both retell what the history already says.
-    if (heading?.snapshot || dated.length > 1) return;
+    // A row with the day it was opened AND the day it was closed retells
+    // what the history already says.
+    if (dated.length > 1) return;
+    const picture = heading?.snapshot === true;
 
     const { at: dateAt, stamp } = dated[0];
     let symbol: Found | null = null;
@@ -374,13 +440,15 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
     let amount: Figure | null = null;
     let ref: string | null = null;
     let ratio: [number, number] | null = null;
+    let current: Figure | null = null;
     const loose: Figure[] = [];
+    const roles = rolesOf(heading, line.items.map(item => item.x));
 
     line.items.forEach((item, at) => {
       if (at === dateAt) return;
       const text = item.text.trim();
       if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) return;
-      const role = roleAt(heading, item.x);
+      const role = roles[at];
 
       const traded = text.match(/(\d[\d.,]*)(?:\s*\/\s*[\d.,]+)?\s*@\s*(\d[\d.,]*)/);
       if (traded) {
@@ -404,6 +472,7 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
         } else if (role === 'amount') amount ??= figure;
         else if (role === 'quantity') quantity ??= figure;
         else if (role === 'price') price ??= figure;
+        else if (role === 'current') current ??= figure;
         else if (role === null) loose.push(figure);
         return;
       }
@@ -460,6 +529,14 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
     const found = symbol as Found | null;
     if (found?.currency) currencies.set(found.currency, (currencies.get(found.currency) ?? 0) + 1);
 
+    // A list of what is held today: each row is a purchase still open, with
+    // the day and the price it was bought at, and beside it today's price.
+    if (picture) {
+      if (kind !== 'buy' || found === null || quantity === null || price === null) return;
+      if (current !== null) stated.set(found.symbol, scaledOf((current as Figure).plain, PRICE_SCALE));
+      amount = null;
+    }
+
     let quantityE8 = quantity ? scaledOf((quantity as Figure).plain, QUANTITY_SCALE) : null;
     let priceE6 = price ? scaledOf((price as Figure).plain, PRICE_SCALE) : null;
     let amountMinor = amount ? scaledOf((amount as Figure).plain, 100) : 0;
@@ -491,6 +568,7 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
     }
 
     drafts.push({
+      ...(picture ? { held: true } : {}),
       kind,
       symbol: kind === 'deposit' || kind === 'withdrawal' ? null : found?.symbol ?? null,
       day: stamp.day,
@@ -506,6 +584,14 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
       printedNegative: (amount as Figure | null)?.negative ?? false,
     });
   });
+
+  // A history beats a picture: where the file tells each purchase as it
+  // happened, its list of what is held today only retells them.
+  const told = drafts.some(row => !row.held && (row.kind === 'buy' || row.kind === 'sell'));
+  if (told) {
+    for (let at = drafts.length - 1; at >= 0; at -= 1) if (drafts[at].held) drafts.splice(at, 1);
+  }
+  const heldOnly = !told && drafts.some(row => row.held);
 
   // A statement that prints a minus on what was paid signs every row itself,
   // and then a row without one came in - a dividend taken back, a tax returned.
@@ -538,7 +624,33 @@ export function readBroker(items: readonly TextItem[]): BrokerReading {
     from: rows.length > 0 ? rows[0].day : null,
     to: rows.length > 0 ? rows[rows.length - 1].day : null,
     unread: unread.slice(0, 30),
+    prices: pricesOf(lines, stamps.map(found => found.map(one => one.stamp.day)), stated, rows),
+    heldOnly,
   };
+}
+
+/**
+ * The day the stated prices are of: the day the statement says it was made
+ * ("Reporte generado", "as of"), else the newest day printed anywhere in it.
+ */
+function pricesOf(
+  lines: readonly StatementLine[], days: readonly IsoDate[][], stated: ReadonlyMap<string, number>,
+  rows: readonly BrokerRow[],
+): StatedPrice[] {
+  if (stated.size === 0) return [];
+  let day: IsoDate | null = null;
+  lines.forEach((line, at) => {
+    if (day === null && days[at].length > 0 && /(generado|generated|report date|fecha del reporte|as of|al dia)/.test(fold(line.text))) {
+      day = days[at][0];
+    }
+  });
+  if (day === null) {
+    const all = [...days.flat(), ...rows.map(row => row.day)].sort();
+    day = all.length > 0 ? all[all.length - 1] : null;
+  }
+  if (day === null) return [];
+  const on = day as IsoDate;
+  return [...stated.entries()].filter(([, priceE6]) => priceE6 > 0).map(([symbol, priceE6]) => ({ symbol, day: on, priceE6 }));
 }
 
 /** What makes a row itself, so reading the same statement twice adds nothing. */
@@ -554,6 +666,15 @@ function currencyOf(items: readonly TextItem[], pairs: Map<string, number>): str
     for (const item of items) {
       const text = item.text.trim();
       if (code.test(text) && text !== 'GBX') counts.set(text, (counts.get(text) ?? 0) + 1);
+    }
+  }
+  if (counts.size === 0) {
+    // Said inside other words: "Valor (USD)", "Valores en USD".
+    const inside = new RegExp(`(?<![A-Za-z])(${CODES})(?![A-Za-z])`, 'g');
+    for (const item of items) {
+      for (const match of item.text.matchAll(inside)) {
+        if (match[1] !== 'GBX') counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
+      }
     }
   }
   const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
