@@ -8,9 +8,15 @@
  */
 
 import { ACCOUNT_EDIT } from './account-edit';
+import { DATA_TRANSFER } from './data-transfer';
 import { PIGGY_BANK } from './piggy-bank';
 
 export const DRAWN_ICONS: Record<string, string> = {
   'piggy-bank': PIGGY_BANK,
   'account-edit': ACCOUNT_EDIT,
+  'data-transfer': DATA_TRANSFER,
+  // A badge asks for every icon by its outlined name: the drawn ones are
+  // outlines already, so both names are the same drawing.
+  'piggy-bank-outline': PIGGY_BANK,
+  'data-transfer-outline': DATA_TRANSFER,
 };

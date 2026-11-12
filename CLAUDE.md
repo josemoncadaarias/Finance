@@ -7694,6 +7694,14 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
     purchase is no gain, a period starts at zero, a split changes nothing,
     the ranges). Checked in a browser on the sample data and on Jose's
     eToro file (Todo, one ticker, 1 mes, 1 día). Not seen on the phone.
+  - **Two icons of Más changed at his word** (2026-11-12): "Productos y
+    rendimientos" wears the piggy bank and "Importar y exportar" a drawn
+    icon of its own (`core/icons/data-transfer.ts`: an arrow into a tray and
+    one out of it). A badge asks for every icon by its outlined name, so the
+    drawn ones are registered under both names (`drawn-icons.ts`) - without
+    that the badge showed empty. **Más is to be regrouped** (Jose: Herramientas
+    has two rows and looks abandoned, the menu reads tangled): proposed to
+    him, waiting for his word - nothing moved yet.
   - **Jose asked to go slowly, one step at a time, to try it** (the
     screenshots sent at once were not clear to him): one screen or one
     step per message, in plain words, waiting for his answer.
