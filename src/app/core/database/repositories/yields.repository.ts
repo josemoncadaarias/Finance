@@ -912,6 +912,7 @@ export class YieldsRepository {
        WHERE p.account_id IN ${placeholders(ids)}
        ORDER BY b.valid_from, b.id`,
       ids);
+    await this.withLateMovements(rows);
 
     const out = new Map<number, ProductBalance[]>();
     for (const row of rows) out.set(row.product_id, [...(out.get(row.product_id) ?? []), row]);
@@ -979,17 +980,64 @@ export class YieldsRepository {
   }
 
   async productBalances(productId: number): Promise<ProductBalance[]> {
-    return this.db.query<ProductBalance>(
+    return this.withLateMovements(await this.db.query<ProductBalance>(
       `SELECT id, product_id, valid_from, amount_minor, note, created_at
        FROM product_balances WHERE product_id = ? ORDER BY valid_from, id`,
-      [productId]);
+      [productId]));
   }
 
   /** Every balance of every product, for the engine to walk in memory. */
   async allProductBalances(): Promise<ProductBalance[]> {
-    return this.db.query<ProductBalance>(
-      `SELECT id, product_id, valid_from, amount_minor, note
-       FROM product_balances ORDER BY product_id, valid_from, id`);
+    return this.withLateMovements(await this.db.query<ProductBalance>(
+      `SELECT id, product_id, valid_from, amount_minor, note, created_at
+       FROM product_balances ORDER BY product_id, valid_from, id`));
+  }
+
+  /**
+   * A figure taken from the app, and a movement recorded after it with an
+   * earlier date.
+   *
+   * A figure dated D holds everything up to D, so a movement dated before D
+   * is taken as already inside it - right for a figure read off the bank,
+   * which had that purchase before the app was told of it. But when the
+   * figure is to the centavo what the app's own balance said at the moment it
+   * was typed, it cannot hold a movement the app did not have yet: whether
+   * the person copied the app's balance or the bank agreed with the app, a
+   * purchase recorded later was in neither. Found on 2026-11-12: a new
+   * product typed with the account's balance, then yesterday's purchase
+   * recorded, and the product kept the purchase's 91,514.60 as "interest not
+   * yet in the balance".
+   *
+   * Only for an account with a single product, where the product's share of
+   * the ledger is the whole account; with several, no share is known. The
+   * figure is moved in memory (nothing stored changes), so every reader sees
+   * the same; saving the product again stores the moved figure, after which
+   * the test no longer matches and nothing more is moved.
+   */
+  private async withLateMovements<T extends ProductBalance>(rows: T[]): Promise<T[]> {
+    const typed = rows.filter(row => !!row.created_at);
+    if (typed.length === 0) return rows;
+    const ids = [...new Set(typed.map(row => row.product_id))];
+    const alone = new Map((await this.db.query<{ id: number; account_id: number; opening: number }>(
+      `SELECT p.id, p.account_id, a.opening_balance_minor AS opening
+       FROM products p JOIN accounts a ON a.id = p.account_id
+       WHERE p.id IN ${placeholders(ids)} AND p.source = 'manual'
+         AND (SELECT COUNT(*) FROM products q WHERE q.account_id = p.account_id) = 1`, ids))
+      .map(row => [row.id, row]));
+    for (const row of typed) {
+      const product = alone.get(row.product_id);
+      if (!product) continue;
+      const sums = await this.db.queryOne<{ known: number | null; late: number | null }>(
+        `SELECT SUM(CASE WHEN occurred_on <= ? AND created_at < ? THEN amount_minor END) AS known,
+                SUM(CASE WHEN occurred_on < ? AND created_at >= ? THEN amount_minor END) AS late
+         FROM transactions WHERE account_id = ?`,
+        [row.valid_from, row.created_at, row.valid_from, row.created_at, product.account_id]);
+      const late = sums?.late ?? 0;
+      if (late === 0) continue;
+      if (row.amount_minor !== product.opening + (sums?.known ?? 0)) continue;
+      row.amount_minor += late;
+    }
+    return rows;
   }
 
   /**

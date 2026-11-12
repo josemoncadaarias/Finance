@@ -474,6 +474,26 @@ could not prove.
   (`ui.notifications.asleep`, one step per line: `white-space: pre-line` on
   the status card's line). Checked in a browser with the state forced; not
   on the phone.
+- **A product typed with the app's own balance does not hold a purchase
+  recorded after it** (Jose, 2026-11-12, screenshots of his partner's Plata
+  account: one product "Cuenta de ahorros" at 357,975.96 while the account
+  said 266,461.36, and "Intereses que aún no pasan a tu saldo 91.514,60").
+  Read from his backup: the product was created at 21:47 with 357,975.96 -
+  the account's balance at that moment, to the centavo - and at 21:58 a
+  purchase dated the day before (91,514.60) was recorded. A figure dated D
+  takes everything dated before D as inside it (right for a bank's figure),
+  so the purchase never left the product and its amount read as interest.
+  Now, for an account with ONE product only, a typed figure equal to the
+  ledger as recorded when it was typed (opening + movements dated up to D
+  and created before it) takes every later-recorded, earlier-dated movement
+  on top (`withLateMovements` in `yields.repository.ts`, applied by
+  `productBalances`, `productBalancesOf` and `allProductBalances`, in memory,
+  nothing stored). Equality to the centavo means the figure could not hold
+  them, whether copied from the app or the bank agreed. A figure that differs
+  (read off the bank) keeps the old rule. Checked on his backup: Leidy Plata
+  266,461.36 = the account, the 13 other earning accounts identical to the
+  centavo. Test `late-movement.test.mjs` (fails on the code before). Not seen
+  on the phone.
 - **An account, a category or a group with a picture of its own saves**
   (2026-11-06, Jose's screenshot: "Nueva cuenta" with its own logo failed
   with "CHECK constraint failed: (builtin_icon IS NULL) <> (custom_icon_id IS
@@ -501,7 +521,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1256 on 2026-11-12, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1258 on 2026-11-12, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
