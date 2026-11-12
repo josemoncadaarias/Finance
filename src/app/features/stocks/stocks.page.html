@@ -4,7 +4,7 @@
     <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
       <ion-icon name="chevron-back"></ion-icon>
     </button>
-    <h1>{{ 'stocks.title' | t }}</h1>
+    <h1>{{ 'stocks.title' | t }}@if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }</h1>
     <app-ask-button></app-ask-button>
   </header>
 
@@ -42,7 +42,7 @@
             <div class="line">{{ 'stocks.hero.today' | t }}
               <b [class.ui-g]="sum.dayMinor > 0" [class.ui-r]="sum.dayMinor < 0">{{ signed(sum.dayMinor) }}</b></div>
           }
-          @if (inPesos(); as pesos) { <div class="line">{{ 'stocks.hero.pesos' | t:{ amount: pesos } }}</div> }
+          @if (inMain(); as main) { <div class="main-line">{{ 'stocks.hero.main' | t:{ amount: main.amount, currency: main.name } }}</div> }
           <div class="line" [class.ui-y]="pricesOld()">{{ pricesLine() }}</div>
           @if (sum.unquoted > 0 && priced()) {
             <div class="line">{{ 'stocks.hero.unquoted' | t:{ count: sum.unquoted } }}</div>
@@ -143,6 +143,20 @@
 
       <!-- ------------------------------------------------------------------- Charts -->
       @if (face() === 'charts') {
+        <!-- The one that matters most: how it has gone, apart from what was put in. -->
+        <section class="ui-card chart" data-tour="stocks-returns">
+          <h3>{{ 'stocks.returns.title' | t }}</h3>
+          <p class="about">{{ 'stocks.returns.about' | t }}</p>
+          <div class="pick">
+            <button type="button" class="ui-chip" [class.on]="returnsSymbol() === null" (click)="returnsSymbol.set(null)">{{ 'stocks.returns.all' | t }}</button>
+            @for (symbol of chartSymbols(); track symbol) {
+              <button type="button" class="ui-chip" [class.on]="returnsSymbol() === symbol" (click)="returnsSymbol.set(symbol)">{{ symbol }}</button>
+            }
+          </div>
+          <app-returns-chart [trades]="stocks.trades()" [prices]="stocks.history()" [quotes]="stocks.quotes()"
+                             [currency]="currency()" [symbol]="returnsSymbol()"></app-returns-chart>
+        </section>
+
         @if (donut().length > 0) {
           <section class="ui-card chart">
             <h3>{{ 'stocks.chart.spread' | t }}</h3>
@@ -367,6 +381,12 @@
               }
             </div>
           }
+
+          <h3 class="ui-h">{{ 'stocks.returns.titleOne' | t:{ symbol: one.position.symbol } }}</h3>
+          <div class="ui-card chart">
+            <app-returns-chart [trades]="stocks.trades()" [prices]="stocks.history()" [quotes]="stocks.quotes()"
+                               [currency]="one.position.currency" [symbol]="one.position.symbol"></app-returns-chart>
+          </div>
 
           <h3 class="ui-h">{{ 'stocks.detail.yours' | t }}</h3>
           <div class="ui-card facts">

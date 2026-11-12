@@ -501,7 +501,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1243 on 2026-11-12, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1247 on 2026-11-12, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -7646,13 +7646,64 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   an empty app importing Jose's two real files (preview, saved, read again:
   "ya estaban guardados"). Not seen on the phone; the Google half not run
   at all.
+- **What Jose answered the same day (2026-11-12), all built**:
+  - **The whole module is Finance Pro** ("va a ser de pago, claramente").
+    `PLAN.stocks` is 0 free. No route guard, by rule 21 (a lock never hides
+    money): the screen and what is on record stay in view, with a PRO tag
+    in its title and on Más's row; importing a statement, adding a trade,
+    typing a price and asking for prices each go through
+    `pro.allow('stocks')`, and prices are not asked by themselves while
+    locked. Finance Pro lists "Bolsa de valores" (`pro.perk.stocks`,
+    `pro.f.stocks.*`). `paywall-plan.test.mjs` holds it.
+  - **The chart that matters most is the return, apart from what was put
+    in** ("solamente los rendimientos, no lo comprado"): `core/stocks/
+    returns.ts` (`returnsOf`, pure) and `features/stocks/
+    returns-chart.component.ts`, first on Gráficos (for "Todo el
+    portafolio" or one ticker, chosen by chips) and on each position's
+    page. The gain on a day is what was held at that day's price, less what
+    it had cost, plus what selling had left - so a purchase never shows as a
+    gain, and the line goes under zero on a loss. **Periods as the tools
+    people know**: 1 día, 5 días, 1 mes, 6 meses, Este año, 1 año, 5 años,
+    Todo (`RANGES`, `rangeStart`; kept on the device,
+    `finance.stocks.range`); a period starts at zero at the close of its
+    first day ("1 día" is today against yesterday's close), its percent is
+    over what was invested at its start plus what was bought in it.
+    Dividends are said under the chart, never inside the line. A finger on
+    the line says that day's figure. Worked in today's units (a purchase
+    before a split counts as what it became).
+  - **Where its prices come from, and the limit to say plainly**: the app
+    has no price history of the market, and Google gives none through the
+    API (from memory, see below). A ticker's known prices are the price of
+    each of the person's own purchases and sales, every price the app kept
+    since it began asking, and today's quote with yesterday's close.
+    Between two known prices the line is drawn straight and the chart says
+    "es una estimación" (`estimated`); with no price newer than four days
+    for something held, the line is flat to today and says so in amber
+    (`flat`). For someone who buys every month it follows the market
+    month by month (checked on Jose's eToro file: 102 purchases); a ticker
+    bought once is a straight line from its purchase to today. A real daily
+    history needs a source nobody found yet that is free and licensed -
+    to look for with Jose, not to invent.
+  - **Net worth stays as it is**: investments stay outside it, because
+    the price moves every day (Jose, the same day; do not ask again). The
+    module's own hero is "Tu patrimonio en bolsa hoy", in the broker's
+    currency, and under it the same value in the person's main currency
+    (`MainCurrencyService.code`, pesos unless another was chosen) at
+    today's rate.
+  - Tests: 23 in `stocks.test.mjs` (the four new ones on returns: a
+    purchase is no gain, a period starts at zero, a split changes nothing,
+    the ranges). Checked in a browser on the sample data and on Jose's
+    eToro file (Todo, one ticker, 1 mes, 1 día). Not seen on the phone.
+  - **Jose asked to go slowly, one step at a time, to try it** (the
+    screenshots sent at once were not clear to him): one screen or one
+    step per message, in plain words, waiting for his answer.
 - **Not built yet** (to offer Jose, in this order): seeing one broker at a
   time when there are several (today all are one book; a ticker held at two
   brokers is one position); the assistant's questions about it; a returns
   report by period (month, 6 months, year: it needs the app's own price
   history to grow, or prices typed); fundamentals from the SEC's EDGAR;
   screeners and price alerts (not possible in this shape, see below);
-  whether it is Finance Pro (free for now: `PLAN` untouched); a statement
+  a statement
   that is only a table of today's positions; CSV or Excel statements.
 
 #### The analysis of 2026-10-22, as it was written
@@ -7912,9 +7963,12 @@ budget family (2/16, 1, 7), then the rest.
       never run.
 - [ ] Bolsa de valores: import the brokers' statements on the phone and say
       what reads wrong; send other brokers' statements to turn into tests.
-- [ ] Bolsa de valores: decide whether net worth takes the market value,
-      whether the module is Finance Pro, and whether each broker should be
-      seen apart.
+- [ ] Bolsa de valores: decide whether each broker should be seen apart
+      (net worth stays without it and the module is Finance Pro: decided
+      2026-11-12).
+- [ ] Bolsa de valores: a free, licensed source of daily price history,
+      so the return chart follows the market between purchases - to look
+      for together.
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
       down on narrow phones was proposed and not built.

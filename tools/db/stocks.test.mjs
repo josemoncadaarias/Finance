@@ -389,3 +389,81 @@ test('a trade typed by hand is stored, changed and deleted, and its key is its o
   assert.equal(await repository.count(), 0);
   await db.close();
 });
+
+// ---- Returns over time ------------------------------------------------------------
+
+import { returnsOf, rangeStart } from '../../src/app/core/stocks/returns.ts';
+
+const quoteOf = (price, previous, day) => ({ priceE6: price * PRICE_SCALE, previousE6: previous === null ? null : previous * PRICE_SCALE, day, source: 'sheet' });
+
+test('returns: buying more never shows as a gain - only prices move the line', () => {
+  const history = trades([
+    { kind: 'buy', symbol: 'MUNDO', day: '2026-01-10', quantityE8: QUANTITY_SCALE, priceE6: 100 * PRICE_SCALE, amountMinor: -10_000 },
+    { kind: 'buy', symbol: 'MUNDO', day: '2026-02-10', quantityE8: QUANTITY_SCALE, priceE6: 110 * PRICE_SCALE, amountMinor: -11_000 },
+    { kind: 'buy', symbol: 'MUNDO', day: '2026-03-10', quantityE8: QUANTITY_SCALE, priceE6: 90 * PRICE_SCALE, amountMinor: -9_000 },
+  ]);
+  const all = returnsOf(history, [], new Map([['MUNDO', quoteOf(120, null, '2026-04-10')]]), { currency: 'USD', range: 'MAX', today: '2026-04-10' });
+  const on = day => all.points.find(point => point.day === day).gainMinor;
+  assert.equal(all.from, '2026-01-10');
+  assert.equal(on('2026-01-10'), 0, 'the day it was bought it has gained nothing');
+  assert.equal(on('2026-02-10'), 1_000, 'one unit bought at 100 is worth 110; the second was just bought');
+  assert.equal(on('2026-03-10'), -3_000, 'it fell to 90: the line goes under zero');
+  assert.equal(all.changeMinor, 3 * 12_000 - 30_000);
+  assert.ok(Math.abs(all.pct - 6_000 / 30_000 * 100) < 1e-9);
+  assert.equal(all.estimated, true, 'between purchases the price is drawn, not known');
+  assert.equal(all.flat, false);
+  assert.equal(returnsOf(history, [], new Map(), { currency: 'USD', range: 'MAX', today: '2026-04-10' }).flat, true,
+    'with no price since the last purchase, the line is flat to today and says so');
+  // Half way between two known prices, the price is half way.
+  assert.equal(on('2026-01-25'), Math.round((100 + 10 * 15 / 31) * 100) - 10_000);
+});
+
+test('returns: a period starts at zero, counts what was held at its start, and keeps dividends apart', () => {
+  const history = trades([
+    { kind: 'buy', symbol: 'MUNDO', day: '2025-01-10', quantityE8: 2 * QUANTITY_SCALE, priceE6: 100 * PRICE_SCALE, amountMinor: -20_000 },
+    { kind: 'dividend', symbol: 'MUNDO', day: '2026-04-01', amountMinor: 300 },
+    { kind: 'tax', symbol: 'MUNDO', day: '2026-04-01', amountMinor: -90 },
+    { kind: 'buy', symbol: 'SOLR', day: '2026-04-05', quantityE8: QUANTITY_SCALE, priceE6: 40 * PRICE_SCALE, amountMinor: -4_000 },
+  ]);
+  const prices = [{ symbol: 'MUNDO', day: '2026-03-10', price_e6: 150 * PRICE_SCALE }];
+  const quotes = new Map([['MUNDO', quoteOf(160, 158, '2026-04-10')], ['SOLR', quoteOf(42, 41, '2026-04-10')]]);
+  const month = returnsOf(history, prices, quotes, { currency: 'USD', range: '1M', today: '2026-04-10' });
+  assert.equal(month.from, '2026-03-10');
+  assert.equal(month.points[0].gainMinor, 0);
+  // MUNDO went from 150 to 160 on two units; SOLR from 40 to 42 on one.
+  assert.equal(month.changeMinor, 2 * (16_000 - 15_000) + 200);
+  assert.ok(Math.abs(month.pct - 2_200 / (30_000 + 4_000) * 100) < 1e-9);
+  assert.equal(month.dividendsMinor, 210);
+
+  const day = returnsOf(history, prices, quotes, { currency: 'USD', range: '1D', today: '2026-04-10' });
+  assert.equal(day.changeMinor, 2 * 200 + 100, 'a day is today against yesterday\'s close');
+
+  const one = returnsOf(history, prices, quotes, { currency: 'USD', symbol: 'SOLR', range: 'MAX', today: '2026-04-10' });
+  assert.equal(one.from, '2026-04-05');
+  assert.equal(one.changeMinor, 200);
+  assert.equal(returnsOf(history, prices, quotes, { currency: 'EUR', range: 'MAX', today: '2026-04-10' }), null);
+});
+
+test('returns: a split changes nothing, and what was sold keeps its gain', () => {
+  const history = trades([
+    { kind: 'buy', symbol: 'NUBE', day: '2026-01-10', quantityE8: QUANTITY_SCALE, priceE6: 200 * PRICE_SCALE, amountMinor: -20_000, ref: 'A' },
+    { kind: 'split', symbol: 'NUBE', day: '2026-02-01', amountMinor: 0, ratio: [2, 1] },
+    { kind: 'sell', symbol: 'NUBE', day: '2026-03-01', quantityE8: 2 * QUANTITY_SCALE, priceE6: 120 * PRICE_SCALE, amountMinor: 24_000, ref: 'A' },
+  ]);
+  const all = returnsOf(history, [], new Map(), { currency: 'USD', range: 'MAX', today: '2026-04-10' });
+  const on = day => all.points.find(point => point.day === day).gainMinor;
+  assert.equal(on('2026-01-10'), 0);
+  assert.ok(Math.abs(on('2026-02-01') - 1_760) < 5, 'the split day is one more day of the same line: 100 to 120 a new unit');
+  assert.equal(on('2026-03-01'), 4_000);
+  assert.equal(all.changeMinor, 4_000, 'after selling, the gain stays what selling left');
+  assert.equal(all.flat, false, 'nothing is held, so no price is missing');
+});
+
+test('the ranges, as the tools people know write them', () => {
+  assert.equal(rangeStart('1D', '2026-03-31'), '2026-03-30');
+  assert.equal(rangeStart('1M', '2026-03-31'), '2026-02-28');
+  assert.equal(rangeStart('6M', '2026-03-31'), '2025-09-30');
+  assert.equal(rangeStart('YTD', '2026-03-31'), '2026-01-01');
+  assert.equal(rangeStart('5Y', '2026-03-31'), '2021-03-31');
+  assert.equal(rangeStart('MAX', '2026-03-31'), null);
+});

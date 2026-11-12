@@ -38,6 +38,9 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { ToastService } from '../../shared/ui/toast.service';
+import { PaywallService } from '../../core/paywall/paywall.service';
+import { MainCurrencyService } from '../../core/currencies/main-currency.service';
+import { ReturnsChartComponent } from './returns-chart.component';
 
 type Face = 'positions' | 'charts' | 'history';
 type HistoryFilter = 'all' | 'trades' | 'dividends' | 'cash';
@@ -83,7 +86,7 @@ interface Bar { label: string; long: string; minor: number; height: number; }
   templateUrl: './stocks.page.html',
   styleUrls: ['./stocks.page.scss'],
   imports: [TranslatePipe, IonContent, IonIcon, IonModal, IonSpinner, BadgeComponent, AskButtonComponent, AmountsEyeComponent,
-    EmptyStateComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, AmountInputDirective],
+    EmptyStateComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, AmountInputDirective, ReturnsChartComponent],
 })
 export class StocksPage {
   readonly stocks = inject(StocksService);
@@ -94,6 +97,8 @@ export class StocksPage {
   private readonly location = inject(Location);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  readonly pro = inject(PaywallService);
+  private readonly mainCurrency = inject(MainCurrencyService);
 
   private readonly file = viewChild.required<ElementRef<HTMLInputElement>>('file');
   readonly accept = statementAccept();
@@ -121,13 +126,23 @@ export class StocksPage {
     return total !== null && total.held > 0 && total.unquoted < total.held;
   });
 
-  /** The value in pesos at today's rate, when the app has one for that currency. */
-  readonly inPesos = computed(() => {
+  /**
+   * What is held, in the person's main currency (pesos unless another was
+   * chosen in Monedas y TRM), at today's rate. Shown only here: the market
+   * moves every day, so this never joins net worth (Jose, 2026-11-12).
+   */
+  readonly inMain = computed(() => {
     const total = this.total();
-    const rate = this.stocks.pesosPer().get(this.currency());
-    if (!total || !rate || this.currency() === 'COP') return null;
-    return this.money(Math.round(total.valueMinor * rate), 'COP');
+    const main = this.mainCurrency.code();
+    const pesos = this.stocks.pesosPer();
+    const [from, to] = [pesos.get(this.currency()), pesos.get(main)];
+    if (!total || !from || !to || this.currency() === main) return null;
+    return { amount: this.money(Math.round(total.valueMinor * from / to), main), name: main };
   });
+
+  /** The ticker the returns chart is about; everything held when null. */
+  readonly returnsSymbol = signal<string | null>(null);
+  readonly chartSymbols = computed(() => [...this.held().map(one => one.position.symbol), ...this.sold().map(one => one.position.symbol)]);
 
   readonly held = computed(() => this.stocks.valued()
     .filter(one => one.position.quantityE8 > 0 && one.position.currency === this.currency())
@@ -404,11 +419,12 @@ export class StocksPage {
     effect(() => {
       const loaded = this.stocks.loaded();
       const auto = this.stocks.auto();
-      if (loaded && auto) untracked(() => { if (this.stocks.stale()) void this.stocks.refreshPrices(); });
+      const open = this.pro.unlocked();
+      if (loaded && auto && open) untracked(() => { if (this.stocks.stale()) void this.stocks.refreshPrices(); });
     });
     // "?import=1" from another screen opens the file chooser's sheet at once.
     const asked = this.route.snapshot.queryParamMap.get('new');
-    if (asked === 'trade') queueMicrotask(() => this.newTrade());
+    if (asked === 'trade') queueMicrotask(() => { void this.newTrade(); });
   }
 
   private async loadAccounts(): Promise<void> {
@@ -533,7 +549,13 @@ export class StocksPage {
 
   // ---- Prices -------------------------------------------------------------------------
 
-  refresh(): void {
+  /** Bolsa de valores is part of Finance Pro: what is on record stays in view, anything new asks (rule 21). */
+  private allowed(): Promise<boolean> {
+    return this.pro.allow('stocks');
+  }
+
+  async refresh(): Promise<void> {
+    if (!(await this.allowed())) return;
     void this.stocks.refreshPrices({ ask: true });
   }
 
@@ -543,7 +565,8 @@ export class StocksPage {
     this.openSymbol.set(symbol);
   }
 
-  startPrice(): void {
+  async startPrice(): Promise<void> {
+    if (!(await this.allowed())) return;
     const quote = this.position()?.quote;
     this.priceText.set(quote ? String(quote.priceE6 / PRICE_SCALE).replace('.', ',') : '');
     this.typingPrice.set(true);
@@ -583,7 +606,8 @@ export class StocksPage {
 
   // ---- Importing ----------------------------------------------------------------------
 
-  chooseFile(): void {
+  async chooseFile(): Promise<void> {
+    if (!(await this.allowed())) return;
     this.file().nativeElement.click();
   }
 
@@ -592,7 +616,7 @@ export class StocksPage {
     input.value = '';
     if (files.length === 0) return;
     const read = await this.flow.run(files, (password, watch) => this.stocks.read(files, password, watch));
-    if (read === 'again') { this.chooseFile(); return; }
+    if (read === 'again') { void this.chooseFile(); return; }
     if (read === null) return;
 
     // The broker is the one investment account, when there is exactly one.
@@ -639,7 +663,8 @@ export class StocksPage {
 
   // ---- By hand ------------------------------------------------------------------------
 
-  newTrade(symbol: string | null = null): void {
+  async newTrade(symbol: string | null = null): Promise<void> {
+    if (!(await this.allowed())) return;
     this.editing.set('new');
     this.tried.set(false);
     this.formKind.set('buy');

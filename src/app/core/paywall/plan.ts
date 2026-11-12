@@ -27,7 +27,8 @@ export type Feature =
   | 'tax'              // the income-tax simulator
   | 'newCategories'    // creating a category (renaming and hiding are free)
   | 'ownImages'        // an account's or category's own picture
-  | 'assistant';       // a question to the assistant, each month (registering by it is free)
+  | 'assistant'        // a question to the assistant, each month (registering by it is free)
+  | 'stocks';          // the stock market: importing, adding by hand, asking for prices
 
 export interface Allowance {
   /** How many may be used without paying. */
@@ -59,6 +60,9 @@ export const PLAN: Record<Feature, Allowance> = {
   // (no AI behind it), so the allowance is generous: enough to make it a
   // habit, short of asking every day. Registering by it is never counted.
   assistant: { free: 20, per: 'month' },
+  // Jose, 2026-11-12: the whole stock market module is paid. What is on
+  // record stays in view (rule 21, 1); anything new asks.
+  stocks: { free: 0, per: 'ever' },
 };
 
 /** The report's sections anybody sees; the rest are `reportFull`. */

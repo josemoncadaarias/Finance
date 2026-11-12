@@ -130,3 +130,7 @@
 /* The app's own words are read whole, never cut with an ellipsis. */
 .ui-row b.wrap, .ui-add b.wrap, .price-now .ui-tx b { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: pretty; }
 .ui-banner .ui-tx b { white-space: normal; text-wrap: pretty; }
+.pick { display: flex; gap: 8px; overflow-x: auto; margin: 0 -14px 12px; padding: 0 14px 2px; scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; } .ui-chip { flex: none; } }
+.ui-hero .main-line { font-size: 15px; font-weight: 600; margin: 0 0 6px; text-wrap: pretty; }
+.ui-titlebar h1 .ui-pro { margin-left: 8px; }
