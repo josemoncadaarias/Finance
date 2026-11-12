@@ -116,9 +116,9 @@ const TOUR_LIST = {
   stocks: {
     steps: [
       { target: 'stocks-hero', title: 'tour.stocks.1.title', text: 'tour.stocks.1.text' },
-      { sel: 'app-stocks .ui-hero .actions .ui-btn', title: 'tour.stocks.2.title', text: 'tour.stocks.2.text' },
-      { sel: 'app-stocks .ui-hero .actions .ui-btn.ghost', title: 'tour.stocks.3.title', text: 'tour.stocks.3.text' },
-      { target: 'stocks-faces', title: 'tour.stocks.4.title', text: 'tour.stocks.4.text' },
+      { sel: 'app-stocks .ui-hero .status', title: 'tour.stocks.2.title', text: 'tour.stocks.2.text', since: 2 },
+      { target: 'stocks-new', title: 'tour.stocks.3.title', text: 'tour.stocks.3.text', since: 2 },
+      { target: 'stocks-faces', title: 'tour.stocks.4.title', text: 'tour.stocks.4.text', since: 2 },
     ],
   },
   reminders: {

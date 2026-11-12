@@ -1,10 +1,15 @@
 <!-- Bolsa de valores (Jose, 2026-11-12). -->
-<ion-content [fullscreen]="true">
+<ion-content #page [fullscreen]="true" [scrollEvents]="true" (ionScroll)="jump.measure()">
   <header class="ui-titlebar">
     <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
       <ion-icon name="chevron-back"></ion-icon>
     </button>
     <h1>{{ 'stocks.title' | t }}@if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }</h1>
+    @if (stocks.trades().length > 0) {
+      <button type="button" class="ui-round" (click)="addSheet.set(true)" [attr.aria-label]="'stocks.add.title' | t" data-tour="stocks-new">
+        <ion-icon name="add"></ion-icon>
+      </button>
+    }
     <app-ask-button></app-ask-button>
   </header>
 
@@ -16,6 +21,12 @@
                  [action]="'stocks.empty.import' | t" actionIcon="document-text-outline" (act)="chooseFile()"
                  [second]="'stocks.empty.byHand' | t" (secondAct)="newTrade()"></app-empty>
       <p class="hint center">{{ (images ? 'stocks.empty.formats.images' : 'stocks.empty.formats') | t }}</p>
+      @if (images) {
+        <button type="button" class="ui-add" (click)="choosePhoto()">
+          <span class="plus"><ion-icon name="camera-outline"></ion-icon></span>
+          <span class="ui-tx"><b class="wrap">{{ 'stocks.add.photo' | t }}</b><small class="wrap">{{ 'stocks.add.photo.hint' | t }}</small></span>
+        </button>
+      }
     } @else {
       @if (currencies().length > 1) {
         <div class="ui-seg currencies">
@@ -25,65 +36,67 @@
         </div>
       }
 
-      <!-- What it is all worth today, or what was paid while there are no prices. -->
+      <!-- What it is all worth today, or what was paid while there are no prices. One figure, one line of gain,
+           the state of the prices; the rest opens on a tap (Jose, 2026-11-12: "muy colapsada de tanta info"). -->
       @if (total(); as sum) {
         <section class="ui-hero" data-tour="stocks-hero">
           <app-amounts-eye class="corner"></app-amounts-eye>
           <div class="ui-lab">{{ (priced() ? 'stocks.hero.value' : 'stocks.hero.invested') | t }}</div>
           <div class="ui-big">{{ money(sum.valueMinor) }}</div>
           @if (sum.gainMinor !== null && sum.gainPct !== null) {
-            <div class="gain" [class.ui-g]="sum.gainMinor >= 0" [class.ui-r]="sum.gainMinor < 0">
-              <ion-icon [name]="sum.gainMinor >= 0 ? 'trending-up' : 'trending-down'"></ion-icon>
-              <b>{{ signed(sum.gainMinor) }} ({{ pct(sum.gainPct) }})</b>
+            <div class="gain" [class.up]="sum.gainMinor >= 0" [class.down]="sum.gainMinor < 0">
+              <ion-icon [name]="sum.gainMinor >= 0 ? 'caret-up' : 'caret-down'"></ion-icon>
+              <b>{{ signed(sum.gainMinor) }}</b><i>{{ pct(sum.gainPct) }}</i>
               <span>{{ (sum.gainMinor >= 0 ? 'stocks.hero.gained' : 'stocks.hero.lost') | t }}</span>
             </div>
           }
-          @if (sum.dayMinor !== null && sum.dayMinor !== 0) {
-            <div class="line">{{ 'stocks.hero.today' | t }}
-              <b [class.ui-g]="sum.dayMinor > 0" [class.ui-r]="sum.dayMinor < 0">{{ signed(sum.dayMinor) }}</b></div>
+          @if (inMain(); as main) {
+            <div class="main-line"><b>≈ {{ main.amount }}</b>@if (rateLine(); as rate) { <span>{{ rate }}</span> }</div>
           }
-          @if (inMain(); as main) { <div class="main-line">{{ 'stocks.hero.main' | t:{ amount: main.amount, currency: main.name } }}</div> }
-          <div class="line" [class.ui-y]="pricesOld()">{{ pricesLine() }}</div>
-          @if (sum.unquoted > 0 && priced()) {
-            <div class="line">{{ 'stocks.hero.unquoted' | t:{ count: sum.unquoted } }}</div>
-          }
-          <div class="actions">
-            <button type="button" class="ui-btn small" (click)="refresh()" [disabled]="stocks.pricesState() === 'working'">
-              <ion-icon name="refresh-outline"></ion-icon>{{ (priced() ? 'stocks.hero.refresh' : 'stocks.hero.fetch') | t }}
+          <div class="status">
+            <button type="button" class="prices" [class]="'prices ' + pricesChip().tone" (click)="pricesSheet.set(true)">
+              <ion-icon [name]="pricesChip().icon" [class.spin]="stocks.pricesState() === 'working'"></ion-icon>
+              <span>{{ pricesChip().text }}</span>
+              <ion-icon class="go" name="chevron-forward"></ion-icon>
             </button>
-            <button type="button" class="ui-btn small ghost" (click)="chooseFile()">
-              <ion-icon name="document-text-outline"></ion-icon>{{ 'stocks.hero.import' | t }}
+            <button type="button" class="again" (click)="refresh()" [disabled]="stocks.pricesState() === 'working'"
+                    [attr.aria-label]="(priced() ? 'stocks.hero.refresh' : 'stocks.hero.fetch') | t">
+              <ion-icon name="refresh" [class.spin]="stocks.pricesState() === 'working'"></ion-icon>
             </button>
           </div>
+          <button type="button" class="more" (click)="toggleDetail()" data-tour="stocks-tiles">
+            {{ (detailOpen() ? 'stocks.hero.less' : 'stocks.hero.more') | t }}
+            <ion-icon [name]="detailOpen() ? 'chevron-up' : 'chevron-down'"></ion-icon>
+          </button>
+          @if (detailOpen()) {
+            <div class="detail-rows">
+              <div><ion-icon name="cash-outline"></ion-icon><span>{{ 'stocks.tile.cost' | t }}</span><b>{{ money(sum.costMinor) }}</b></div>
+              @if (sum.dayMinor !== null && sum.dayMinor !== 0) {
+                <div><ion-icon name="today-outline"></ion-icon><span>{{ 'stocks.hero.today' | t }}</span>
+                  <b [class.ui-g]="sum.dayMinor > 0" [class.ui-r]="sum.dayMinor < 0">{{ signed(sum.dayMinor) }}</b></div>
+              }
+              <div><ion-icon name="gift-outline"></ion-icon><span>{{ 'stocks.tile.dividends' | t }}</span>
+                <b [class.ui-g]="sum.dividendsMinor > 0">{{ money(sum.dividendsMinor) }}</b></div>
+              <div><ion-icon name="swap-vertical-outline"></ion-icon><span>{{ 'stocks.tile.realized' | t }}</span>
+                <b [class.ui-g]="sum.realizedMinor > 0" [class.ui-r]="sum.realizedMinor < 0">{{ sum.realizedMinor === 0 ? money(0) : signed(sum.realizedMinor) }}</b></div>
+              @if (sum.cashMinor !== null) {
+                <div><ion-icon name="wallet-outline"></ion-icon><span>{{ 'stocks.tile.cash' | t }}</span><b>{{ money(sum.cashMinor) }}</b></div>
+              }
+              <div><ion-icon name="pie-chart-outline"></ion-icon><span>{{ 'stocks.tile.held' | t }}</span><b>{{ sum.held }}</b></div>
+            </div>
+          }
         </section>
 
         @if (stateWords(); as state) {
-          <div class="ui-banner state" [class]="'ui-banner state ' + state.tone">
-            <ion-icon [name]="state.icon"></ion-icon>
-            <span class="ui-tx"><b>{{ state.title }}</b><small class="wrap">{{ state.text }}</small>
-              @if (stocks.failure() && (state.tone === 'bad')) { <small class="wrap detail">{{ stocks.failure() }}</small> }</span>
-            @if (state.action) { <button type="button" class="ui-btn small" (click)="refresh()">{{ state.action }}</button> }
-          </div>
-        } @else if (!priced() && stocks.pricesState() === 'idle') {
-          <div class="ui-banner info state">
-            <ion-icon name="logo-google"></ion-icon>
-            <span class="ui-tx"><b>{{ (stocks.canAskGoogle ? 'stocks.google.title' : 'stocks.google.titleBrowser') | t }}</b>
-              <small class="wrap">{{ (stocks.canAskGoogle ? 'stocks.google.text' : 'stocks.google.textBrowser') | t }}</small></span>
-          </div>
-        }
-
-        <div class="tiles" data-tour="stocks-tiles">
-          <div class="tile"><small>{{ 'stocks.tile.cost' | t }}</small><b>{{ money(sum.costMinor) }}</b></div>
-          <div class="tile"><small>{{ 'stocks.tile.dividends' | t }}</small>
-            <b [class.ui-g]="sum.dividendsMinor > 0">{{ money(sum.dividendsMinor) }}</b></div>
-          <div class="tile"><small>{{ 'stocks.tile.realized' | t }}</small>
-            <b [class.ui-g]="sum.realizedMinor > 0" [class.ui-r]="sum.realizedMinor < 0">{{ sum.realizedMinor === 0 ? money(0) : signed(sum.realizedMinor) }}</b></div>
-          @if (sum.cashMinor !== null) {
-            <div class="tile"><small>{{ 'stocks.tile.cash' | t }}</small><b>{{ money(sum.cashMinor) }}</b></div>
-          } @else {
-            <div class="tile"><small>{{ 'stocks.tile.held' | t }}</small><b>{{ sum.held }}</b></div>
+          @if (state.tone === 'bad' || state.tone === 'warn') {
+            <div [class]="'ui-banner state ' + state.tone">
+              <ion-icon [name]="state.icon"></ion-icon>
+              <span class="ui-tx"><b>{{ state.title }}</b><small class="wrap">{{ state.text }}</small>
+                @if (stocks.failure() && (state.tone === 'bad')) { <small class="wrap detail">{{ stocks.failure() }}</small> }</span>
+              @if (state.action) { <button type="button" class="ui-btn small" (click)="refresh()">{{ state.action }}</button> }
+            </div>
           }
-        </div>
+        }
       }
 
       <div class="ui-seg faces" data-tour="stocks-faces">
@@ -102,7 +115,8 @@
               <button type="button" class="ui-row position" (click)="openPosition(one.position.symbol)">
                 <span class="ticker" [style.background]="colorOf(one.position.symbol)">{{ one.position.symbol.slice(0, 4) }}</span>
                 <span class="ui-tx">
-                  <b class="ui-one">{{ one.position.symbol }}@if (nameOf(one.position.symbol); as name) { <i>{{ name }}</i> }</b>
+                  <b>{{ one.position.symbol }}</b>
+                  @if (nameOf(one.position.symbol); as name) { <small class="ui-one name">{{ name }}</small> }
                   <small class="wrap">{{ 'stocks.position.line' | t:{ quantity: quantity(one.position.quantityE8), price: price(one.position.averageE6 ?? 0, one.position.currency) } }}</small>
                   <span class="sharebar"><i [style.width.%]="share(one.position.symbol)" [style.background]="colorOf(one.position.symbol)"></i></span>
                 </span>
@@ -138,6 +152,13 @@
               }
             </div>
           }
+        }
+        @if (undoneCount() > 0) {
+          <button type="button" class="undone" (click)="showUndone()">
+            <ion-icon name="repeat-outline"></ion-icon>
+            <span>{{ 'stocks.undone.note' | t:{ count: undoneCount() } }}</span>
+            <ion-icon class="go" name="chevron-forward"></ion-icon>
+          </button>
         }
       }
 
@@ -276,29 +297,45 @@
 
       <!-- ------------------------------------------------------------------ History -->
       @if (face() === 'history') {
-        <button type="button" class="ui-add" (click)="newTrade()" data-tour="stocks-new">
-          <span class="plus"><ion-icon name="add"></ion-icon></span>
-          <span class="ui-tx"><b class="wrap">{{ 'stocks.history.new' | t }}</b><small class="wrap">{{ 'stocks.history.new.hint' | t }}</small></span>
-        </button>
-        <div class="chips">
-          @for (one of ['all', 'trades', 'dividends', 'cash']; track one) {
-            <button type="button" class="ui-chip" [class.on]="filter() === one" (click)="filter.set($any(one))">{{ word('stocks.history.filter.' + one) }}</button>
+        <div class="tools">
+          @if (searching()) {
+            <div class="ui-search">
+              <ion-icon name="search-outline"></ion-icon>
+              <input type="search" [value]="search()" (input)="search.set($any($event.target).value)" [placeholder]="'stocks.history.search' | t" autofocus>
+              <button type="button" (click)="endSearch()" [attr.aria-label]="'entry.cancel' | t"><ion-icon name="close-circle"></ion-icon></button>
+            </div>
+          } @else {
+            <button type="button" class="ui-chip view" (click)="filterSheet.set(true)">
+              <ion-icon name="funnel-outline"></ion-icon>
+              <span>{{ word('stocks.history.filter.' + filter()) }} · {{ word('stocks.history.group.' + group()) }}</span>
+              <ion-icon name="chevron-down"></ion-icon>
+            </button>
+            <button type="button" class="ui-round" (click)="startSearch()" [attr.aria-label]="'stocks.history.search' | t"><ion-icon name="search-outline"></ion-icon></button>
           }
         </div>
-        @if (historyMonths().length === 0) {
+        @if (search().trim() !== '' || filter() !== 'all') {
+          <p class="found">{{ 'stocks.history.count' | t:{ count: historyCount() } }}</p>
+        }
+        @if (historySections().length === 0) {
           <app-empty [compact]="true" icon="list-outline" [title]="'stocks.history.none' | t"></app-empty>
         }
-        @for (month of historyMonths(); track month.month) {
-          <button type="button" class="fold" (click)="toggleMonth(month.month)">
-            <span>{{ month.title }} · {{ 'stocks.history.count' | t:{ count: month.trades.length } }}</span>
-            <ion-icon [name]="isMonthOpen(month.month) ? 'chevron-up' : 'chevron-down'"></ion-icon>
+        @for (section of historySections(); track section.key) {
+          <button type="button" class="fold" (click)="toggleSection(section.key)">
+            <span class="name">{{ section.title }}</span>
+            <span class="count">{{ 'stocks.history.count' | t:{ count: section.trades.length } }}</span>
+            <ion-icon [name]="isSectionOpen(section.key) ? 'chevron-up' : 'chevron-down'"></ion-icon>
           </button>
-          @if (isMonthOpen(month.month)) {
+          @if (isSectionOpen(section.key)) {
             <div class="ui-list">
-              @for (trade of month.trades; track trade.id) {
+              @for (trade of section.trades; track trade.id) {
                 <button type="button" class="ui-row" (click)="openTrade(trade)">
-                  <app-badge shape="ci" [size]="38" [builtin]="kindIcon(trade.kind)" [fixed]="kindColor(trade.kind)"></app-badge>
-                  <span class="ui-tx"><b class="wrap">{{ tradeTitle(trade) }}</b><small class="wrap">{{ tradeLine(trade) }}</small></span>
+                  @if (pairs().has(trade.id)) {
+                    <app-badge shape="ci" [size]="38" builtin="repeat-outline" fixed="#8a93a8"></app-badge>
+                  } @else {
+                    <app-badge shape="ci" [size]="38" [builtin]="kindIcon(trade.kind)" [fixed]="kindColor(trade.kind)"></app-badge>
+                  }
+                  <span class="ui-tx"><b class="wrap">{{ tradeTitle(trade) }}</b><small class="wrap">{{ tradeLine(trade) }}</small>
+                    @if (pairs().has(trade.id)) { <small class="wrap undone-tag">{{ 'stocks.undone.tag' | t }}</small> }</span>
                   @if (trade.kind !== 'split') {
                     <span class="figures"><b [class.ui-g]="trade.amountMinor > 0">{{ signed(trade.amountMinor, trade.currency) }}</b></span>
                   }
@@ -307,13 +344,18 @@
             </div>
           }
         }
+        <button type="button" class="erase" (click)="erasing.set(true)">
+          <ion-icon name="trash-outline"></ion-icon>{{ 'stocks.erase.row' | t }}
+        </button>
       }
 
       <p class="hint foot">{{ 'stocks.disclaimer' | t }}</p>
     }
   </div>
+  <app-jump #jump [content]="page" [folded]="stocks.trades().length > 0 && face() === 'history' ? allFolded() : null" (fold)="foldAll()"></app-jump>
 </ion-content>
 
+<input #photo type="file" accept="image/*" hidden (change)="pickedPhoto($any($event.target))">
 <input #file type="file" [accept]="accept" [multiple]="images" hidden (change)="picked($any($event.target))">
 
 <!-- ------------------------------------------------------------- One position -->
@@ -477,19 +519,24 @@
             <p class="hint">{{ 'stocks.import.period' | t:{ from: dayWords(read.reading.from), to: dayWords(read.reading.to) } }}</p>
           }
 
-          <div class="ui-list">
+          <div class="ui-list first">
             <button type="button" class="ui-row" (click)="pickingAccount.set('import')">
               <app-badge shape="ci" [size]="38" builtin="business-outline" fixed="#6378ff"></app-badge>
               <span class="ui-tx"><b>{{ 'stocks.import.account' | t }}</b><small class="wrap">{{ accountName(pendingAccount()) }}</small></span>
               <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
             </button>
           </div>
-          <span class="lab">{{ 'stocks.import.currency' | t }}</span>
-          <div class="chips">
-            @for (code of currencyChoices(); track code) {
-              <button type="button" class="ui-chip" [class.on]="pendingCurrency() === code" (click)="pendingCurrency.set(code)">{{ code }}</button>
-            }
+          <div class="ui-list">
+            <button type="button" class="ui-row" (click)="currencySheet.set('import')">
+              <span class="flag">{{ flag(pendingCurrency()) }}</span>
+              <span class="ui-tx"><b>{{ 'stocks.import.currency' | t }}</b><small class="wrap">{{ currencyWords(pendingCurrency()) }} · {{ pendingCurrency() }}</small></span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
           </div>
+          @if (read.reading.heldOnly) {
+            <div class="ui-banner info"><ion-icon name="information-circle-outline"></ion-icon>
+              <span>{{ 'stocks.import.heldOnly' | t }}</span></div>
+          }
 
           @if (pendingNew().length === 0) {
             <div class="ui-banner good"><ion-icon name="checkmark-circle-outline"></ion-icon>
@@ -562,64 +609,83 @@
           <button type="button" [class.on]="formKind() === 'dividend'" (click)="formKind.set('dividend')">{{ 'stocks.form.dividend' | t }}</button>
         </div>
 
-        <label class="field">
-          <span class="lab">{{ 'stocks.form.symbol' | t }}</span>
-          <input class="ui-input" type="text" autocapitalize="characters" maxlength="10" [value]="formSymbol()"
-                 (input)="formSymbol.set($any($event.target).value.toUpperCase())" [placeholder]="'stocks.form.symbol.placeholder' | t">
-          <small class="sub">{{ 'stocks.form.symbol.hint' | t }}</small>
-          @if (tried() && formMissing() === 'symbol') { <small class="err">{{ 'stocks.form.symbol.missing' | t }}</small> }
-        </label>
+        @if (fromPhoto(); as note) {
+          <div class="ui-banner info"><ion-icon name="camera-outline"></ion-icon><span>{{ note }}</span></div>
+        }
 
-        <span class="lab">{{ 'stocks.form.asset' | t }}</span>
-        <div class="chips">
-          @for (kind of ['stock', 'etf', 'crypto', 'other']; track kind) {
-            <button type="button" class="ui-chip" [class.on]="formAsset() === kind" (click)="formAsset.set($any(kind))">{{ word('stocks.kind.' + kind) }}</button>
-          }
+        <div class="ui-list">
+          <label class="ui-field">
+            <span class="ticker" [style.background]="formSymbol() ? colorOf(formSymbol()) : 'var(--app-s3)'">{{ formSymbol().slice(0, 4) || '?' }}</span>
+            <span class="in">
+              <span class="lab">{{ 'stocks.form.symbol' | t }}</span>
+              <input type="text" autocapitalize="characters" maxlength="10" [value]="formSymbol()"
+                     (input)="formSymbol.set($any($event.target).value.toUpperCase())" [placeholder]="'stocks.form.symbol.placeholder' | t">
+            </span>
+          </label>
+          <button type="button" class="ui-field" (click)="assetSheet.set(true)">
+            <app-badge shape="ci" [size]="36" [builtin]="assetIcon(formAsset())" [fixed]="assetColor(formAsset())"></app-badge>
+            <span class="in"><span class="lab">{{ 'stocks.form.asset' | t }}</span><span class="val">{{ word('stocks.kind.' + formAsset()) }}</span></span>
+            <ion-icon name="chevron-forward-outline"></ion-icon>
+          </button>
+          <app-date-field [label]="word('stocks.form.day.' + formKind())" [value]="formDay()" [max]="null" (changed)="formDay.set($event ?? formDay())"></app-date-field>
         </div>
+        @if (tried() && formMissing() === 'symbol') { <small class="err">{{ 'stocks.form.symbol.missing' | t }}</small> }
 
-        <span class="lab">{{ 'stocks.form.day' | t }}</span>
-        <app-date-field look="box" [value]="formDay()" [max]="null" (changed)="formDay.set($event ?? formDay())"></app-date-field>
-
-        @if (formKind() !== 'dividend') {
-          <div class="two">
-            <label class="field">
-              <span class="lab">{{ 'stocks.form.quantity' | t }}</span>
-              <input class="ui-input" inputmode="decimal" [value]="formQuantity()" (input)="typed('quantity', $any($event.target).value)" placeholder="0,5">
-              @if (tried() && formMissing() === 'quantity') { <small class="err">{{ 'stocks.form.quantity.missing' | t }}</small> }
+        <div class="ui-list">
+          @if (formKind() !== 'dividend') {
+            <label class="ui-field">
+              <span class="in">
+                <span class="lab">{{ word('stocks.form.quantity.' + formKind()) }}</span>
+                <input inputmode="decimal" [value]="formQuantity()" (input)="typed('quantity', $any($event.target).value)" placeholder="0">
+              </span>
+              <span class="unit">{{ 'stocks.form.units' | t }}</span>
             </label>
-            <label class="field">
-              <span class="lab">{{ 'stocks.form.price' | t:{ currency: formCurrency() } }}</span>
-              <input class="ui-input" inputmode="decimal" [value]="formPrice()" (input)="typed('price', $any($event.target).value)" placeholder="0,00">
-              @if (tried() && formMissing() === 'price') { <small class="err">{{ 'stocks.form.price.missing' | t }}</small> }
+            <label class="ui-field">
+              <span class="in">
+                <span class="lab">{{ 'stocks.form.price' | t }}</span>
+                <input inputmode="decimal" [value]="formPrice()" (input)="typed('price', $any($event.target).value)" placeholder="0,00">
+              </span>
+              <span class="unit">{{ formCurrency() }}</span>
+            </label>
+          }
+          <label class="ui-field total">
+            <span class="in">
+              <span class="lab">{{ word('stocks.form.total.' + formKind()) }}</span>
+              <input inputmode="decimal" [value]="formAmount().text" [appAmountInput]="formAmount()" (amountChange)="typedAmount($event)" placeholder="0,00">
+            </span>
+            <span class="unit">{{ formCurrency() }}</span>
+          </label>
+        </div>
+        @if (tried() && formMissing() === 'quantity') { <small class="err">{{ 'stocks.form.quantity.missing' | t }}</small> }
+        @if (tried() && formMissing() === 'price') { <small class="err">{{ 'stocks.form.price.missing' | t }}</small> }
+        @if (tried() && formMissing() === 'amount') { <small class="err">{{ 'stocks.form.amount.missing' | t }}</small> }
+        @if (formKind() !== 'dividend') { <p class="hint">{{ 'stocks.form.total.hint' | t }}</p> }
+
+        <button type="button" class="fold" (click)="moreOpen.set(!moreOpen())">
+          <span class="name">{{ 'stocks.form.more' | t }}</span>
+          <span class="count">{{ flag(formCurrency()) }} {{ formCurrency() }} · {{ accountName(formAccount()) }}</span>
+          <ion-icon [name]="moreOpen() ? 'chevron-up' : 'chevron-down'"></ion-icon>
+        </button>
+        @if (moreOpen()) {
+          <div class="ui-list">
+            <button type="button" class="ui-field" (click)="pickingAccount.set('form')">
+              <app-badge shape="ci" [size]="36" builtin="business-outline" fixed="#6378ff"></app-badge>
+              <span class="in"><span class="lab">{{ 'stocks.import.account' | t }}</span><span class="val wrap">{{ accountName(formAccount()) }}</span></span>
+              <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+            <button type="button" class="ui-field" (click)="currencySheet.set('form')">
+              <span class="flag">{{ flag(formCurrency()) }}</span>
+              <span class="in"><span class="lab">{{ 'stocks.form.currency' | t }}</span><span class="val">{{ currencyWords(formCurrency()) }} · {{ formCurrency() }}</span></span>
+              <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+            <label class="ui-field">
+              <span class="in">
+                <span class="lab">{{ 'stocks.form.note' | t }}</span>
+                <input type="text" maxlength="120" [value]="formNote()" (input)="formNote.set($any($event.target).value)" [placeholder]="'stocks.form.note.placeholder' | t">
+              </span>
             </label>
           </div>
         }
-
-        <label class="field">
-          <span class="lab">{{ (formKind() === 'buy' ? 'stocks.form.total.buy' : formKind() === 'sell' ? 'stocks.form.total.sell' : 'stocks.form.total.dividend') | t:{ currency: formCurrency() } }}</span>
-          <input class="ui-input" inputmode="decimal" [value]="formAmount().text" [appAmountInput]="formAmount()" (amountChange)="typedAmount($event)" placeholder="0,00">
-          @if (formKind() !== 'dividend') { <small class="sub">{{ 'stocks.form.total.hint' | t }}</small> }
-          @if (tried() && formMissing() === 'amount') { <small class="err">{{ 'stocks.form.amount.missing' | t }}</small> }
-        </label>
-
-        <div class="ui-list">
-          <button type="button" class="ui-row" (click)="pickingAccount.set('form')">
-            <app-badge shape="ci" [size]="36" builtin="business-outline" fixed="#6378ff"></app-badge>
-            <span class="ui-tx"><b>{{ 'stocks.import.account' | t }}</b><small class="wrap">{{ accountName(formAccount()) }}</small></span>
-            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-          </button>
-        </div>
-        <span class="lab">{{ 'stocks.import.currency' | t }}</span>
-        <div class="chips">
-          @for (code of ['USD', 'EUR', 'COP']; track code) {
-            <button type="button" class="ui-chip" [class.on]="formCurrency() === code" (click)="formCurrency.set(code)">{{ code }}</button>
-          }
-        </div>
-
-        <label class="field">
-          <span class="lab">{{ 'stocks.form.note' | t }}</span>
-          <input class="ui-input" type="text" maxlength="120" [value]="formNote()" (input)="formNote.set($any($event.target).value)">
-        </label>
 
         <button type="button" class="ui-btn save" (click)="saveTrade()">{{ word('stocks.form.save.' + formKind()) }}</button>
       </div>
@@ -650,6 +716,152 @@
     }
   </ng-template>
 </ion-modal>
+
+<!-- The prices: where they are from, the rate used, and asking for them. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pricesSheet()" (didDismiss)="pricesSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="pricesSheet.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'stocks.prices.title' | t }}</h2>
+      <div class="ui-list facts-list">
+        <div class="ui-row">
+          <app-badge shape="ci" [size]="36" [builtin]="pricesChip().icon === 'checkmark-circle' ? 'checkmark-outline' : 'time-outline'"
+                     [fixed]="pricesChip().tone === 'good' ? '#34c98b' : pricesChip().tone === 'warn' ? '#f6b93b' : '#8a93a8'"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ pricesChip().text }}</b><small class="wrap">{{ pricesLine() }}</small></span>
+        </div>
+        @if (total(); as sum) {
+          @if (sum.unquoted > 0 && priced()) {
+            <div class="ui-row">
+              <app-badge shape="ci" [size]="36" builtin="help-outline" fixed="#f6b93b"></app-badge>
+              <span class="ui-tx"><b class="wrap">{{ 'stocks.prices.unquoted' | t:{ count: sum.unquoted } }}</b><small class="wrap">{{ 'stocks.prices.unquoted.hint' | t }}</small></span>
+            </div>
+          }
+        }
+        @if (rateLine(); as rate) {
+          <div class="ui-row">
+            <span class="flag">{{ flag(currency()) }}</span>
+            <span class="ui-tx"><b class="wrap">{{ rate }}</b><small class="wrap">{{ 'stocks.prices.rate.hint' | t }}</small></span>
+          </div>
+        }
+      </div>
+      @if (stateWords(); as state) {
+        <div [class]="'ui-banner state ' + state.tone">
+          <ion-icon [name]="state.icon"></ion-icon>
+          <span class="ui-tx"><b>{{ state.title }}</b><small class="wrap">{{ state.text }}</small></span>
+        </div>
+      }
+      <p class="hint">{{ (stocks.canAskGoogle ? 'stocks.google.text' : 'stocks.google.textBrowser') | t }}</p>
+      <button type="button" class="ui-btn save" (click)="refresh()" [disabled]="stocks.pricesState() === 'working'">
+        <ion-icon name="refresh-outline"></ion-icon>{{ (priced() ? 'stocks.hero.refresh' : 'stocks.hero.fetch') | t }}
+      </button>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- The "+": every way of bringing a purchase in. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="addSheet()" (didDismiss)="addSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="addSheet.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'stocks.add.title' | t }}</h2>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="chooseFile()">
+          <app-badge shape="ci" [size]="40" builtin="document-text-outline" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'stocks.add.file' | t }}</b><small class="wrap">{{ (images ? 'stocks.add.file.hintImages' : 'stocks.add.file.hint') | t }}</small></span>
+        </button>
+        @if (images) {
+          <button type="button" class="ui-row" (click)="choosePhoto()">
+            <app-badge shape="ci" [size]="40" builtin="camera-outline" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ 'stocks.add.photo' | t }}</b><small class="wrap">{{ 'stocks.add.photo.hint' | t }}</small></span>
+          </button>
+        }
+        <button type="button" class="ui-row" (click)="newTrade()">
+          <app-badge shape="ci" [size]="40" builtin="create-outline" fixed="#f6b93b"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'stocks.add.hand' | t }}</b><small class="wrap">{{ 'stocks.add.hand.hint' | t }}</small></span>
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- What to show in the history, and how to group it. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="filterSheet()" (didDismiss)="filterSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="filterSheet.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'stocks.history.view' | t }}</h2>
+      <div class="ui-h first">{{ 'stocks.history.show' | t }}</div>
+      <div class="ui-list">
+        @for (one of filters; track one) {
+          <button type="button" class="ui-row" (click)="chooseFilter(one)">
+            <app-badge shape="ci" [size]="34" [builtin]="filterIcons[one]" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ word('stocks.history.filter.' + one) }}</b>
+              @if (one === 'sameDay') { <small class="wrap">{{ 'stocks.undone.hint' | t }}</small> }</span>
+            @if (filter() === one) { <ion-icon class="ui-p check" name="checkmark"></ion-icon> }
+          </button>
+        }
+      </div>
+      <div class="ui-h">{{ 'stocks.history.groupBy' | t }}</div>
+      <div class="ui-list">
+        @for (one of groups; track one) {
+          <button type="button" class="ui-row" (click)="chooseGroup(one)">
+            <app-badge shape="ci" [size]="34" [builtin]="groupIcons[one]" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ word('stocks.history.group.' + one) }}</b></span>
+            @if (group() === one) { <ion-icon class="ui-p check" name="checkmark"></ion-icon> }
+          </button>
+        }
+      </div>
+      <button type="button" class="ui-btn save" (click)="filterSheet.set(false)">{{ 'stocks.history.done' | t }}</button>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- The kind of asset, each said in a line. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="assetSheet()" (didDismiss)="assetSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="assetSheet.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'stocks.form.asset' | t }}</h2>
+      <div class="ui-list">
+        @for (kind of assets; track kind) {
+          <button type="button" class="ui-row" (click)="formAsset.set(kind); assetSheet.set(false)">
+            <app-badge shape="ci" [size]="40" [builtin]="assetIcon(kind)" [fixed]="assetColor(kind)"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ word('stocks.kind.' + kind) }}</b><small class="wrap">{{ word('stocks.kind.' + kind + '.hint') }}</small></span>
+            @if (formAsset() === kind) { <ion-icon class="ui-p check" name="checkmark"></ion-icon> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- The currency, with its flag. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="currencySheet() !== null" (didDismiss)="currencySheet.set(null)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="currencySheet.set(null)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'stocks.form.currency.title' | t }}</h2>
+      <div class="ui-list">
+        @for (code of currencyOptions(); track code) {
+          <button type="button" class="ui-row" (click)="chooseMoney(code)">
+            <span class="flag">{{ flag(code) }}</span>
+            <span class="ui-tx"><b class="wrap">{{ currencyWords(code) }}</b><small>{{ code }}</small></span>
+            @if ((currencySheet() === 'import' ? pendingCurrency() : formCurrency()) === code) { <ion-icon class="ui-p check" name="checkmark"></ion-icon> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="erasing()" icon="trash-outline" tone="danger" [title]="'stocks.erase.ask' | t"
+             [body]="'stocks.erase.body' | t:{ count: stocks.trades().length }" [confirmLabel]="'stocks.erase.yes' | t:{ count: stocks.trades().length }"
+             (confirmed)="eraseAll()" (cancelled)="erasing.set(false)"></app-confirm>
 
 <app-confirm [open]="deleting() !== null" icon="trash-outline" tone="danger" [title]="'stocks.trade.delete.ask' | t"
              [body]="'stocks.trade.delete.body' | t" [confirmLabel]="'stocks.trade.delete' | t"

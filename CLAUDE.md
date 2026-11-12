@@ -501,7 +501,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1247 on 2026-11-12, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1256 on 2026-11-12, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -7705,6 +7705,83 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   - **Jose asked to go slowly, one step at a time, to try it** (the
     screenshots sent at once were not clear to him): one screen or one
     step per message, in plain words, waiting for his answer.
+- **Second round, from Jose's first look at it on the phone (2026-11-12,
+  "TODO en esa pantalla hay que mejorarlo"; branch
+  `claude/google-sheets-finance-module-qllcax`, NOT merged yet)**:
+  - **A broker's list of open positions is read** (his file failed with "no
+    movements"). A table whose heading says a market price (`current` role)
+    is a picture of today, and each of its rows with a date, units and an
+    opening price is a purchase (`held: true`, amount worked out), its
+    current price kept as `BrokerReading.prices` dated by "Reporte
+    generado" (`stock_prices.source = 'statement'`, migration 064; a typed
+    or fetched price of that day wins). A history in the same file beats the
+    picture. Cells are matched to headings in order, at the least total
+    distance (`rolesOf`: a right-aligned figure sits nearer the next
+    heading). A row with an opening AND a closing day is still left out.
+    On his file: 34 purchases, cost 2,374.08 (the file's own value less
+    profit), 13 prices of the file's day.
+  - **The same purchase told by two files is one** (`unknownRows` in
+    `stocks.repository.ts`): besides its own key, a purchase or sale is
+    known when that ticker already has that many units on record within a
+    day of it, unclaimed - other numbers, another time zone, two fills told
+    as one. On his files: the statement then the list adds only the 9
+    purchases made after the statement's period, and the other way round no
+    purchase is added.
+  - **Bought and sold again the same day** (`sameDayPairs` in
+    `positions.ts`: same position number, or same ticker and units, the sale
+    after the purchase): a broker undoing an order, not a sale somebody
+    decided (17 of his 22 "sales"). They stay in the arithmetic - their
+    cents are in what the broker itself reports as realised - and the
+    screens keep them apart: a grey repeat icon and "Se compró y se vendió
+    el mismo día: un ajuste del bróker" in the history, their own filter,
+    left out of "Compras y ventas" and of "Posiciones que ya vendiste", one
+    quiet line under Posiciones leading to them.
+  - **One position from a photo or screenshot** (`core/stocks/
+    read-position.ts`, pure; Android, the receipts' reader): labels and
+    values by similar words in both languages (units/acciones/volumen;
+    precio de apertura/compra; fecha/hora de apertura; valor de
+    apertura/invertido; último precio), the value to the right on its row
+    or under a label printed on several lines; the ticker after
+    "Comprar/Buy" or standing alone. It opens the purchase form filled in,
+    saying what the picture did not show; nothing is saved by itself.
+    Tested on two invented screens in the two shapes Jose sent; the
+    recognition itself only on the phone.
+  - **"Borrar todos los movimientos de bolsa"** at the foot of Historial
+    (`StocksRepository.eraseTrades`, `StocksService.erase`): the trades,
+    and with none left the prices and tickers' names; nothing else of the
+    app. Asked first with the count.
+  - **The screen redrawn, minimal**: the hero is the figure, one line of
+    gain (amount, percent in a pill), the value in the main currency with
+    the rate used ("1 USD = 3.461,37 COP"), ONE status line for the prices
+    (`pricesChip`: today with its time, of another day in amber, from the
+    statement, none, sample) that opens "Precios de tus posiciones" (where
+    they come from, positions without one, the rate, the button), a round
+    button that updates them, and "Ver el detalle" folding the rest
+    (invested, today's change, dividends, realised, cash, positions; kept
+    on the device). The title bar's "+" opens "Agregar a tu bolsa"
+    (statement, photo of a position, by hand). **Historial**: a chip
+    "Todos · por mes" opening Mostrar / Agrupar (by month, day, ticker or
+    kind of asset; kept on the device), a search (ticker, kind, day,
+    amount), folding sections with their count, the first open, and the
+    two arrows with fold-all (`app-jump`). **The form** follows the loan
+    form's rows: ticker, "Tipo de activo" as a row opening a sheet where
+    each kind is explained, the date; units, price and total with the
+    currency beside them; account, currency (a sheet with flags) and note
+    folded under "Cuenta, moneda y nota". Stocks tour steps 2-4
+    `since: 2`.
+  - **Más regrouped** (Jose approved): "Tu día a día" (Cuentas, Deudas,
+    Presupuestos, Recordatorios, Por revisar), "Ahorro e inversión"
+    (Productos y rendimientos, Bolsa de valores), "Análisis" (Reporte,
+    Simulador de renta, Monedas y TRM), "Tus datos" (Categorías,
+    Notificaciones, Importar y exportar, Datos de ejemplo, Borrar). Más
+    tour steps `since: 8`.
+  - **Why his return chart read about 4.8 %**: with no price newer than
+    the purchases, the last price known is the last purchase's, so the
+    line is flat from there. It needs today's prices (Google, never run
+    yet) or a file that prints them (the open-positions list now does).
+  - 32 tests in `stocks.test.mjs`; checked in a browser on the sample data
+    (hero, detail, prices sheet, history by month and by ticker, search,
+    the "+", the form, the currency sheet, Más). Not seen on the phone.
 - **Not built yet** (to offer Jose, in this order): seeing one broker at a
   time when there are several (today all are one book; a ticker held at two
   brokers is one position); the assistant's questions about it; a returns
@@ -7969,6 +8046,10 @@ budget family (2/16, 1, 7), then the rest.
       screen (one step at a time, with screenshots); then on the phone press
       "Traer los precios de hoy" and say what it shows - the Google half was
       never run.
+- [ ] Bolsa de valores, second round (2026-11-12): try on the phone the
+      open-positions file, a photo of one position ("+" → Foto o captura de
+      una posición), "Borrar todos los movimientos de bolsa" and the new
+      Historial and form; say what still reads wrong.
 - [ ] Bolsa de valores: import the brokers' statements on the phone and say
       what reads wrong; send other brokers' statements to turn into tests.
 - [ ] Bolsa de valores: decide whether each broker should be seen apart
