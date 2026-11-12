@@ -48,6 +48,8 @@
       </div>
     }
 
+    <!-- Regrouped by what the person wants to do (Jose, 2026-11-12): the
+         everyday, money put to grow, looking back, and the data itself. -->
     <div class="ui-h">{{ 'more.finances' | t }}</div>
     <div class="ui-list" data-tour="more-finances">
       <button type="button" class="ui-row" (click)="go('/accounts')">
@@ -58,23 +60,6 @@
       <button type="button" class="ui-row" (click)="go('/debts')">
         <app-badge [size]="40" builtin="card-outline" fixed="#f6b93b"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.debts' | t }}</b><small [class.late]="debtsLate()">{{ debtsLine() }}</small></span>
-        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-      </button>
-      <button type="button" class="ui-row" data-tour="more-report" (click)="openReport()">
-        <app-badge [size]="40" builtin="bar-chart-outline" fixed="#4aa3ff"></app-badge>
-        <span class="ui-tx"><b class="wrap">{{ 'more.report' | t }}</b><small [class.waiting]="summary.pending() !== null">{{ reportLine() }}</small></span>
-        @if (summary.pending()) { <i class="dot"></i> }
-        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-      </button>
-      <button type="button" class="ui-row" (click)="go('/products')">
-        <app-badge [size]="40" builtin="piggy-bank" fixed="#34c98b"></app-badge>
-        <span class="ui-tx"><b class="wrap">{{ 'more.products' | t }}</b><small>{{ 'more.products.hint' | t }}</small></span>
-        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-      </button>
-      <button type="button" class="ui-row" data-tour="more-stocks" (click)="go('/stocks')">
-        <app-badge [size]="40" builtin="stats-chart-outline" fixed="#2ec4b6"></app-badge>
-        <span class="ui-tx"><b class="wrap">{{ 'more.stocks' | t }}</b><small>{{ stocksLine() }}</small></span>
-        @if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
       <button type="button" class="ui-row" (click)="go('/plans')">
@@ -89,10 +74,6 @@
         @if (remindersLate() > 0) { <i class="dot"></i> }
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
-    </div>
-
-    <div class="ui-h">{{ 'more.yourData' | t }}</div>
-    <div class="ui-list" data-tour="more-data">
       <button type="button" class="ui-row" (click)="go('/review')">
         <app-badge [size]="40" builtin="checkmark-done-outline" [fixed]="accent.accent().color"></app-badge>
         <span class="ui-tx">
@@ -102,6 +83,46 @@
         @if (waiting() > 0) { <i class="dot"></i> }
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
+    </div>
+
+    <div class="ui-h">{{ 'more.grow' | t }}</div>
+    <div class="ui-list" data-tour="more-grow">
+      <button type="button" class="ui-row" (click)="go('/products')">
+        <app-badge [size]="40" builtin="piggy-bank" fixed="#34c98b"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.products' | t }}</b><small>{{ 'more.products.hint' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" data-tour="more-stocks" (click)="go('/stocks')">
+        <app-badge [size]="40" builtin="stats-chart-outline" fixed="#2ec4b6"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.stocks' | t }}</b><small>{{ stocksLine() }}</small></span>
+        @if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="ui-h">{{ 'more.tools' | t }}</div>
+    <div class="ui-list" data-tour="more-tools">
+      <button type="button" class="ui-row" data-tour="more-report" (click)="openReport()">
+        <app-badge [size]="40" builtin="bar-chart-outline" fixed="#4aa3ff"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.report' | t }}</b><small [class.waiting]="summary.pending() !== null">{{ reportLine() }}</small></span>
+        @if (summary.pending()) { <i class="dot"></i> }
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" (click)="go('/tax')">
+        <app-badge [size]="40" builtin="calculator-outline" fixed="#ff9152"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.tax' | t }}</b><small>{{ 'more.tax.hint' | t:{ year } }}</small></span>
+        @if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" (click)="go('/currencies')">
+        <app-badge [size]="40" builtin="cash-outline" fixed="#34c98b"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'ui.currencies.title' | t }}</b><small class="wrap">{{ currencies().join(' · ') }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="ui-h">{{ 'more.yourData' | t }}</div>
+    <div class="ui-list" data-tour="more-data">
       <button type="button" class="ui-row" (click)="go('/categories')">
         <app-badge [size]="40" builtin="pricetags-outline" fixed="#9b7bff"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.categories' | t }}</b><small>{{ categoriesLine() }}</small></span>
@@ -130,21 +151,6 @@
       <button type="button" class="ui-row" (click)="go('/erase')">
         <app-badge [size]="40" builtin="trash-outline" fixed="#ef5b66"></app-badge>
         <span class="ui-tx"><b class="wrap danger">{{ 'more.erase' | t }}</b><small>{{ 'more.erase.hint' | t }}</small></span>
-        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-      </button>
-    </div>
-
-    <div class="ui-h">{{ 'more.tools' | t }}</div>
-    <div class="ui-list" data-tour="more-tools">
-      <button type="button" class="ui-row" (click)="go('/currencies')">
-        <app-badge [size]="40" builtin="cash-outline" fixed="#34c98b"></app-badge>
-        <span class="ui-tx"><b class="wrap">{{ 'ui.currencies.title' | t }}</b><small class="wrap">{{ currencies().join(' · ') }}</small></span>
-        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-      </button>
-      <button type="button" class="ui-row" (click)="go('/tax')">
-        <app-badge [size]="40" builtin="calculator-outline" fixed="#ff9152"></app-badge>
-        <span class="ui-tx"><b class="wrap">{{ 'more.tax' | t }}</b><small>{{ 'more.tax.hint' | t:{ year } }}</small></span>
-        @if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
     </div>

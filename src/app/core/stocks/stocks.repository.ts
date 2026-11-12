@@ -68,7 +68,7 @@ export interface PriceRow {
   day: IsoDate;
   price_e6: number;
   previous_e6: number | null;
-  source: 'sheet' | 'manual' | 'demo';
+  source: 'sheet' | 'manual' | 'demo' | 'statement';
 }
 
 function fromRow(row: TradeRow): Trade {
@@ -141,15 +141,20 @@ export class StocksRepository {
   /**
    * Which of a statement's rows are not on record yet for that account.
    *
-   * One read of the keys already there, answered in memory.
+   * One read of what is already there, answered in memory. A row is known
+   * by its own key; and a purchase or a sale is also known when the same
+   * ticker already has that many units bought (or sold) within a day of it
+   * that no other row has claimed - the same purchase told by another file
+   * of the broker carries another number, another time zone, or comes as two
+   * fills where the other file says one.
    */
   async newOnes(accountId: number | null, rows: readonly BrokerRow[]): Promise<BrokerRow[]> {
-    const have = new Set((await this.db.query<{ dedupe: string }>(
+    const have = await this.db.query<{ dedupe: string; kind: string; symbol: string | null; traded_on: string; quantity_e8: number | null }>(
       accountId === null
-        ? 'SELECT dedupe FROM stock_trades WHERE account_id IS NULL'
-        : 'SELECT dedupe FROM stock_trades WHERE account_id = ?',
-      accountId === null ? [] : [accountId])).map(row => row.dedupe));
-    return rows.filter(row => !have.has(rowKey(row)));
+        ? 'SELECT dedupe, kind, symbol, traded_on, quantity_e8 FROM stock_trades WHERE account_id IS NULL'
+        : 'SELECT dedupe, kind, symbol, traded_on, quantity_e8 FROM stock_trades WHERE account_id = ?',
+      accountId === null ? [] : [accountId]);
+    return unknownRows(have, rows);
   }
 
   /** Writes a statement's rows, many per statement. Answers how many went in. */
@@ -174,6 +179,40 @@ export class StocksRepository {
       }
     });
     return fresh.length;
+  }
+
+  /**
+   * Everything of the stock market gone - every trade, or one account's
+   * (null: those tied to no account) - to import again from scratch. With
+   * every trade gone, the prices and what is known of each ticker go too.
+   * Nothing else in the app is touched.
+   */
+  async eraseTrades(scope: 'all' | { accountId: number | null }): Promise<number> {
+    return this.db.transaction(async () => {
+      const result = scope === 'all'
+        ? await this.db.run('DELETE FROM stock_trades')
+        : scope.accountId === null
+          ? await this.db.run('DELETE FROM stock_trades WHERE account_id IS NULL')
+          : await this.db.run('DELETE FROM stock_trades WHERE account_id = ?', [scope.accountId]);
+      if (((await this.db.queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM stock_trades'))?.n ?? 0) === 0) {
+        await this.db.run('DELETE FROM stock_prices');
+        await this.db.run('DELETE FROM stock_instruments');
+        await this.db.run(`DELETE FROM settings WHERE key IN ('stocks.pricesAt')`);
+      }
+      return result.changes;
+    });
+  }
+
+  /** The prices a statement printed: kept unless that day already has one typed or fetched. */
+  async keepStatedPrices(prices: readonly { symbol: string; day: IsoDate; priceE6: number }[]): Promise<void> {
+    const t = this.now();
+    for (const price of prices) {
+      await this.db.run(
+        `INSERT INTO stock_prices (symbol, day, price_e6, previous_e6, source, fetched_at) VALUES (?, ?, ?, NULL, 'statement', ?)
+         ON CONFLICT(symbol, day) DO UPDATE SET price_e6 = excluded.price_e6, fetched_at = excluded.fetched_at
+           WHERE stock_prices.source = 'statement'`,
+        [price.symbol, price.day, price.priceE6, t]);
+    }
   }
 
   // ---- Tickers -----------------------------------------------------------------
@@ -256,6 +295,58 @@ export class StocksRepository {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
       [key, value, this.now()]);
   }
+}
+
+const DAY_MS = 86_400_000;
+
+/** A sliver of a unit: what two files of one broker round differently. */
+const SAME_UNITS_E8 = 20_000;
+
+/** The rows of a statement that what is on record does not already tell. Pure. */
+export function unknownRows(
+  have: readonly { dedupe: string; kind: string; symbol: string | null; traded_on: string; quantity_e8: number | null }[],
+  rows: readonly BrokerRow[],
+): BrokerRow[] {
+  const keys = new Set(have.map(row => row.dedupe));
+  // Units on record per kind, ticker and day, still unclaimed.
+  const pool = new Map<string, number>();
+  const poolKey = (kind: string, symbol: string, day: string): string => `${kind}|${symbol}|${day}`;
+  for (const row of have) {
+    if ((row.kind !== 'buy' && row.kind !== 'sell') || row.symbol === null || row.quantity_e8 === null) continue;
+    const key = poolKey(row.kind, row.symbol, row.traded_on);
+    pool.set(key, (pool.get(key) ?? 0) + row.quantity_e8);
+  }
+  const near = (day: string): string[] => {
+    const t = Date.parse(`${day}T00:00:00Z`);
+    return [day, new Date(t - DAY_MS).toISOString().slice(0, 10), new Date(t + DAY_MS).toISOString().slice(0, 10)];
+  };
+
+  const fresh: BrokerRow[] = [];
+  for (const row of rows) {
+    if (keys.has(rowKey(row))) {
+      // Claimed by its own key: its units leave the pool too.
+      if ((row.kind === 'buy' || row.kind === 'sell') && row.symbol !== null && row.quantityE8 !== null) {
+        const key = poolKey(row.kind, row.symbol, row.day);
+        pool.set(key, Math.max(0, (pool.get(key) ?? 0) - row.quantityE8));
+      }
+      continue;
+    }
+    if ((row.kind === 'buy' || row.kind === 'sell') && row.symbol !== null && row.quantityE8 !== null) {
+      const days = near(row.day).map(day => poolKey(row.kind, row.symbol as string, day));
+      const there = days.reduce((sum, key) => sum + (pool.get(key) ?? 0), 0);
+      if (there + SAME_UNITS_E8 >= row.quantityE8) {
+        let left = row.quantityE8;
+        for (const key of days) {
+          const take = Math.min(left, pool.get(key) ?? 0);
+          pool.set(key, (pool.get(key) ?? 0) - take);
+          left -= take;
+        }
+        continue;
+      }
+    }
+    fresh.push(row);
+  }
+  return fresh;
 }
 
 function parseFacts(raw: string | null): Facts | null {

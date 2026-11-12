@@ -112,6 +112,9 @@ export class StocksService {
       if (count === 0) {
         if (mine !== this.generation) return;
         this.trades.set([]);
+        this.quotes.set(new Map());
+        this.history.set([]);
+        this.instruments.set(new Map());
         this.loaded.set(true);
         return;
       }
@@ -157,9 +160,20 @@ export class StocksService {
   }
 
   async save(accountId: number | null, currency: string, pending: StockImport): Promise<number> {
-    const written = await this.repository().importRows(accountId, currency, pending.name, pending.reading.rows);
+    const repository = this.repository();
+    const written = await repository.importRows(accountId, currency, pending.name, pending.reading.rows);
+    await repository.keepStatedPrices(pending.reading.prices);
     this.database.dataChanged();
     return written;
+  }
+
+  /** Deletes every trade, or one account's, so a statement can be imported again. */
+  async erase(scope: 'all' | { accountId: number | null }): Promise<number> {
+    const gone = await this.repository().eraseTrades(scope);
+    this.missing.set([]);
+    this.pricesState.set('idle');
+    this.database.dataChanged();
+    return gone;
   }
 
   // ---- By hand ---------------------------------------------------------------------

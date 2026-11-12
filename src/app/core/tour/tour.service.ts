@@ -94,21 +94,22 @@ const TOUR_LIST = {
   // the movement form by itself.
   more: {
     steps: [
-      { title: 'tour.more.1.title', text: 'tour.more.1.text' },
-      { target: 'more-finances', title: 'tour.more.2.title', text: 'tour.more.2.text' },
-      { target: 'more-data', title: 'tour.more.3.title', text: 'tour.more.3.text' },
-      { target: 'more-tools', title: 'tour.more.4.title', text: 'tour.more.4.text' },
+      { title: 'tour.more.1.title', text: 'tour.more.1.text', since: 8 },
+      // 2026-11-12: regrouped - the everyday, money put to grow, analysis, the data.
+      { target: 'more-finances', title: 'tour.more.2.title', text: 'tour.more.2.text', since: 8 },
+      { target: 'more-grow', title: 'tour.more.12.title', text: 'tour.more.12.text', since: 8 },
+      { target: 'more-stocks', title: 'tour.more.11.title', text: 'tour.more.11.text', since: 7 },
+      { target: 'more-tools', title: 'tour.more.4.title', text: 'tour.more.4.text', since: 8 },
+      { target: 'more-report', title: 'tour.more.10.title', text: 'tour.more.10.text', since: 6 },
+      { target: 'more-data', title: 'tour.more.3.title', text: 'tour.more.3.text', since: 8 },
       { target: 'more-prefs', title: 'tour.more.5.title', text: 'tour.more.5.text' },
       { target: 'more-prefs', title: 'tour.more.6.title', text: 'tour.more.6.text', since: 2 },
       // 2026-10-15: Finance Pro, what is free and what is paid (34f).
       { target: 'more-pro', title: 'tour.more.7.title', text: 'tour.more.7.text', since: 3 },
-      // 2026-10-22: reminders, under Tus finanzas.
+      // 2026-10-22: reminders, now under Tu día a día.
       { target: 'more-finances', title: 'tour.more.8.title', text: 'tour.more.8.text', since: 4 },
       // 2026-10-22: reporting a fault or an idea, under Ayuda.
       { target: 'more-help', title: 'tour.more.9.title', text: 'tour.more.9.text', since: 5 },
-      { target: 'more-report', title: 'tour.more.10.title', text: 'tour.more.10.text', since: 6 },
-      // 2026-11-12: the stock market, under Tus finanzas.
-      { target: 'more-stocks', title: 'tour.more.11.title', text: 'tour.more.11.text', since: 7 },
     ],
   },
   // Bolsa de valores (2026-11-12).

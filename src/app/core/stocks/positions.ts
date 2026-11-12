@@ -191,7 +191,7 @@ export interface Quote {
   /** Yesterday's close, when the source gives it. */
   previousE6: number | null;
   day: IsoDate;
-  source: 'sheet' | 'manual' | 'demo';
+  source: 'sheet' | 'manual' | 'demo' | 'statement';
 }
 
 export interface Valued {
@@ -388,6 +388,34 @@ export function worthByDay(
       costMinor += position.costMinor;
     }
     if (costMinor > 0) out.push({ day, valueMinor, costMinor });
+  }
+  return out;
+}
+
+/**
+ * Purchases bought and sold again the same day: the ids of both halves.
+ *
+ * A broker's history is full of them - an order filled, cancelled and filled
+ * again within minutes - and they read as sales nobody decided (Jose,
+ * 2026-11-12). They stay in the arithmetic, where their few cents are part
+ * of what the broker itself reports as realised; the screens only keep them
+ * apart from the sales that closed a position held for days.
+ */
+export function sameDayPairs(trades: readonly Trade[]): Set<number> {
+  const out = new Set<number>();
+  const buys = trades.filter(trade => trade.kind === 'buy' && trade.symbol !== null);
+  const used = new Set<number>();
+  for (const sale of trades) {
+    if (sale.kind !== 'sell' || sale.symbol === null || sale.quantityE8 === null) continue;
+    const match = buys.find(buy => !used.has(buy.id) && buy.symbol === sale.symbol && buy.day === sale.day
+      && (sale.ref !== null && buy.ref === sale.ref))
+      ?? buys.find(buy => !used.has(buy.id) && buy.symbol === sale.symbol && buy.day === sale.day
+        && buy.quantityE8 !== null && Math.abs(buy.quantityE8 - (sale.quantityE8 as number)) <= 200
+        && (buy.time ?? '') <= (sale.time ?? '~'));
+    if (!match) continue;
+    used.add(match.id);
+    out.add(match.id);
+    out.add(sale.id);
   }
   return out;
 }
