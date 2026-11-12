@@ -7706,8 +7706,8 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
     screenshots sent at once were not clear to him): one screen or one
     step per message, in plain words, waiting for his answer.
 - **Second round, from Jose's first look at it on the phone (2026-11-12,
-  "TODO en esa pantalla hay que mejorarlo"; branch
-  `claude/google-sheets-finance-module-qllcax`, NOT merged yet)**:
+  "TODO en esa pantalla hay que mejorarlo"; merged as #322, the first
+  part as #321)**:
   - **A broker's list of open positions is read** (his file failed with "no
     movements"). A table whose heading says a market price (`current` role)
     is a picture of today, and each of its rows with a date, units and an
