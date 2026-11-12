@@ -23,6 +23,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 import { SaveShareService } from '../../core/assistant/save-share.service';
 import { SaveShareSheetComponent } from '../../shared/save-share/save-share-sheet.component';
 import { RemindersService } from '../../core/reminders/reminders.service';
+import { StocksService } from '../../core/stocks/stocks.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
@@ -143,6 +144,12 @@ export class MorePage {
   /** Planes: how this month's limits go, or what a limit is for (14a). */
   readonly plansLate = computed(() => this.limits.current().passed.length > 0);
   private readonly remindersService = inject(RemindersService);
+  private readonly stocks = inject(StocksService);
+  /** Bolsa de valores: how many positions are held, or what the screen is for. */
+  readonly stocksLine = computed(() => {
+    const count = this.stocks.held().length;
+    return count === 0 ? this.i18n.t('more.stocks.hint') : this.i18n.t('more.stocks.count', { count });
+  });
   /** Reminders whose day passed and nobody settled. */
   readonly remindersLate = computed(() => this.remindersService.occurrences().filter(o => o.late).length);
   readonly remindersLine = computed(() => {

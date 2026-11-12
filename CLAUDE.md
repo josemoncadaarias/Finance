@@ -243,6 +243,12 @@ notices (2026-11-11, #316, mockups `57*`, "How to work"; every bank free
 since then; answers Jose's partner, who never found "Agregar un banco" - to
 name as tester feedback; goes in the next closed-testing release).
 
+**Bolsa de valores, first part (2026-11-12)**: a broker's statement read
+into purchases, sales and dividends, positions with their value, charts, and
+today's prices through a Google Sheet of the person's own - see "Bolsa de
+valores: the stock market module". Its Google half is written and NOT yet
+run on a phone; it needs the Sheets API enabled in Google Cloud by Jose.
+
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
 `release-aab.yml`, `workflow_dispatch`) on that branch builds the old app
@@ -495,7 +501,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1224 on 2026-11-11, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1247 on 2026-11-12, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -7523,7 +7529,185 @@ with testers runs; the paywall is finished after them.
   questions; (2) "¿me alcanza?" and "cuánto puedo gastar"; (3) more
   questions and learning from corrections.
 
-### A stock market module (Jose, 2026-10-22: noted to analyse, nothing built, nothing decided)
+### Bolsa de valores: the stock market module (first part BUILT 2026-11-12)
+
+Jose, 2026-11-12: "implementa esto desde ya", with two of his own statements
+(XTB, 7 pages; eToro, 30 pages) as examples of how brokers print them - "no
+es que te vayas a amarrar a solamente esos brokers". Built on branch
+`claude/google-sheets-finance-module-qllcax`, with no mockups first at his
+word. The analysis of 2026-10-22 is kept below it, as the record.
+
+- **It stands apart, like the tax simulator.** A trade is NOT a movement:
+  nothing here writes to the ledger, changes a balance or net worth. The
+  broker's account keeps its own movements. Whether net worth should take
+  the market value is still Jose's to decide ("Pending from Jose").
+- **Reading a statement** (`core/stocks/read-broker.ts`, pure): no broker is
+  named. A row is a line with a full date; its kind comes from ordinary words
+  of both languages (`KINDS`, the first match wins: split, tax, dividend,
+  interest, fee, withdrawal, deposit, sell, buy), from the cell under a
+  "Tipo/Type" heading first, then the line, then a cell wrapped onto the
+  lines within 9 points above and below; the ticker by its shape
+  ("NVDA/USD", "NVO.US", "(CNI)", or a plain one only under a heading that
+  says Symbol); the figures by the heading of their column (`HEADINGS`:
+  quantity, price, amount, ref) or by "3 @ 15.71", or, with no headings, by
+  the sum (of three numbers, the product of two is the amount). A US ticker
+  is written bare ("NVO"), any other keeps its market ("VUAA.UK"). The
+  statement's decimal mark is read from the numbers that cannot be read
+  otherwise. Left out: a table that prints a market price (today's
+  positions) and a row with two dates (a closed position retold). A split
+  listed once per position is one split. Signs: a statement that prints a
+  minus on purchases signs every row itself (so a dividend taken back is
+  negative); otherwise the kind decides. **The witness is each row's own
+  arithmetic** (`check`: adds / derived / off), shown before saving.
+  Quantities are integers in 10^-8 units, prices in 10^-6, money in cents
+  (`scaledOf`, no float).
+- **Checked on Jose's two files in the session (never committed)**: XTB -
+  27 purchases, all adding up, and the rows sum to the statement's own
+  "Total 0.00 USD"; eToro - 102 purchases, 22 sales, 289 dividends, 32
+  deposits (10,709.00, the statement's figure), 1 fee, 2 splits; cash left
+  17.13 = the statement's last "Saldo", realised -13.70 = its "Ganancias o
+  pérdidas", open cost 10,766.28 = its realised equity less the cash. Read
+  in under a second each in a browser.
+- **Positions** (`core/stocks/positions.ts`, pure): a purchase opens a lot;
+  a sale closes the lot the broker names (same position number, `ref`), else
+  the oldest first; cost leaves with what was sold; a split multiplies the
+  units; a sliver left by rounding is nothing held (`DUST_E8`); more sold
+  than bought marks the position `incomplete`. `totalsOf` is one total per
+  currency (never a dollar added to a euro); cash at the broker is known
+  only where deposits are on record. `monthsOf`, `spreadOf`, `worthByDay`
+  feed the charts.
+- **Stored** (migration 063): `stock_trades` (signed `amount_minor`,
+  `dedupe` = `rowKey`, `account_id` SET NULL), `stock_instruments` (name,
+  `quote` = how Google Finance writes it, `facts` JSON), `stock_prices` (one
+  per ticker and day; source `sheet`, `manual`, `demo`; a fetched price
+  never writes over one typed that day). All three travel in the backup. A
+  statement read twice adds nothing; one reaching further adds only the new
+  rows, per account (`StocksRepository.importRows`, many rows per INSERT).
+- **Prices through the person's own Google Sheet** (`quotes.ts`,
+  `sheets-client.ts`, `StocksService.refreshPrices`): scope `drive.file`
+  asked only when "Traer los precios de hoy" is pressed
+  (`GoogleAccountService.scopedToken`: silent through `DriveAuth.token`,
+  else Google's own screen through `SocialLogin.login` with both scopes);
+  one spreadsheet made with locale `en_US`, its id in settings
+  `stocks.sheet`; one row per way of writing a ticker (`candidatesFor`:
+  "BRKB" also as "BRK.B", "VUAA.UK" as "LON:VUAA") with
+  `=IFERROR(GOOGLEFINANCE(A1,"price"),"")` and closeyest, name, currency,
+  pe, eps, marketcap, high52, low52; read back with
+  `UNFORMATTED_VALUE`, retried while a cell says "Loading"; a quote in
+  another currency goes through the app's own rates and GBX is pounds over
+  100 (`inCurrency`); a sheet deleted is made again; the first candidate
+  that answers is remembered as the ticker's `quote`, which the person can
+  correct. Once it worked, opening the screen asks again by itself when the
+  last answer is over 20 minutes old (`stocks.auto`). Never with the sample
+  data; in a browser prices are typed. **NOT VERIFIED, and it cannot be from
+  a cloud session**: that Sheets' API accepts `drive.file` for this, that
+  GOOGLEFINANCE cells written through the API work themselves out without
+  the sheet being open, that `SocialLogin.login` hands back a token carrying
+  both scopes. The HTTP half is tested against a fake fetch only. **Needs
+  Jose, one step at a time**: enable "Google Sheets API" in Google Cloud
+  project 76504816542 and add the `drive.file` scope to the consent screen;
+  until then the screen says "La consulta a Google Sheets no está activada"
+  and prices can be typed.
+- **The screen** (`/stocks`, `features/stocks/`, Más → Tus finanzas →
+  "Bolsa de valores"): the hero (value today, gain against what was paid,
+  today's change, its value in pesos at today's rate, when the prices are
+  from, "Actualizar los precios", "Importar otro extracto"), four tiles
+  (invested, dividends net of withholding, realised, cash at the broker),
+  and three faces. **Posiciones**: each ticker with its units, average
+  price, value, gain % and its share as a bar; "Posiciones que ya vendiste"
+  folded. **Gráficos**: how the money is spread (a ring, and shares against
+  funds as one bar), gain or loss of each position (bars), value against
+  cost by day (from the first day prices were kept: the app has no history
+  but its own), money invested each month (bars, tapped), invested over
+  time (line), dividends by month and by year. **Historial**: by month,
+  folding, the first open; filters; "Agregar una compra, una venta o un
+  dividendo" (the form: ticker, kind of asset, day, quantity, price, total
+  that follows them until typed, account, currency, note). A position's
+  page: price with its source and "Escribir el precio", the 52-week range,
+  the position's figures, P/E, EPS and market value when Google gave them,
+  its Google Finance symbol (editable) and its movements. A row from a
+  statement is shown and can only be deleted; one typed by hand is edited.
+  **Importing**: the same reading screen as a bank's statement (password,
+  progress, photos on Android), then "Revisa lo que leyó la app": the
+  account (the one investment account when there is exactly one, or "Sin
+  cuenta"), the currency, what is new by kind with its total, the tickers,
+  whether every purchase and sale adds up, how many were already saved, the
+  lines not understood - nothing saved until "Guardar los N movimientos de
+  bolsa" (rule 22). The eye hides its amounts. Words in
+  `core/i18n/translations-stocks.ts` (both languages); tours: a new
+  `stocks` tour, Más step `since: 7`. The sample data has an invented
+  broker ("Bróker Brújula", five invented tickers, a year of purchases,
+  dividends, a split, one position sold, sixty days of invented prices).
+  The privacy policy says the `drive.file` sheet (`site/`).
+- **Checked**: 19 tests in `stocks.test.mjs` (invented statements in three
+  shapes, lots, splits, totals, the sheet's rows and answers, the client
+  against a fake fetch, the repository on a real SQLite); in a browser on
+  the sample data (the three faces, a position's page, dark theme) and on
+  an empty app importing Jose's two real files (preview, saved, read again:
+  "ya estaban guardados"). Not seen on the phone; the Google half not run
+  at all.
+- **What Jose answered the same day (2026-11-12), all built**:
+  - **The whole module is Finance Pro** ("va a ser de pago, claramente").
+    `PLAN.stocks` is 0 free. No route guard, by rule 21 (a lock never hides
+    money): the screen and what is on record stay in view, with a PRO tag
+    in its title and on Más's row; importing a statement, adding a trade,
+    typing a price and asking for prices each go through
+    `pro.allow('stocks')`, and prices are not asked by themselves while
+    locked. Finance Pro lists "Bolsa de valores" (`pro.perk.stocks`,
+    `pro.f.stocks.*`). `paywall-plan.test.mjs` holds it.
+  - **The chart that matters most is the return, apart from what was put
+    in** ("solamente los rendimientos, no lo comprado"): `core/stocks/
+    returns.ts` (`returnsOf`, pure) and `features/stocks/
+    returns-chart.component.ts`, first on Gráficos (for "Todo el
+    portafolio" or one ticker, chosen by chips) and on each position's
+    page. The gain on a day is what was held at that day's price, less what
+    it had cost, plus what selling had left - so a purchase never shows as a
+    gain, and the line goes under zero on a loss. **Periods as the tools
+    people know**: 1 día, 5 días, 1 mes, 6 meses, Este año, 1 año, 5 años,
+    Todo (`RANGES`, `rangeStart`; kept on the device,
+    `finance.stocks.range`); a period starts at zero at the close of its
+    first day ("1 día" is today against yesterday's close), its percent is
+    over what was invested at its start plus what was bought in it.
+    Dividends are said under the chart, never inside the line. A finger on
+    the line says that day's figure. Worked in today's units (a purchase
+    before a split counts as what it became).
+  - **Where its prices come from, and the limit to say plainly**: the app
+    has no price history of the market, and Google gives none through the
+    API (from memory, see below). A ticker's known prices are the price of
+    each of the person's own purchases and sales, every price the app kept
+    since it began asking, and today's quote with yesterday's close.
+    Between two known prices the line is drawn straight and the chart says
+    "es una estimación" (`estimated`); with no price newer than four days
+    for something held, the line is flat to today and says so in amber
+    (`flat`). For someone who buys every month it follows the market
+    month by month (checked on Jose's eToro file: 102 purchases); a ticker
+    bought once is a straight line from its purchase to today. A real daily
+    history needs a source nobody found yet that is free and licensed -
+    to look for with Jose, not to invent.
+  - **Net worth stays as it is**: investments stay outside it, because
+    the price moves every day (Jose, the same day; do not ask again). The
+    module's own hero is "Tu patrimonio en bolsa hoy", in the broker's
+    currency, and under it the same value in the person's main currency
+    (`MainCurrencyService.code`, pesos unless another was chosen) at
+    today's rate.
+  - Tests: 23 in `stocks.test.mjs` (the four new ones on returns: a
+    purchase is no gain, a period starts at zero, a split changes nothing,
+    the ranges). Checked in a browser on the sample data and on Jose's
+    eToro file (Todo, one ticker, 1 mes, 1 día). Not seen on the phone.
+  - **Jose asked to go slowly, one step at a time, to try it** (the
+    screenshots sent at once were not clear to him): one screen or one
+    step per message, in plain words, waiting for his answer.
+- **Not built yet** (to offer Jose, in this order): seeing one broker at a
+  time when there are several (today all are one book; a ticker held at two
+  brokers is one position); the assistant's questions about it; a returns
+  report by period (month, 6 months, year: it needs the app's own price
+  history to grow, or prices typed); fundamentals from the SEC's EDGAR;
+  screeners and price alerts (not possible in this shape, see below);
+  a statement
+  that is only a table of today's positions; CSV or Excel statements.
+
+#### The analysis of 2026-10-22, as it was written
+
 
 The next big piece of value after the release, with iOS (above). Written
 down as Jose asked, everything he named, so it can be analysed against what
@@ -7772,6 +7956,19 @@ budget family (2/16, 1, 7), then the rest.
       Nequi...) to turn each layout into a test.
 - [ ] With version 1178 (or later) installed, change month on the Reporte
       and say whether any flicker is left (fixed 2026-11-05, #297).
+- [ ] Bolsa de valores (2026-11-12): enable "Google Sheets API" in Google
+      Cloud project 76504816542 and add the `drive.file` scope to the consent
+      screen (one step at a time, with screenshots); then on the phone press
+      "Traer los precios de hoy" and say what it shows - the Google half was
+      never run.
+- [ ] Bolsa de valores: import the brokers' statements on the phone and say
+      what reads wrong; send other brokers' statements to turn into tests.
+- [ ] Bolsa de valores: decide whether each broker should be seen apart
+      (net worth stays without it and the module is Finance Pro: decided
+      2026-11-12).
+- [ ] Bolsa de valores: a free, licensed source of daily price history,
+      so the return chart follows the market between purchases - to look
+      for together.
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
       down on narrow phones was proposed and not built.
@@ -7786,4 +7983,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06), `57*` (banks found by themselves, built 2026-11-11)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06), `57*` (banks found by themselves, built 2026-11-11). The stock market module (2026-11-12) was built without mockups, at Jose's word

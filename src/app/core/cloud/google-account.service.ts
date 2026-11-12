@@ -93,6 +93,8 @@ export class GoogleAccountService {
   readonly error = signal('');
 
   private token: string | null = null;
+  /** Tokens for permissions beyond the backup's, by scope. */
+  private readonly scoped = new Map<string, string>();
   private started = false;
 
   /** A token being fetched, so two callers share one sign-in rather than racing two. */
@@ -236,6 +238,7 @@ export class GoogleAccountService {
       this.user.set(null);
       remember(null);
       this.token = null;
+      this.scoped.clear();
     }
   }
 
@@ -263,6 +266,70 @@ export class GoogleAccountService {
     this.refreshing ??= this.signIn({ silent: true }).finally(() => { this.refreshing = null; });
     if (!(await this.refreshing) && this.user()) throw new SilentTimeout();
     return this.token;
+  }
+
+  /**
+   * A token for one more permission than the backup's, asked only when the
+   * feature that needs it is turned on (the stock prices' `drive.file`).
+   *
+   * Without `ask` it never shows anything: the permission was given before,
+   * or there is no token. With `ask`, Google's own screen names the new
+   * permission and the person says yes or no there.
+   */
+  async scopedToken(scope: string, options: { ask?: boolean } = {}): Promise<string | null> {
+    if (!this.available) return null;
+    const held = this.scoped.get(scope);
+    if (held) return held;
+    const user = this.user();
+    if (user) {
+      try {
+        const { token } = await withinTime(DriveAuth.token({ scope, email: user.email }), SILENT_MS);
+        if (token) {
+          this.scoped.set(scope, token);
+          return token;
+        }
+      } catch {
+        // Not given yet, or Google needs the person: asked below, if allowed.
+      }
+    }
+    if (!options.ask) return null;
+    this.working.set(true);
+    this.error.set('');
+    try {
+      await this.start();
+      const result = await SocialLogin.login({
+        provider: 'google',
+        options: { scopes: [SCOPE, scope], forceRefreshToken: true },
+      });
+      const profile = (result.result ?? {}) as {
+        profile?: { email?: string; name?: string; imageUrl?: string | null };
+        accessToken?: { token?: string } | null;
+      };
+      const token = profile.accessToken?.token ?? null;
+      if (profile.profile?.email) {
+        const signedIn: GoogleUser = {
+          email: profile.profile.email, name: profile.profile.name ?? '', photoUrl: profile.profile.imageUrl ?? null,
+        };
+        this.user.set(signedIn);
+        remember(signedIn);
+      }
+      if (token) {
+        // One token for both permissions: the backup may use it too.
+        this.token = token;
+        this.scoped.set(scope, token);
+      }
+      return token;
+    } catch (failure) {
+      if (!cancelled(failure)) this.error.set(messageOf(failure));
+      return null;
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  /** Called when Google says a scoped token is no longer good. */
+  forgetScoped(scope: string): void {
+    this.scoped.delete(scope);
   }
 
   /** True when a token is at hand, so a call to Drive needs no sign-in first. */

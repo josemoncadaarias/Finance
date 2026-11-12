@@ -3190,6 +3190,18 @@ export const UI_ES = {
   'tour.entry.6.text': 'Si el producto de donde sale el dinero no alcanza, aparece una línea para cubrirlo con otro producto de la misma cuenta. Enciéndela y, al guardar, se pasa únicamente lo que falta. Puedes elegir de qué producto sale y dejarlo siempre encendido en esa cuenta.',
   'tour.entry.7.title': 'Corrige o deshaz lo que guardaste',
   'tour.entry.7.text': 'Al guardar, arriba aparece un aviso con lo que se guardó durante 5 segundos. Sale también al guardar varios a la vez desde Movimientos por revisar. Tócalo para corregir el movimiento, o toca Deshacer si lo guardaste por error y se quita. Si no haces nada, el movimiento queda guardado.',
+
+  // Bolsa de valores (2026-11-12).
+  'tour.stocks.1.title': 'Tus inversiones en bolsa',
+  'tour.stocks.1.text': 'Aquí ves cuánto valen hoy tus acciones y fondos, y cuánto has ganado o perdido frente al dinero que pagaste. Esta pantalla no cambia los saldos de tus cuentas.',
+  'tour.stocks.2.title': 'Precios de hoy desde tu cuenta de Google',
+  'tour.stocks.2.text': 'Toca «Traer los precios de hoy»: la app los lee de Google Finance con una hoja de cálculo en tu propio Google Drive. También puedes escribir el precio de cualquier posición.',
+  'tour.stocks.3.title': 'Importa el extracto de tu bróker',
+  'tour.stocks.3.text': 'Con «Importar otro extracto», la app lee las compras, las ventas y los dividendos. Primero te muestra lo que leyó; solo se guarda cuando lo confirmas, y un extracto repetido no duplica movimientos.',
+  'tour.stocks.4.title': 'Posiciones, gráficos e historial',
+  'tour.stocks.4.text': 'Posiciones muestra cada acción con su valor. Gráficos muestra cómo está repartido tu dinero, la ganancia de cada posición, lo que invertiste cada mes y tus dividendos. Historial muestra cada movimiento.',
+  'tour.more.11.title': 'Bolsa de valores',
+  'tour.more.11.text': 'En «Tus finanzas» está «Bolsa de valores»: importa el extracto de tu bróker y mira cuánto valen hoy tus acciones y fondos.',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -6377,4 +6389,16 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'tour.entry.6.text': "If the product the money leaves from does not hold enough, a line appears to cover it from another product of the same account. Switch it on and, when you save, only what is missing moves. You can choose which product it comes from and keep it always on for that account.",
   'tour.entry.7.title': 'Fix or undo what you saved',
   'tour.entry.7.text': 'When you save, a notice with what was saved appears at the top for 5 seconds. It also shows when you save several at once from Movements to review. Tap it to correct the movement, or tap Undo if you saved it by mistake and it is removed. If you do nothing, the movement stays saved.',
+
+  // The stock market (2026-11-12).
+  'tour.stocks.1.title': 'Your investments in the market',
+  'tour.stocks.1.text': 'Here you see what your shares and funds are worth today, and how much you gained or lost against the money you paid. This screen does not change your accounts\' balances.',
+  'tour.stocks.2.title': 'Today\'s prices through your Google account',
+  'tour.stocks.2.text': 'Tap "Get today\'s prices": the app reads them from Google Finance with a spreadsheet in your own Google Drive. You can also type any position\'s price.',
+  'tour.stocks.3.title': 'Import your broker\'s statement',
+  'tour.stocks.3.text': 'With "Import another statement", the app reads the purchases, sales and dividends. It first shows what it read; it is only saved when you confirm, and a repeated statement duplicates nothing.',
+  'tour.stocks.4.title': 'Positions, charts and history',
+  'tour.stocks.4.text': 'Positions shows each share with its value. Charts shows how your money is spread, each position\'s gain, what you invested each month and your dividends. History shows every movement.',
+  'tour.more.11.title': 'Stock market',
+  'tour.more.11.text': 'Under "Your finances" there is "Stock market": import your broker\'s statement and see what your shares and funds are worth today.',
 };

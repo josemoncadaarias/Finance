@@ -55,6 +55,7 @@ export const FEATURE_FACE: Record<Feature, { icon: string; color: string }> = {
   newCategories: { icon: 'pricetags-outline', color: '#d07bf0' },
   ownImages: { icon: 'image-outline', color: '#d07bf0' },
   assistant: { icon: 'sparkles-outline', color: '#6378ff' },
+  stocks: { icon: 'stats-chart-outline', color: '#2ec4b6' },
 };
 
 @Injectable({ providedIn: 'root' })

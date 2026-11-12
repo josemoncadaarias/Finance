@@ -21,7 +21,7 @@ test('the free allowances Jose decided', () => {
   assert.equal(canUse('noticeMovements', 14, false), true);
   assert.equal(canUse('noticeMovements', 15, false), false);
   assert.equal(PLAN.noticeMovements.per, 'month');
-  for (const f of ['currencies', 'tax', 'ownImages', 'reportExport', 'reportFull'])
+  for (const f of ['currencies', 'tax', 'ownImages', 'reportExport', 'reportFull', 'stocks'])
     assert.equal(canUse(f, 0, false), false, f);
   for (const f of ['loans', 'limits', 'goals']) {
     assert.equal(canUse(f, 0, false), true, f);

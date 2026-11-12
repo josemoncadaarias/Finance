@@ -240,6 +240,7 @@ export class ProPage {
     { key: 'debts', icon: 'receipt-outline', color: '#ff9152' },
     { key: 'report', icon: 'stats-chart-outline', color: '#6378ff' },
     { key: 'assistant', icon: 'sparkles-outline', color: '#6378ff' },
+    { key: 'stocks', icon: 'stats-chart-outline', color: '#2ec4b6' },
   ];
 
   /**

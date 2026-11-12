@@ -55,6 +55,7 @@ import { loanSchedule, eaFromMonthly, EA_SCALE as LOAN_EA } from '../loans/sched
 import { LimitsRepository } from '../limits/limits.repository';
 import { GoalsRepository } from '../goals/goals.repository';
 import { RemindersRepository } from '../reminders/reminders.repository';
+import { StocksRepository } from '../stocks/stocks.repository';
 import { addDays } from '../reminders/reminders';
 import { merchantKeyOf } from '../proposals/merchant';
 import { defaultInputs } from '../tax/defaults';
@@ -771,6 +772,91 @@ await proposals.propose(`aviso ${NOW()}`, [
   { source: 'notification', account_id: verde, occurred_on: Dc(D('2026-10-02')), amount_minor: P(500_000), description: 'Recibiste $500.000 desde Banco Azul',
     evidence: { package: 'com.ejemplo.ahorroverde', title: 'Ahorro Verde', text: 'Recibiste $500.000 desde Banco Azul', posted_at: `${TODAY}T09:03:00Z` } },
 ]);
+
+// ---- Bolsa de valores ----
+// Invented tickers and prices: a year of monthly purchases at a broker, two
+// funds and three shares, dividends with their withholding, a split, one
+// position sold, and sixty days of prices so the charts have something to draw.
+
+const broker = await make('Bróker Brújula', { type: 'investment', currency_code: 'USD', builtin_icon: 'stats-chart-outline', color: '#2ec4b6' });
+const stocks = new StocksRepository(db, NOW);
+/** Each ticker: its name, what it is, its price a year ago and how much it moved each month. */
+const TICKERS = [
+  ['MUNDO', 'Fondo Mundo Entero', 'etf', 92, 0.011],
+  ['TECX', 'Fondo Tecnología Global', 'etf', 148, 0.019],
+  ['SOLR', 'Solar Andina', 'stock', 41, 0.024],
+  ['CAFE', 'Cafetales del Valle', 'stock', 67, -0.008],
+  ['NUBE', 'Nube Datos', 'stock', 212, 0.015],
+];
+/** The price of a ticker on a day: a steady drift and a small wobble, the same every time. */
+const priceOn = (at, date) => {
+  const [, , , start, drift] = TICKERS[at];
+  const months = (timeOf(date) - timeOf(D('2025-10-01'))) / (30 * DAY);
+  const wobble = Math.sin(months * 2.3 + at * 1.7) * 0.035 + Math.sin(months * 9.1 + at) * 0.012;
+  const split = TICKERS[at][0] === 'NUBE' && date >= D('2026-06-15') ? 2 : 1;
+  return start * (1 + drift * months + wobble) / split;
+};
+const stockRows = [];
+const trade = (kind, at, day, dollars, extra = {}) => stockRows.push({
+  kind, symbol: at === null ? null : TICKERS[at][0], asset: at === null ? null : TICKERS[at][2], day, time: '10:15:00',
+  quantityE8: null, priceE6: null, amountMinor: Math.round(dollars * 100), ratio: null, ref: `D${stockRows.length + 1}`,
+  check: 'none', text: '', ...extra,
+});
+const buy = (at, day, dollars) => {
+  const price = priceOn(at, day);
+  const quantityE8 = Math.round(dollars / price * 100_000_000 / 10_000) * 10_000;
+  const paid = Math.round(quantityE8 / 100_000_000 * price * 100) / 100;
+  trade('buy', at, day, -paid, { quantityE8, priceE6: Math.round(price * 1_000_000), check: 'adds' });
+  return quantityE8;
+};
+const heldUnits = [0, 0, 0, 0, 0];
+for (let month = 0; month < 12; month += 1) {
+  const day = Dc(shiftDate(D('2025-10-06'), month));
+  if (day >= TODAY && month > 0) break;
+  trade('deposit', null, day, 180);
+  heldUnits[0] += buy(0, day, 90);
+  heldUnits[1] += buy(1, day, 50);
+  const share = 2 + (month % 3);
+  heldUnits[share] += buy(share, day, 38);
+  // Every third month the funds and one share pay, and a part is withheld.
+  if (month % 3 === 2) {
+    const payDay = Dc(shiftDate(D('2025-10-21'), month));
+    for (const [at, perUnit] of [[0, 0.42], [1, 0.31], [3, 0.55]]) {
+      const gross = Math.round(heldUnits[at] / 100_000_000 * perUnit * 100) / 100;
+      if (gross < 0.02 || (at === 3 && payDay > Dc(D('2026-08-12')))) continue;
+      trade('dividend', at, payDay, gross);
+      trade('tax', at, payDay, -Math.round(gross * 30) / 100);
+    }
+  }
+  if (month === 8) {
+    stockRows.push({ kind: 'split', symbol: 'NUBE', asset: 'stock', day: D('2026-06-15'), time: '06:00:00', quantityE8: null, priceE6: null,
+      amountMinor: 0, ratio: [2, 1], ref: null, check: 'none', text: '' });
+    heldUnits[4] *= 2;
+  }
+}
+// One share sold whole, at a small loss: it shows among "Posiciones que ya vendiste".
+const soldDay = Dc(D('2026-08-12'));
+if (heldUnits[3] > 0 && soldDay < TODAY) {
+  const price = priceOn(3, soldDay);
+  trade('sell', 3, soldDay, Math.round(heldUnits[3] / 100_000_000 * price * 100) / 100,
+    { quantityE8: heldUnits[3], priceE6: Math.round(price * 1_000_000), check: 'adds' });
+}
+await stocks.importRows(broker, 'USD', 'datos de ejemplo', stockRows);
+for (const [symbol, name] of TICKERS) await stocks.saveInstrument(symbol, { name });
+const priceRows = [];
+for (let back = 60; back >= 0; back -= 1) {
+  const day = dayOf(timeOf(TODAY) - back * DAY);
+  TICKERS.forEach(([symbol], at) => {
+    if (symbol === 'CAFE') return;
+    priceRows.push([symbol, day, Math.round(priceOn(at, day) * 1_000_000), Math.round(priceOn(at, dayOf(timeOf(day) - DAY)) * 1_000_000), 'demo', NOW()]);
+  });
+}
+for (let at = 0; at < priceRows.length; at += 50) {
+  const chunk = priceRows.slice(at, at + 50);
+  await db.run(
+    `INSERT INTO stock_prices (symbol, day, price_e6, previous_e6, source, fetched_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`,
+    chunk.flat());
+}
 
 // ---- Simulador de renta ----
 

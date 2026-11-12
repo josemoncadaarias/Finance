@@ -21,6 +21,7 @@
 
 import { UI_ES, UI_EN } from './translations-ui';
 import { PRO_ES, PRO_EN } from './translations-pro';
+import { STOCKS_ES, STOCKS_EN } from './translations-stocks';
 
 export type Language = 'es' | 'en';
 
@@ -34,6 +35,7 @@ export const LANGUAGES: { code: Language; name: string; flag: string }[] = [
 export const SPANISH = {
   ...UI_ES,
   ...PRO_ES,
+  ...STOCKS_ES,
   // --- navigation -------------------------------------------------------
   'nav.summary': 'Inicio',
   'nav.summary.hint': 'Gastos, ingresos y saldo',
@@ -1143,6 +1145,7 @@ export type TranslationKey = keyof typeof SPANISH;
 export const ENGLISH: Record<TranslationKey, string> = {
   ...UI_EN,
   ...PRO_EN,
+  ...STOCKS_EN,
   'nav.summary': 'Home',
   'nav.summary.hint': 'Spending, income and balance',
   'nav.accounts': 'Accounts',

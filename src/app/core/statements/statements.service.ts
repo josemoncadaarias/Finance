@@ -183,7 +183,7 @@ export class StatementsService {
  * of a statement (read on the phone, `image-text.ts`), the pages in the order
  * they were chosen.
  */
-async function textOf(files: readonly File[], password: string | undefined, watch: ReadingWatch): Promise<TextItem[]> {
+export async function textOf(files: readonly File[], password: string | undefined, watch: ReadingWatch): Promise<TextItem[]> {
   const images = files.filter(isImage);
   if (images.length > 0) return textOfImages(images, watch);
   return textOfPdf(await files[0].arrayBuffer(), password, undefined, watch);
