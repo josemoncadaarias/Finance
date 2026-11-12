@@ -475,7 +475,7 @@ could not prove.
   the status card's line). Checked in a browser with the state forced; not
   on the phone.
 - **A product typed with the app's own balance does not hold a purchase
-  recorded after it** (Jose, 2026-11-12, screenshots of his partner's Plata
+  recorded after it** (#323; Jose, 2026-11-12, screenshots of his partner's Plata
   account: one product "Cuenta de ahorros" at 357,975.96 while the account
   said 266,461.36, and "Intereses que aún no pasan a tu saldo 91.514,60").
   Read from his backup: the product was created at 21:47 with 357,975.96 -
