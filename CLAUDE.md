@@ -243,6 +243,9 @@ notices (2026-11-11, #316, mockups `57*`, "How to work"; every bank free
 since then; answers Jose's partner, who never found "Agregar un banco" - to
 name as tester feedback; goes in the next closed-testing release).
 
+Calendars and fields answer at once: formatters kept, not made on every
+tap (2026-11-13, #325, "How to work").
+
 **Bolsa de valores, first part (2026-11-12)**: a broker's statement read
 into purchases, sales and dividends, positions with their value, charts, and
 today's prices through a Google Sheet of the person's own - see "Bolsa de
@@ -509,7 +512,7 @@ could not prove.
   #282) is "O llena los datos a mano". Proved with the tests on a real
   SQLite engine; not clicked in a browser nor on the phone.
 - **Picking a day in a calendar was slow because of Ionic, not Angular**
-  (Jose, 2026-11-13: a product's rate dates, and moving between fields,
+  (#325; Jose, 2026-11-13: a product's rate dates, and moving between fields,
   "muy muy lento"). Measured in a browser on the sample data with the CPU
   4x slower, as a phone: one tap on a day took 160-270 ms to paint, and the
   CPU profile was nearly all `ion-datetime` re-rendering its months - it
