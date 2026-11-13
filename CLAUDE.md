@@ -508,6 +508,25 @@ could not prove.
   Also "O escribe la tasa a mano" over the account form (a wrong word left by
   #282) is "O llena los datos a mano". Proved with the tests on a real
   SQLite engine; not clicked in a browser nor on the phone.
+- **Picking a day in a calendar was slow because of Ionic, not Angular**
+  (Jose, 2026-11-13: a product's rate dates, and moving between fields,
+  "muy muy lento"). Measured in a browser on the sample data with the CPU
+  4x slower, as a phone: one tap on a day took 160-270 ms to paint, and the
+  CPU profile was nearly all `ion-datetime` re-rendering its months - it
+  builds two `new Intl.DateTimeFormat(...)` per day cell and one per option
+  of its hidden month/year wheels, some 400 formatters a tap, each costly to
+  make; Angular's change detection was a few ms. `installIntlCache`
+  (`core/perf/intl-cache.ts`, called first in `main.ts`) makes the
+  `Intl.DateTimeFormat`, `NumberFormat` and `Collator` constructors answer
+  the same instance for the same locale and options (they are immutable),
+  and routes `toLocaleDateString` / `toLocaleTimeString` / `toLocaleString`
+  (only when their options already name the fields the method would add by
+  itself), `Number.toLocaleString` and `localeCompare` with a locale through
+  it. After it: 48-64 ms a tap, opening the sheet 176 ms, a step, a field or
+  a key under 100 ms, the keyboard's resize no long task. Every
+  `ion-datetime` of the app gains (the movement form's too) and every
+  formatting of the app's own. `intl-cache.test.mjs` holds every answer to
+  the engine's own, refusals included. Not yet felt on the phone.
 - **An async call inside an `effect` is tracked up to its first `await`**
   (2026-11-05, the Reporte's flicker when changing month, seen in Jose's
   screen recording). `effect(() => { ...; void this.build(); })` made every
@@ -521,7 +540,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1258 on 2026-11-12, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1261 on 2026-11-13, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

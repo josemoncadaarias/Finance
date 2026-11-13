@@ -1,3 +1,6 @@
+import { installIntlCache } from './app/core/perf/intl-cache';
+installIntlCache();
+
 import { ErrorHandler } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { RouteReuseStrategy, provideRouter, withComponentInputBinding, withPreloading, PreloadAllModules } from '@angular/router';
