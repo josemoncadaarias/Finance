@@ -200,7 +200,7 @@
               }
             </div>
           } @else if (coveredText()) {
-            <div class="cover-line on done">
+            <div class="cover-line done" [class.on]="coverStays()">
               <ion-icon name="swap-vertical"></ion-icon>
               <span class="ui-tx"><small class="wrap">{{ coveredText() }}</small></span>
             </div>
