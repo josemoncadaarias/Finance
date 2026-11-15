@@ -467,7 +467,7 @@ could not prove.
   `recurring.test.mjs` (invented shops); not checked on the phone. To name as
   feedback a tester writes in the Play Store.
 - **A reminder made by hand is settled by its payment, from any account,
-  and a corrected movement lets go of a cover that no longer fits it** (Jose,
+  and a corrected movement lets go of a cover that no longer fits it** (#326; Jose,
   2026-11-15, screenshots: "Primera quincena a doña Gladys" stayed in
   Pendientes after its 100,000 was saved from the "+" on another account; and
   that movement, moved to an account without products, still said "Se cubrió
