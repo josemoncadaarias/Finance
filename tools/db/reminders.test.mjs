@@ -62,6 +62,24 @@ test('two payments of one shop in a month settle one reminder each, by their day
   assert.deepEqual([...paidByShop([second], '2026-10', [{ shop: 'NINERA', on: '2026-10-02' }])], []);
 });
 
+test('a reminder made by hand is settled by a spending of its category for about its amount, from any account', () => {
+  const first = { ...base, id: 1, shop: null, categoryId: 7, amountMinor: 10_000_000, dayOfMonth: 14 };
+  const second = { ...base, id: 2, shop: null, categoryId: 7, amountMinor: 10_000_000, dayOfMonth: 29 };
+  const pay = (on, amountMinor, categoryId = 7) => ({ shop: 'ANY NOTE', on, categoryId, amountMinor });
+  assert.deepEqual([...paidByShop([first, second], '2026-11', [pay('2026-11-14', 10_000_000)])], [1]);
+  // About its amount: 25 % either way.
+  assert.deepEqual([...paidByShop([first], '2026-11', [pay('2026-11-14', 12_000_000)])], [1]);
+  assert.deepEqual([...paidByShop([first], '2026-11', [pay('2026-11-14', 4_000_000)])], []);
+  // Another category is never it.
+  assert.deepEqual([...paidByShop([first], '2026-11', [pay('2026-11-14', 10_000_000, 8)])], []);
+  // Both fortnights paid: one each.
+  assert.deepEqual([...paidByShop([first, second], '2026-11', [pay('2026-11-14', 10_000_000), pay('2026-11-28', 10_000_000)])].sort(), [1, 2]);
+  // No amount said: any spending of its category.
+  assert.deepEqual([...paidByShop([{ ...first, amountMinor: null }], '2026-11', [pay('2026-11-15', 1_000)])], [1]);
+  // Neither shop nor category: only the person settles it.
+  assert.deepEqual([...paidByShop([{ ...first, categoryId: null }], '2026-11', [pay('2026-11-14', 10_000_000)])], []);
+});
+
 test('Inicio lists the late ones and those due within a week, soonest first', () => {
   const a = nextOccurrence({ ...base, id: 1, dayOfMonth: 25 }, '2026-10-22');
   const b = nextOccurrence({ ...base, id: 2, dayOfMonth: 10 }, '2026-10-22');

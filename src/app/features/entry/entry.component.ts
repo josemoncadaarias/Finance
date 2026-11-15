@@ -50,7 +50,7 @@ import { cardStatement } from '../../core/cards/statement';
 import { bankFigures, cardMovements } from '../../core/cards/card-data';
 import { holdingsOf, whatItHolds } from '../../core/yields/holdings';
 import { coverFor, type CoverRoute } from '../../core/yields/cover';
-import { coverOf, linkCover, type CoverLink } from '../../core/database/repositories/cover-links';
+import { coverOf, dropCover, linkCover, type CoverLink } from '../../core/database/repositories/cover-links';
 import { DEFAULT_SCOPE, rewriteScoped, scopeOfMovement, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
 import { transferEffect } from '../../core/transfers/transfer-effect';
 import { accrueAllAndSettle, accrueAndSettle } from '../../core/yields/cdt';
@@ -1119,10 +1119,19 @@ export class EntryComponent implements OnInit, OnDestroy {
     });
   });
 
+  /** Whether the cover still fits the movement as it is now on screen: same account, same product, still a spending. */
+  readonly coverStays = computed(() => {
+    const link = this.coveredWith();
+    if (!link) return false;
+    return !this.isTransfer() && this.kind() === 'expense' && this.accountId() === link.accountId
+      && (link.toProductId === null || this.productId() === link.toProductId);
+  });
+
   readonly coveredText = computed(() => {
     const link = this.coveredWith();
     if (!link) return '';
-    return this.i18n.t('ui.cover.done', { name: link.productName ?? '', amount: formatMoney(link.amountMinor, this.currency()) });
+    const values = { name: link.productName ?? '', amount: formatMoney(link.amountMinor, this.currency()) };
+    return this.i18n.t(this.coverStays() ? 'ui.cover.done' : 'ui.cover.undoneOnSave', values);
   });
 
   // ---------------------------------------------------------------------------
@@ -2209,6 +2218,13 @@ export class EntryComponent implements OnInit, OnDestroy {
       else written = await this.saveMovement();
       if (!loan && !this.isTransfer()) await this.teach();
       if (!loan && !this.isTransfer() && this.request().proposal) await this.answerProposal(written);
+
+      // The movement left the product it was covered for: its cover goes.
+      const oldCover = this.coveredWith();
+      if (oldCover && !this.coverStays()) {
+        await dropCover(this.database.driver, oldCover.transferId);
+        this.coveredWith.set(null);
+      }
 
       await this.workOutAgain();
       this.database.dataChanged();

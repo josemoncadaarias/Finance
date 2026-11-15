@@ -466,6 +466,24 @@ could not prove.
   "Pagos de este mes" and the assistant read the same rule. Test in
   `recurring.test.mjs` (invented shops); not checked on the phone. To name as
   feedback a tester writes in the Play Store.
+- **A reminder made by hand is settled by its payment, from any account,
+  and a corrected movement lets go of a cover that no longer fits it** (Jose,
+  2026-11-15, screenshots: "Primera quincena a doña Gladys" stayed in
+  Pendientes after its 100,000 was saved from the "+" on another account; and
+  that movement, moved to an account without products, still said "Se cubrió
+  con Bolsillo Principal"). A reminder with no shop (every one made with
+  "Nuevo recordatorio") was settled only by "Registrar ahora" or "Ya lo
+  pagué". Now `paidByShop` (`core/reminders/reminders.ts`) also takes, for a
+  reminder with no shop but a category, a spending of that category within
+  25 % of its amount (`PAID_AMOUNT_SPREAD`; any amount when it has none),
+  from any account, one spending for one reminder by nearest day as before
+  (`settlesBySpending`, `answers`). A cover (`CoverLink`) now knows its
+  account and the product it went to; the form says "El gasto ya no sale de
+  ese producto. Al guardar, el traslado ... se deshace" once the account,
+  the product or the kind changes (`coverStays`), and saving deletes that
+  move (`dropCover`). Tests in `reminders.test.mjs` and `cover.test.mjs`
+  (invented data). Only movements corrected after the update change; one
+  already saved on another account keeps its cover until corrected again.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -543,7 +561,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1261 on 2026-11-13, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1262 on 2026-11-15, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

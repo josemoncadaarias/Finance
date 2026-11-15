@@ -16,7 +16,7 @@ import { YieldsRepository } from '../../src/app/core/database/repositories/yield
 import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
-import { coverOf, linkCover } from '../../src/app/core/database/repositories/cover-links.ts';
+import { coverOf, dropCover, linkCover } from '../../src/app/core/database/repositories/cover-links.ts';
 import { coverFor } from '../../src/app/core/yields/cover.ts';
 
 const P = (id, kind = 'high_yield', inNet = 1) => ({ id, kind, include_in_net_worth: inNet });
@@ -92,11 +92,23 @@ test('the cover is tied to its movement: listed with it, and gone with it', asyn
     description: 'Mercado semana', source: 'manual',
   });
   await cover(spent);
-  assert.deepEqual(await coverOf(db, spent), { transferId: (await db.queryOne('SELECT MAX(id) AS id FROM transfers')).id, amountMinor: 20_000_00, productName: 'Bolsillo Viajes' });
+  assert.deepEqual(await coverOf(db, spent), { transferId: (await db.queryOne('SELECT MAX(id) AS id FROM transfers')).id, amountMinor: 20_000_00, productName: 'Bolsillo Viajes', accountId: account, toProductId: main });
   const listed = await transactions.listDetailed({ accountIds: [account] });
   assert.equal(listed.find(row => row.id === spent).covered_from, 'Bolsillo Viajes');
   assert.equal(listed.filter(row => row.covered_from).length, 1, 'only the movement it covered says it');
   assert.equal((await accounts.balance(account)).balance_minor, -20_000_00, 'a move between products moves no balance');
+
+  // Corrected to another account, the cover goes and the movement stays (Jose, 2026-11-15).
+  const moved = await transactions.create({
+    account_id: account, category_id: food, product_id: main, occurred_on: '2026-10-29', amount_minor: -5_000_00,
+    description: 'Mercado tienda', source: 'manual',
+  });
+  const its = await cover(moved);
+  await dropCover(db, its);
+  assert.equal(await coverOf(db, moved), null);
+  assert.ok(await db.queryOne('SELECT id FROM transactions WHERE id = ?', [moved]));
+  assert.ok(await coverOf(db, spent), 'another movement keeps its own cover');
+  await transactions.delete(moved);
 
   await transactions.delete(spent);
   assert.equal((await db.queryOne('SELECT COUNT(*) AS n FROM transfers')).n, 0);

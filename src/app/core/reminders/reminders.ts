@@ -98,10 +98,29 @@ export function nextOccurrence(r: Reminder, today: string): Occurrence | null {
   return at(dayIn(month, r.dayOfMonth), month);
 }
 
-/** A spending seen in a month: its shop and its day. */
+/** A spending seen in a month: its shop, its day, and its category and amount. */
 export interface ShopSpend {
   shop: string;
   on: string;
+  categoryId?: number | null;
+  /** What it cost, without its sign. */
+  amountMinor?: number;
+}
+
+/** How far a payment's amount may be from the reminder's and still be it (as fixed payments, `STEADY`). */
+export const PAID_AMOUNT_SPREAD = 0.25;
+
+/** Whether a spending is a payment of this reminder: its shop, else its category for about its amount. */
+function answers(r: Reminder, spend: ShopSpend): boolean {
+  if (r.shop) return r.shop === spend.shop;
+  if (r.categoryId === null || spend.categoryId !== r.categoryId) return false;
+  if (r.amountMinor === null || r.amountMinor <= 0 || spend.amountMinor === undefined) return true;
+  return Math.abs(spend.amountMinor - r.amountMinor) <= r.amountMinor * PAID_AMOUNT_SPREAD;
+}
+
+/** A reminder a spending can settle by itself: with a shop, or with a category. */
+export function settlesBySpending(r: Reminder): boolean {
+  return !!r.shop || r.categoryId !== null;
 }
 
 /** How many days before its day a payment may come and still be that one's. */
@@ -119,20 +138,25 @@ function daysBetween(a: string, b: string): number {
  * day is nearest, among those due at most `PAID_EARLY_DAYS` after it - so a
  * payment made on the 15th is the 14th's, never the 29th's. Every active
  * reminder of the shop takes part, settled or not, so a spending already
- * answering one is never counted again for another. Anything without a shop
- * is settled only by the person.
+ * answering one is never counted again for another.
+ *
+ * A reminder made by hand has no shop: a spending of its category, for about
+ * its amount (`PAID_AMOUNT_SPREAD`), from any account, settles it the same way
+ * (Jose, 2026-11-15: a payment registered from the "+" and from another
+ * account still showed as pending). One with neither shop nor category is
+ * settled only by the person.
  */
 export function paidByShop(reminders: readonly Reminder[], month: string, spends: readonly ShopSpend[]): Set<number> {
   const due = reminders.flatMap(r => {
-    if (!r.active || !r.shop) return [];
+    if (!r.active || !settlesBySpending(r)) return [];
     const on = r.repeat === 'monthly' ? (r.dayOfMonth ? dayIn(month, r.dayOfMonth) : null)
       : r.onDate && monthOfDay(r.onDate) === month ? r.onDate : null;
-    return on ? [{ id: r.id, shop: r.shop, on }] : [];
+    return on ? [{ id: r.id, reminder: r, on }] : [];
   });
   const paid = new Set<number>();
   for (const spend of [...spends].filter(s => monthOfDay(s.on) === month).sort((a, b) => a.on.localeCompare(b.on))) {
     const fits = due
-      .filter(d => !paid.has(d.id) && d.shop === spend.shop && daysBetween(d.on, spend.on) <= PAID_EARLY_DAYS)
+      .filter(d => !paid.has(d.id) && answers(d.reminder, spend) && daysBetween(d.on, spend.on) <= PAID_EARLY_DAYS)
       .sort((a, b) => Math.abs(daysBetween(a.on, spend.on)) - Math.abs(daysBetween(b.on, spend.on)) || a.on.localeCompare(b.on));
     if (fits[0]) paid.add(fits[0].id);
   }
