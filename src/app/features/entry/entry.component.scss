@@ -168,11 +168,23 @@
 
 .end {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: center;
   padding: 10px 14px 12px;
-  gap: 6px;
-  container-type: inline-size;
+  gap: 8px;
+  &.col { padding: 12px 14px; }
+
+  /* "Desde" / "Hacia": a narrow column, centred on the account and its product. */
+  > .side { flex: none; width: 46px; color: var(--app-mu); font-size: 13.5px; }
+
+  > .body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    container-type: inline-size;
+  }
 
   /* "Desde" left, "¿Qué cambia?" right, in the one small line on top. */
   .cap {

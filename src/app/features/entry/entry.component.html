@@ -340,26 +340,32 @@
   @let after = !isTransfer() ? null : side === 'to' ? afterLine().to : afterLine().from;
   @let asks = side === 'from' ? asksFromScope() : asksToScope();
   @let byProduct = !!after && after.on === 'product' && split && !!acc;
-  <!-- With nothing else on the top line, the balance's caption goes there. -->
-  @let capOnTop = !!after && !asks;
   <!-- One end (Jose, 2026-11-18): "Desde" with "¿Qué cambia?" beside it; the
        account and, hanging from it, its product; on the right the balance's
        caption and, under it, its figure - beside what it belongs to. -->
-  <div class="ui-row end" [class.needed]="acc === null">
-    <div class="cap">
-      <span>{{ sideLabel(side) }}</span>
-      @if (asks) {
-        <!-- ¿Qué cambia? at this end of a transfer between two accounts (17b). -->
-        <button type="button" class="ui-chip scope-chip" (click)="choosingTransferScope.set(side)"
-                [attr.aria-label]="scopeChipName(side)">
-          <ion-icon name="git-compare-outline"></ion-icon>
-          <span class="ui-one">{{ scopeChipName(side) }}</span>
-          <ion-icon class="down" name="chevron-down-outline"></ion-icon>
-        </button>
-      } @else if (capOnTop && after) {
-        <span class="cap-r">{{ after.caption }}</span>
-      }
-    </div>
+  <!-- A spending or an income: "Desde"/"Hacia" a narrow column centred on
+       the account and its product. A transfer: on a small top line, beside
+       "¿Qué cambia?" or the balance's caption, so the names keep their width. -->
+  @let capOnTop = isTransfer() && !!after && !asks;
+  <div class="ui-row end" [class.needed]="acc === null" [class.col]="!isTransfer()">
+    @if (!isTransfer()) { <span class="side">{{ sideLabel(side) }}</span> }
+    <div class="body">
+    @if (isTransfer()) {
+      <div class="cap">
+        <span>{{ sideLabel(side) }}</span>
+        @if (asks) {
+          <!-- ¿Qué cambia? at this end of a transfer between two accounts (17b). -->
+          <button type="button" class="ui-chip scope-chip" (click)="choosingTransferScope.set(side)"
+                  [attr.aria-label]="scopeChipName(side)">
+            <ion-icon name="git-compare-outline"></ion-icon>
+            <span class="ui-one">{{ scopeChipName(side) }}</span>
+            <ion-icon class="down" name="chevron-down-outline"></ion-icon>
+          </button>
+        } @else if (capOnTop && after) {
+          <span class="cap-r">{{ after.caption }}</span>
+        }
+      </div>
+    }
     <button type="button" class="line acc" (click)="openAccountSheet(side)">
       @if (acc) {
         <app-badge shape="ci" [size]="28" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id"
@@ -400,6 +406,7 @@
         <ion-icon class="chev" name="chevron-down-outline"></ion-icon>
       </button>
     }
+      </div>
   </div>
 </ng-template>
 

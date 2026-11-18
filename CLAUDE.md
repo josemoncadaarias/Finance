@@ -502,7 +502,10 @@ could not prove.
     is typed, only when no "Gastar todo" already says it; "Nuevo saldo" once
     typed; red below zero; `balanceTile`), and a card two tiles, "Nueva
     deuda" and "Cupo que te queda" (amber past the limit; `creditTile`),
-    replacing the "Cupo disponible" line. A transfer shows it in each end: a
+    replacing the "Cupo disponible" line; there "Desde"/"Hacia" is a narrow
+    column centred on the account and its product (`.end.col`), no line of
+    its own. A transfer shows it in each end (the column was tried there and
+    cut the names, so it keeps the top line): a
     small line on top with "Desde"/"Hacia" and, when the end has products,
     "¿Qué cambia?" (only its icon under 260 px, a container query) - no line
     of its own; then the account and, hanging from it, its product, each with
