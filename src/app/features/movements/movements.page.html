@@ -67,13 +67,28 @@
     @for (slot of homeSlots(); track slot) {
       @switch (slot) {
         @case ('figures') {
+          <div class="figures-slot">
           <ng-container *ngTemplateOutlet="figuresBlock"></ng-container>
           <!-- A new app's first steps, under the balance (44a). -->
           <app-first-steps></app-first-steps>
           <!-- Reading the bank's notices, offered once the phone has an account (57g). -->
           <app-notices-invite></app-notices-invite>
+          </div>
         }
-        @case ('faces') { <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div> }
+        @case ('faces') {
+          @if (layout.wide()) {
+            <!-- Sideways (58a): the chart and the list at once, each its own column. -->
+            @if (view.shown('home.chart')) { <div class="chart-slot"><ng-container *ngTemplateOutlet="chartBlock"></ng-container></div> }
+            @if (view.shown('home.list')) {
+              <div class="list-slot">
+                @if (store.loading() && store.groups().length === 0) { <div class="state"><ion-spinner></ion-spinner></div> }
+                @else { <ng-container *ngTemplateOutlet="listBlock"></ng-container> }
+              </div>
+            }
+          } @else {
+            <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div>
+          }
+        }
       }
     }
     </div>
@@ -82,7 +97,7 @@
     <ng-template #figuresBlock>
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
-      <section class="ui-hero figures" data-tour="hero" [class.folded]="!summaryOpen()">
+      <section class="ui-hero figures" data-tour="hero" [class.folded]="!cardOpen()">
         @let card = standing.kind === 'credit';
         <!-- The label and the figure beside the buttons when the figure fits
              there (Jose, 2026-10-31: the label sat alone on a row of its own);
@@ -123,7 +138,7 @@
         <!-- Folded (56b, Jose 2026-11-09): one line under the figure with what
              needs attention and what can be spent today; a tap opens the rest
              in place. Red when something is late or passed (56d). -->
-        @if (!summaryOpen()) {
+        @if (!cardOpen()) {
           <button type="button" class="glance" [class.red]="glanceUrgent()" (click)="setSummary(true)"
                   [attr.aria-expanded]="false" [attr.aria-label]="'home.fold.more' | t">
             <span class="items">
@@ -137,7 +152,7 @@
 
         <!-- Open (56c): everything that was there before, inside the card. The
              rows stay mounted while folded, so the line above can read them. -->
-        <div class="unfolded" [class.shut]="!summaryOpen()">
+        <div class="unfolded" [class.shut]="!cardOpen()">
         <!-- A card: how much of its limit is used, what is left and the limit,
              and its statement when it has the two days (29e-29g). -->
         @if (card) {
@@ -196,9 +211,11 @@
         }
         </div>
 
+        @if (!layout.wide()) {
         <button type="button" class="fold-less" (click)="setSummary(false)" [attr.aria-expanded]="true">
           {{ 'home.fold.less' | t }}<ion-icon name="chevron-up-outline"></ion-icon>
         </button>
+        }
         </div>
       </section>
     }
@@ -226,6 +243,13 @@
     @if (store.loading() && store.groups().length === 0) {
       <div class="state"><ion-spinner></ion-spinner></div>
     } @else if (filter.showList()) {
+      <ng-container *ngTemplateOutlet="listBlock"></ng-container>
+    } @else {
+      <ng-container *ngTemplateOutlet="chartBlock"></ng-container>
+    }
+    </ng-template>
+
+    <ng-template #listBlock>
 
       <!-- Search, where its results are. -->
       <div class="ui-search" #searchRow>
@@ -351,7 +375,9 @@
         }
       }
 
-    } @else {
+    </ng-template>
+
+    <ng-template #chartBlock>
       <div class="chart">
         <app-spending-chart [slices]="store.slices()" [currency]="store.currency()"
                             [spentMinor]="store.totals().outMinor"
@@ -359,7 +385,6 @@
                             (tapped)="filter.openCategory($event)"
                             (add)="add('expense')"></app-spending-chart>
       </div>
-    }
     </ng-template>
   }
     <div class="ui-page-end"></div>

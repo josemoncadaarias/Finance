@@ -302,3 +302,31 @@
    and are replaced in place - never swapped for the spinner (no flicker). */
 .body > * { transition: opacity 0.15s ease; }
 .body.refreshing > * { opacity: 0.55; pointer-events: none; }
+
+/* ---- Sideways (58d): a board ---------------------------------------------
+   The title, the two faces, the account and the period on one row; under it
+   the headline figures across the width and every other section in two
+   columns that fill like a wall (each section whole in one column). */
+:host-context(body.wide) {
+  .report-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 8px;
+  }
+  .ui-bigtitle { display: contents; }
+  /* The rail already says Reporte: the title gives its room to the period. */
+  .ui-bigtitle h1 { display: none; }
+  .title-acts { order: 2; margin-left: auto; }
+  .head { order: 1; flex: 1 1 auto; min-width: 0; flex-direction: row; align-items: center; gap: 10px; padding: 0; }
+  .which { flex: 0 0 214px; button { font-size: 13px; padding-inline: 6px; } ion-icon { display: none; } }
+  .account-row { flex: 0 1 150px; min-width: 110px; }
+  .account { width: 100%; }
+  .ui-period { margin: 0; flex: 0 1 270px; min-width: 230px; }
+
+  .body { column-count: 2; column-gap: 12px; padding: 12px 14px 0; }
+  .lead, .state, app-empty { column-span: all; }
+  .block { break-inside: avoid; display: inline-block; width: 100%; }
+  .block:first-of-type { column-span: all; display: block; }
+  .block:first-of-type .figures { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}

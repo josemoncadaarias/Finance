@@ -27,6 +27,7 @@ import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { FilterService } from '../../core/filters/filter.service';
+import { LayoutService } from '../../core/ui/layout.service';
 import { ViewPrefsService } from '../../core/ui/view-prefs.service';
 import {
   PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName, isoDay,
@@ -102,6 +103,10 @@ export class MovementsPage {
 
   /** Whether the balance card shows everything (56c) or one line (56b); kept on the device. */
   readonly summaryOpen = signal(readSummaryOpen());
+  /** The phone held sideways: the balance, the chart and the list side by side (58a). */
+  readonly layout = inject(LayoutService);
+  /** Sideways there is room, so the card always shows everything. */
+  readonly cardOpen = computed(() => this.layout.wide() || this.summaryOpen());
   setSummary(open: boolean): void {
     this.summaryOpen.set(open);
     try { localStorage.setItem(SUMMARY_KEY, open ? '1' : '0'); } catch { /* private mode: not kept */ }
