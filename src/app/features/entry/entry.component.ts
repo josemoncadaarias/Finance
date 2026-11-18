@@ -49,6 +49,7 @@ import { AmountBuffer } from './amount-buffer';
 import { cardStatement } from '../../core/cards/statement';
 import { bankFigures, cardMovements } from '../../core/cards/card-data';
 import { holdingsOf, whatItHolds } from '../../core/yields/holdings';
+import { balanceAfter } from '../../core/yields/balance-after';
 import { coverFor, type CoverRoute } from '../../core/yields/cover';
 import { coverOf, dropCover, linkCover, type CoverLink } from '../../core/database/repositories/cover-links';
 import { DEFAULT_SCOPE, rewriteScoped, scopeOfMovement, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
@@ -1016,16 +1017,21 @@ export class EntryComponent implements OnInit, OnDestroy {
     const money = (minor: number) => formatMoney(minor, this.currency()).replace(/ /g, '\u00a0');
     const held = this.coverHolds().get(this.productId()!) ?? 0;
     const after = held - this.amount().minor;
+    const below = this.i18n.t('ui.cover.below', { product, amount: `\u2212\u2060${money(Math.abs(after))}` });
+    const on = this.coverOn();
+    const byHabit = this.coverSwitch() === null && this.coverAlwaysHere()
+      ? this.i18n.t('ui.cover.byChoice', { account: this.account()?.name ?? '' }) : '';
+    // One short line on screen; the whole of it behind the (i) (Jose, 2026-11-18).
+    const info = from === null
+      ? `${below}. ${this.i18n.t('ui.cover.none', { account: this.account()?.name ?? '' })}.`
+      : [`${below}.`, this.i18n.t(on ? 'ui.cover.explainOn' : 'ui.cover.explain', { amount: money(cover.missingMinor), name: fromName, product }), byHabit ? `${byHabit}.` : '']
+        .filter(Boolean).join(' ');
     return {
-      on: this.coverOn(),
+      on,
       none: from === null,
-      below: this.i18n.t('ui.cover.below', { product, amount: `\u2212\u2060${money(Math.abs(after))}` }),
-      offer: this.i18n.t('ui.cover.with', { name: fromName }),
-      onTitle: this.i18n.t('ui.cover.on', { name: fromName }),
-      moves: this.i18n.t('ui.cover.moves', { amount: money(cover.missingMinor), product }),
-      byHabit: this.coverSwitch() === null && this.coverAlwaysHere()
-        ? this.i18n.t('ui.cover.byChoice', { account: this.account()?.name ?? '' }) : '',
-      noneText: this.i18n.t('ui.cover.none', { account: this.account()?.name ?? '' }),
+      short: from === null ? this.i18n.t('ui.cover.shortNone', { product })
+        : this.i18n.t(on ? 'ui.cover.on' : 'ui.cover.with', { name: fromName }),
+      info,
     };
   });
 
@@ -1209,6 +1215,125 @@ export class EntryComponent implements OnInit, OnDestroy {
       over: available !== null && this.kind() === 'expense' && this.amount().minor > available,
     };
   });
+
+  // ---------------------------------------------------------------------------
+  // The new balance under each end (core/yields/balance-after.ts; Jose, 2026-11-18)
+  // ---------------------------------------------------------------------------
+
+  /** What each end's account and products hold today, read when an end changes. */
+  private readonly endFigures = signal<{ from: EndFigures | null; to: EndFigures | null }>({ from: null, to: null });
+  private endsAsked = 0;
+
+  private readonly readEnds = effect(() => {
+    const from = this.accountId();
+    const to = this.isTransfer() ? this.toAccountId() : null;
+    const fromEarns = this.products().length > 0;
+    const toEarns = this.toProducts().length > 0;
+    const off = this.isEditing() || this.many() !== null || this.request().loan !== undefined;
+    // After "Registrar otro" the same account holds something else.
+    this.database.dataVersion();
+    const asked = ++this.endsAsked;
+    this.endFigures.set({ from: null, to: null });
+    if (off || this.database.status() !== 'ready') return;
+    void untracked(async () => {
+      const db = this.database.driver;
+      const read = async (id: number | null, earns: boolean): Promise<EndFigures | null> => {
+        if (id === null) return null;
+        if (earns) await this.upToToday(id);
+        const balance = (await new AccountsRepository(db).balance(id))?.balance_minor ?? 0;
+        const held = earns ? await holdingsOf(db, id, todayIso()) : new Map<number, number>();
+        return { accountId: id, balance, held };
+      };
+      try {
+        const fromFigures = await read(from, fromEarns);
+        const toFigures = to === from ? fromFigures : await read(to, toEarns);
+        if (asked !== this.endsAsked) return;
+        this.endFigures.set({ from: fromFigures, to: toFigures });
+      } catch {
+        // Nothing said: the form works the same without it.
+      }
+    });
+  });
+
+  /**
+   * "Nuevo saldo: $ X" under each end once an amount is typed: the product's
+   * figure or the account's, by "¿Qué cambia?". A card says its debt. Not on
+   * a correction (its own amount is already inside), several at once or a
+   * loan's payment.
+   */
+  readonly afterLine = computed(() => ({ from: this.afterOf('from'), to: this.afterOf('to') }));
+
+  /**
+   * A spending's or an income's balance as a tile beside "Gastar todo".
+   * Before an amount is typed it says today's balance, unless "Gastar todo"
+   * already says that same figure.
+   */
+  readonly balanceTile = computed(() => {
+    if (this.isTransfer()) return null;
+    const after = this.afterLine().from;
+    if (!after) return null;
+    if (!after.fresh && this.fillTiles().length > 0) return null;
+    return after;
+  });
+
+  /** A card's credit left once saved, beside its new debt (replaces the "Cupo disponible" line). */
+  readonly creditTile = computed(() => {
+    const account = this.account();
+    const after = this.balanceTile();
+    if (!after || !account || account.type !== 'credit' || account.credit_limit_minor === null) return null;
+    const left = account.credit_limit_minor + after.minor;
+    return {
+      caption: this.i18n.t(left < 0 ? 'ui.entry.overCredit' : after.fresh ? 'ui.entry.creditAfter' : 'ui.entry.creditLeft'),
+      amount: formatMoney(Math.abs(left), this.currency()).replace(/ /g, '\u00a0'),
+      over: left < 0,
+      fresh: after.fresh,
+    };
+  });
+
+  private afterOf(side: 'from' | 'to'): { caption: string; amount: string; negative: boolean; fresh: boolean; on: 'account' | 'product'; minor: number } | null {
+    if (this.isEditing() || this.many() || this.loanEntry() || this.request().loan) return null;
+    if (side === 'to' && !this.isTransfer()) return null;
+    const minor = Math.max(0, side === 'to' && this.crossesCurrency() ? this.targetAmount().minor : this.amount().minor);
+    const account = side === 'to' ? this.toAccount() : this.account();
+    const figures = side === 'to' ? this.endFigures().to : this.endFigures().from;
+    if (!account || !figures || figures.accountId !== account.id) return null;
+    const products = side === 'to' ? this.toProducts() : this.products();
+    const productId = (side === 'to' ? this.toProductId() : this.productId()) ?? defaultProduct(products);
+    const scope: TransferScope = this.isTransfer()
+      ? (side === 'from' ? this.fromScope() : this.toScope())
+      : this.asksScope() ? this.scope() : 'both';
+    const leaves = side === 'from' && (this.isTransfer() || this.kind() === 'expense');
+    let change = leaves ? -minor : minor;
+    // Covered from another product: the one money leaves gets what was missing.
+    const cover = side === 'from' && minor > 0 ? this.coverToWrite() : null;
+    if (cover && cover.toProductId === productId) change += cover.amountMinor;
+    const after = balanceAfter({
+      scope,
+      split: products.length > 1,
+      accountMinor: figures.balance,
+      productMinor: productId === null || products.length === 0 ? null : figures.held.get(productId) ?? 0,
+      changeMinor: change,
+    });
+    if (!after) return null;
+    // Before an amount is typed, today's figure; then what it becomes.
+    const fresh = minor > 0;
+    const code = side === 'to' ? this.targetCurrency() : this.currency();
+    const money = formatMoney(Math.abs(after.minor), code).replace(/ /g, '\u00a0');
+    const on: 'account' | 'product' = after.of === 'product' && products.length > 1 ? 'product' : 'account';
+    if (account.type === 'credit' && after.of === 'account') {
+      const favor = after.minor > 0;
+      const key = favor ? (fresh ? 'ui.entry.after.favor' : 'ui.entry.now.favor') : (fresh ? 'ui.entry.after.debt' : 'ui.entry.now.debt');
+      return { caption: this.i18n.t(key), amount: money, negative: false, fresh, on, minor: after.minor };
+    }
+    // The account's own balance while a product is on show: said so.
+    const ofAccount = after.of === 'account' && products.length > 1;
+    return {
+      caption: this.i18n.t(ofAccount ? (fresh ? 'ui.entry.after.account' : 'ui.entry.now.account') : (fresh ? 'ui.entry.after' : 'ui.entry.now')),
+      amount: `${after.minor < 0 ? '\u2212\u2060' : ''}${money}`,
+      negative: after.minor < 0, fresh, on, minor: after.minor,
+    };
+  }
+
 
   private readonly limitsService = inject(LimitsService);
 
@@ -3107,6 +3232,13 @@ export class EntryComponent implements OnInit, OnDestroy {
  * It falls back to the first only if no product is marked, which the schema
  * makes unlikely: every account had one set when the flag was added.
  */
+/** What one end of the form holds today: the account's balance and each product's figure. */
+interface EndFigures {
+  accountId: number;
+  balance: number;
+  held: ReadonlyMap<number, number>;
+}
+
 function defaultProduct(products: readonly YieldProduct[]): number | null {
   const usual = products.find(product => product.is_default === 1);
   return (usual ?? products[0])?.id ?? null;

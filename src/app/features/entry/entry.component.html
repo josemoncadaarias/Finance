@@ -126,12 +126,23 @@
 
         <!-- Fill the amount in one tap: what the origin holds, and into a card
              its statement and its whole debt, side by side (mockup 18 A). -->
-        @if (fillTiles().length > 0) {
+        @if (fillTiles().length > 0 || balanceTile()) {
           <div class="fill-tiles">
             @for (tile of fillTiles(); track tile.key) {
               <button type="button" class="fill-tile" [class.on]="tile.on" (click)="fillWith(tile.minor)">
                 <small>{{ tile.label }}</small><b>{{ tile.text }}</b>
               </button>
+            }
+            <!-- A spending's or an income's balance, beside "Gastar todo" (Jose, 2026-11-18). -->
+            @if (balanceTile(); as tile) {
+              <div class="fill-tile balance" [class.neg]="tile.negative" [class.fresh]="tile.fresh">
+                <small>{{ tile.caption }}</small><b>{{ tile.amount }}</b>
+              </div>
+            }
+            @if (creditTile(); as tile) {
+              <div class="fill-tile balance" [class.over]="tile.over" [class.fresh]="tile.fresh">
+                <small>{{ tile.caption }}</small><b>{{ tile.amount }}</b>
+              </div>
             }
           </div>
         }
@@ -150,7 +161,7 @@
              payment. Any other account, on an income: what it holds now. -->
         @if (accruingToday()) {
           <p class="holds-now accruing"><ion-spinner name="crescent"></ion-spinner>{{ 'ui.entry.accruing' | t }}</p>
-        } @else if (!isTransfer() && !isEditing() && !loanEntry() && cardLine(); as card) {
+        } @else if (!isTransfer() && !isEditing() && !loanEntry() && !balanceTile() && cardLine(); as card) {
           <p class="holds-now" [class.over]="card.over">
             @if (kind() === 'expense') {
               @if (card.available !== null) {
@@ -163,8 +174,6 @@
               @if (card.available !== null) { · {{ 'ui.entry.creditLeft' | t }} · <b>{{ card.available }}</b> }
             }
           </p>
-        } @else if (!isTransfer() && !isEditing() && kind() === 'income' && holdsNow() !== null) {
-          <p class="holds-now">{{ 'ui.entry.holdsNow' | t }} · <b>{{ holdsNowText() }}</b></p>
         }
 
         }
@@ -181,22 +190,18 @@
             <div class="cover-line" [class.on]="line.on" role="group">
               <ion-icon [name]="line.on ? 'swap-vertical' : 'alert-circle-outline'"></ion-icon>
               @if (line.none) {
-                <span class="ui-tx"><span class="wrap">{{ line.below }}</span><small class="wrap">{{ line.noneText }}</small></span>
-              } @else if (line.on) {
-                <button type="button" class="ui-tx" (click)="pickingCover.set(true)">
-                  <span class="wrap">{{ line.onTitle }}</span>
-                  <small class="wrap">{{ line.moves }}</small>
-                  @if (line.byHabit) { <small class="wrap">{{ line.byHabit }}</small> }
-                </button>
+                <span class="ui-tx"><span class="ui-one">{{ line.short }}</span></span>
               } @else {
                 <button type="button" class="ui-tx" (click)="pickingCover.set(true)">
-                  <span class="wrap">{{ line.below }}</span>
-                  <small class="wrap offer">{{ line.offer }}</small>
+                  <span class="ui-one" [class.offer]="!line.on">{{ line.short }}</span>
                 </button>
               }
+              <span class="ui-info" role="button" (click)="showInfo(line.info)" [attr.aria-label]="'ui.info' | t">
+                <ion-icon name="information"></ion-icon>
+              </span>
               @if (!line.none) {
                 <button type="button" class="ui-switch" [class.on]="line.on" role="switch" [attr.aria-checked]="line.on"
-                        [attr.aria-label]="line.offer" (click)="toggleCover()"></button>
+                        [attr.aria-label]="line.short" (click)="toggleCover()"></button>
               }
             </div>
           } @else if (coveredText()) {
@@ -238,14 +243,6 @@
                 <ion-icon [name]="cap.red ? 'alert-circle' : 'warning'"></ion-icon>
                 <span>{{ cap.text }}</span>
               </div>
-            }
-            <!-- ¿Qué cambia? on an account with products, started on the habit (4y). -->
-            @if (asksScope()) {
-              <button type="button" class="ui-row pick category scope" (click)="choosingScope.set(true)">
-                <app-badge [size]="42" [builtin]="scopeIcon" [fixed]="scopeTone"></app-badge>
-                <span class="ui-tx"><span class="k">{{ 'products.entry.scope' | t }}</span><b>{{ scopeName() }}</b></span>
-                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-              </button>
             }
             @if (!many()) { <ng-container *ngTemplateOutlet="dayTpl"></ng-container> }
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
@@ -331,44 +328,82 @@
   @let prods = side === 'to' ? toProducts() : products();
   @let chosen = side === 'to' ? toProductId() : productId();
   @let split = side === 'to' ? splitTarget() : splitAccount();
-  <div class="ui-row end" [class.needed]="acc === null">
-    <span class="side">{{ sideLabel(side) }}</span>
-    <div class="what">
-      <button type="button" class="acc" (click)="openAccountSheet(side)">
-        @if (acc) {
-          <app-badge shape="ci" [size]="28" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id"
-                     [tone]="acc.color" [seed]="acc.id" fallback="wallet"></app-badge>
-          <b class="ui-one">{{ acc.name }}</b>
-        } @else {
-          <b class="ui-y">{{ 'entry.pickAccount' | t }}</b>
+  <!-- A transfer says each end's balance in the end; a spending or an income beside the amount. -->
+  @let after = !isTransfer() ? null : side === 'to' ? afterLine().to : afterLine().from;
+  <!-- ¿Qué cambia?: each end of a transfer between accounts (17b); a spending's
+       or an income's own (4y), on the same top line (Jose, 2026-11-18). -->
+  @let asks = !isTransfer() ? side === 'from' && asksScope() : side === 'from' ? asksFromScope() : asksToScope();
+  @let byProduct = !!after && after.on === 'product' && split && !!acc;
+  <!-- One end (Jose, 2026-11-18): "Desde" with "¿Qué cambia?" beside it; the
+       account and, hanging from it, its product; on the right the balance's
+       caption and, under it, its figure - beside what it belongs to. -->
+  <!-- "Desde"/"Hacia" on a small top line beside "¿Qué cambia?" or the
+       balance's caption; with nothing beside it, a narrow column centred on
+       the account and its product. -->
+  @let capOnTop = isTransfer() && !!after && !asks;
+  <!-- "Desde" goes beside the account only when the top line would hold nothing else. -->
+  @let col = !asks && !capOnTop;
+  <div class="ui-row end" [class.needed]="acc === null" [class.col]="col">
+    @if (col) { <span class="side">{{ sideLabel(side) }}</span> }
+    <div class="body">
+    @if (!col) {
+      <div class="cap">
+        <span>{{ sideLabel(side) }}</span>
+        @if (asks) {
+          <!-- ¿Qué cambia? at this end of a transfer between two accounts (17b). -->
+          @let scopeText = isTransfer() ? scopeChipName(side) : scopeName();
+          <button type="button" class="ui-chip scope-chip" (click)="isTransfer() ? choosingTransferScope.set(side) : choosingScope.set(true)"
+                  [attr.aria-label]="('products.entry.scope' | t) + ' ' + scopeText">
+            <ion-icon name="git-compare-outline"></ion-icon>
+            <span class="ui-one">{{ scopeText }}</span>
+            <ion-icon class="down" name="chevron-down-outline"></ion-icon>
+          </button>
+        } @else if (capOnTop && after) {
+          <span class="cap-r">{{ after.caption }}</span>
         }
-      </button>
-      @if (split && acc) {
-        @let product = productOf(prods, chosen);
-        <button type="button" class="prod" (click)="openProductSheet(side)">
-          <span class="hang"></span>
-          @if (product) {
-            <app-badge [size]="24" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
-            <span class="ui-one">{{ product.name }}</span>
-            @if (productNote(side); as said) {
-              <span class="ui-info" role="button" (click)="$event.stopPropagation(); showInfo(said)" [attr.aria-label]="'ui.info' | t">
-                <ion-icon name="information"></ion-icon>
-              </span>
-            }
+      </div>
+    }
+    <button type="button" class="line acc" (click)="openAccountSheet(side)">
+      @if (acc) {
+        <app-badge shape="ci" [size]="28" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id"
+                   [tone]="acc.color" [seed]="acc.id" fallback="wallet"></app-badge>
+        <b class="ui-one name">{{ acc.name }}</b>
+        @if (after) {
+          @if (byProduct) {
+            @if (!capOnTop) { <small class="bal-cap">{{ after.caption }}</small> }
+          } @else if (capOnTop) {
+            <b class="fig" [class.neg]="after.negative" [class.fresh]="after.fresh">{{ after.amount }}</b>
+          } @else {
+            <span class="bal" [class.neg]="after.negative" [class.fresh]="after.fresh">
+              <small>{{ after.caption }}</small><b>{{ after.amount }}</b>
+            </span>
           }
-        </button>
+        }
+      } @else {
+        <b class="ui-y name">{{ 'entry.pickAccount' | t }}</b>
       }
-      <!-- ¿Qué cambia? at this end of a transfer between two accounts, inside
-           the end it belongs to (17b; Jose, 2026-10-03). -->
-      @if (side === 'from' ? asksFromScope() : asksToScope()) {
-        <button type="button" class="ui-chip scope-chip" (click)="choosingTransferScope.set(side)">
-          <ion-icon name="git-compare-outline"></ion-icon>
-          <span class="ui-one">{{ scopeChipName(side) }}</span>
-          <ion-icon class="down" name="chevron-down-outline"></ion-icon>
-        </button>
-      }
-    </div>
-    <ion-icon class="ui-chev" name="chevron-down-outline" (click)="openAccountSheet(side)"></ion-icon>
+      <ion-icon class="chev" name="chevron-down-outline"></ion-icon>
+    </button>
+    @if (split && acc) {
+      @let product = productOf(prods, chosen);
+      <button type="button" class="line prod" (click)="openProductSheet(side)">
+        <span class="hang"></span>
+        @if (product) {
+          <app-badge [size]="24" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
+          <span class="ui-one name">{{ product.name }}</span>
+          @if (productNote(side); as said) {
+            <span class="ui-info" role="button" (click)="$event.stopPropagation(); showInfo(said)" [attr.aria-label]="'ui.info' | t">
+              <ion-icon name="information"></ion-icon>
+            </span>
+          }
+          @if (byProduct && after) {
+            <b class="fig" [class.neg]="after.negative" [class.fresh]="after.fresh">{{ after.amount }}</b>
+          }
+        }
+        <ion-icon class="chev" name="chevron-down-outline"></ion-icon>
+      </button>
+    }
+      </div>
   </div>
 </ng-template>
 

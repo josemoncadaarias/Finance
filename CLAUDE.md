@@ -484,6 +484,56 @@ could not prove.
   move (`dropCover`). Tests in `reminders.test.mjs` and `cover.test.mjs`
   (invented data). Only movements corrected after the update change; one
   already saved on another account keeps its cover until corrected again.
+- **The movement form says the new balance, and a tapped notice opens over
+  a form in progress** (Jose, 2026-11-18, from the phone; to name as
+  feedback a tester writes in the Play Store).
+  - **"Movimiento detectado" tapped while a movement was being typed** left
+    Por revisar on the message's origin without opening it. Reproduced in a
+    browser: going to Por revisar closes the open form (`closeOnLeaving`),
+    and that form's `didDismiss` cleared the message's form the review screen
+    had just set (`compose.close()`). Now the host remembers the request on
+    show when the form began to close (`willDismiss`) and, if another one was
+    set meanwhile, opens it once the old one is gone (`entryClosed` in
+    `compose-host.component.ts`). What was being typed is still lost.
+  - **The new balance: beside the amount for one end, in each end for a
+    transfer** (Jose, the same day, four rounds; account and product on one
+    line was turned down: "se quita mucho texto"). A spending or an income
+    shows it as a dashed tile beside "Gastar todo" ("Saldo" before an amount
+    is typed, only when no "Gastar todo" already says it; "Nuevo saldo" once
+    typed; red below zero; `balanceTile`), and a card two tiles, "Nueva
+    deuda" and "Cupo que te queda" (amber past the limit; `creditTile`),
+    replacing the "Cupo disponible" line. "Desde"/"Hacia" is a narrow column
+    centred on the account and its product (`.end.col`) ONLY when the top
+    line would hold nothing else (Jose: with "¿Qué cambia?" beside it, the
+    column looked awful and cut the names). A spending's or an income's
+    "¿Qué cambia?" is no longer a big row under the category: it is the same
+    small chip as a transfer's, on the end's top line beside "Desde"/"Hacia"
+    (Jose, the same day). A transfer shows it in each end: a
+    small line on top with "Desde"/"Hacia" and, when the end has products,
+    "¿Qué cambia?" (only its icon under 260 px, a container query) - no line
+    of its own; then the account and, hanging from it, its product, each with
+    its chevron; with no "¿Qué cambia?" on top, the caption sits on the top
+    line's right and the figure alone on its line; otherwise the caption on the account's line
+    and the figure under it on the product's line when the product moves, or
+    caption over figure (3 px apart) on the account's line when the account's
+    balance does. The round "Invertir" is 32 px, on the left of the line
+    between the ends (left: 86px), with room above and below, away from every
+    caption and figure. "Nuevo saldo de la cuenta" when the account's balance moves
+    while a product is on show.
+    Which figure, by "¿Qué cambia?" (`afterLine` in `entry.component.ts`,
+    pure `balanceAfter` in `core/yields/balance-after.ts`,
+    `balance-after.test.mjs`): a split account's product for "Producto y
+    patrimonio" and "Solo el producto"; the account for "Solo el patrimonio"
+    and for an account with one product or none; a card says "Deuda" /
+    "Nueva deuda" (or "Saldo a favor"); a transfer, both ends; a cover
+    switched on counts what it moves in. Not on a correction, several at
+    once or a loan's payment. The income's "Saldo actual" line under the
+    amount is gone (the end says it).
+  - **The cover line is one short line**: "Cubrir con {bolsillo}" / "Se cubre
+    con..." / "{producto} quedaría en negativo", an (i) with the whole
+    explanation, and its switch. Entry tour: step 6 reworded and a new step 8,
+    both `since: 6`. Checked in a browser on the sample data (each case, the
+    race before and after the fix); not on the phone.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -561,7 +611,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1262 on 2026-11-15, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1268 on 2026-11-18, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

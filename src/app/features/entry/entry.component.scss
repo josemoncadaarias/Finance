@@ -138,6 +138,15 @@
     b { display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
 
+  .fill-tile.balance {
+    cursor: default;
+    border-style: dashed;
+    background: transparent;
+    b { color: var(--app-mu); }
+    &.fresh b { color: var(--app-tx); }
+    &.neg { border-color: rgba(var(--app-red-rgb), 0.5); b { color: var(--app-red); } }
+    &.over { border-color: var(--app-yel); b { color: var(--app-yel); } }
+  }
   .fill-tile.on {
     border-color: var(--app-pr);
     background: rgba(var(--app-pr-rgb), 0.14);
@@ -158,26 +167,40 @@
 .ends { overflow: visible; }
 
 .end {
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  padding: 12px 14px;
-  gap: 10px;
+  padding: 10px 14px 12px;
+  gap: 8px;
+  &.col { padding: 12px 14px; }
 
-  .side {
-    width: 52px;
-    flex: none;
-    color: var(--app-mu);
-    font-size: 14.5px;
-  }
+  /* "Desde" / "Hacia": a narrow column, centred on the account and its product. */
+  > .side { flex: none; width: 46px; color: var(--app-mu); font-size: 13.5px; }
 
-  .what {
+  > .body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    container-type: inline-size;
   }
 
-  .acc, .prod {
+  /* "Desde" left, "¿Qué cambia?" right, in the one small line on top. */
+  .cap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 18px;
+    color: var(--app-mu);
+    font-size: 12.5px;
+    line-height: 1.2;
+    > span { flex: none; }
+    .cap-r { margin-left: auto; text-align: right; padding-right: 26px; }
+  }
+
+  .line {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -192,29 +215,50 @@
     width: 100%;
   }
 
-  .acc b {
-    font-size: 16px;
-    font-weight: 600;
-    min-width: 0;
+  .name { flex: 1; min-width: 0; }
+  .acc .name { font-size: 16px; font-weight: 600; }
+
+  /* The balance: its caption on the account's line, its figure beside what it belongs to. */
+  .bal-cap { flex: none; color: var(--app-mu); font-size: 12px; }
+  .bal {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    line-height: 1.2;
+    small { color: var(--app-mu); font-size: 11.5px; }
+    b { font-size: 15px; font-weight: 600; color: var(--app-mu); font-variant-numeric: tabular-nums; }
+    &.fresh b { color: var(--app-tx); }
+    &.neg b { color: var(--app-red); }
   }
+  .fig {
+    flex: none;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--app-mu);
+    font-variant-numeric: tabular-nums;
+    &.fresh { color: var(--app-tx); }
+    &.neg { color: var(--app-red); }
+  }
+
+  .chev { flex: none; font-size: 16px; color: var(--app-mu); }
 
   /* The product hangs from its account: a line comes down from the circle
      and turns into it, indented, smaller and lighter. */
   .prod {
     position: relative;
     padding-left: 34px;
-    color: var(--app-mu2, var(--app-mu));
     font-size: 15px;
-
-    .ui-one { min-width: 0; color: var(--app-tx2, #c7cfdd); }
+    .name { color: var(--app-tx2, #c7cfdd); }
   }
 
   .hang {
     position: absolute;
     left: 13px;
-    top: -6px;
+    top: -8px;
     width: 14px;
-    height: 18px;
+    height: 20px;
     border-left: 2px solid var(--app-s3);
     border-bottom: 2px solid var(--app-s3);
     border-bottom-left-radius: 8px;
@@ -222,7 +266,12 @@
 
   .ui-info { flex: none; }
 
-  &.needed .acc b { color: var(--app-yel); }
+  &.needed .acc .name { color: var(--app-yel); }
+}
+
+/* On a narrow row "¿Qué cambia?" keeps only its icon; the sheet says the rest. */
+@container (max-width: 260px) {
+  .end .scope-chip .ui-one, .end .scope-chip .down { display: none; }
 }
 
 /* "Invertir": a round button on the line between the two ends. */
@@ -235,11 +284,11 @@
 
   .swap {
     position: absolute;
-    right: 84px;
+    left: 86px;
     top: 50%;
     transform: translateY(-50%);
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     border: 1px solid var(--app-border);
     background: rgba(var(--app-pr-rgb), 0.2);
@@ -248,9 +297,13 @@
     display: grid;
     place-items: center;
     cursor: pointer;
-    ion-icon { font-size: 20px; }
+    ion-icon { font-size: 18px; }
   }
 }
+/* Room above and below for the round button, so it never sits on a figure. */
+.ends .end:has(+ .turn), .ends .cover-line:has(+ .turn) { margin-bottom: 8px; }
+.ends .end:has(+ .turn) { padding-bottom: 18px; }
+.ends .turn + .end { padding-top: 18px; }
 
 .ends .turn + .ui-row::before { display: none; }
 
@@ -481,8 +534,8 @@
 .loan-warn { color: var(--app-yel); font-size: 13px; line-height: 1.4; margin: 8px 4px 0; }
 
 /* ¿Qué cambia? inside one end of a transfer between two accounts (17b). */
-.end .what .scope-chip {
-  align-self: flex-start; margin: 7px 0 2px 2px; padding: 4px 10px 4px 7px; gap: 6px;
+.end .scope-chip {
+  flex: 0 1 auto; min-width: 0; margin: 0; padding: 2px 9px 2px 7px; gap: 6px;
   display: inline-flex; align-items: center; max-width: 100%;
   font-size: 12.8px; color: #c9b8ff; background: rgba(155, 123, 255, .14); border: 1px solid rgba(155, 123, 255, .35);
   ion-icon { font-size: 15px; flex: none; }
@@ -606,6 +659,8 @@
   .wrap { white-space: normal; display: block; }
   small { color: var(--app-mu); }
   .offer { color: var(--app-pr); font-weight: 500; }
+  .ui-one { display: block; min-width: 0; }
+  .ui-info { flex: none; }
   &.on { background: rgba(var(--app-pr-rgb), 0.12); }
   &.on > ion-icon { color: var(--app-move); }
 }
