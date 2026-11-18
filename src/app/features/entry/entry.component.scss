@@ -185,6 +185,7 @@
     font-size: 12.5px;
     line-height: 1.2;
     > span { flex: none; }
+    .cap-r { margin-left: auto; text-align: right; padding-right: 26px; }
   }
 
   .line {
@@ -290,7 +291,7 @@
 /* Room above and below for the round button, so it never sits on a figure. */
 .ends .end:has(+ .turn), .ends .cover-line:has(+ .turn) { margin-bottom: 8px; }
 .ends .end:has(+ .turn) { padding-bottom: 14px; }
-.ends .turn + .end { padding-top: 18px; }
+.ends .turn + .end { padding-top: 14px; }
 
 .ends .turn + .ui-row::before { display: none; }
 

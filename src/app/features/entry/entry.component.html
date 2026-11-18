@@ -340,6 +340,8 @@
   @let after = !isTransfer() ? null : side === 'to' ? afterLine().to : afterLine().from;
   @let asks = side === 'from' ? asksFromScope() : asksToScope();
   @let byProduct = !!after && after.on === 'product' && split && !!acc;
+  <!-- With nothing else on the top line, the balance's caption goes there. -->
+  @let capOnTop = !!after && !asks;
   <!-- One end (Jose, 2026-11-18): "Desde" with "¿Qué cambia?" beside it; the
        account and, hanging from it, its product; on the right the balance's
        caption and, under it, its figure - beside what it belongs to. -->
@@ -354,6 +356,8 @@
           <span class="ui-one">{{ scopeChipName(side) }}</span>
           <ion-icon class="down" name="chevron-down-outline"></ion-icon>
         </button>
+      } @else if (capOnTop && after) {
+        <span class="cap-r">{{ after.caption }}</span>
       }
     </div>
     <button type="button" class="line acc" (click)="openAccountSheet(side)">
@@ -363,7 +367,9 @@
         <b class="ui-one name">{{ acc.name }}</b>
         @if (after) {
           @if (byProduct) {
-            <small class="bal-cap">{{ after.caption }}</small>
+            @if (!capOnTop) { <small class="bal-cap">{{ after.caption }}</small> }
+          } @else if (capOnTop) {
+            <b class="fig" [class.neg]="after.negative" [class.fresh]="after.fresh">{{ after.amount }}</b>
           } @else {
             <span class="bal" [class.neg]="after.negative" [class.fresh]="after.fresh">
               <small>{{ after.caption }}</small><b>{{ after.amount }}</b>

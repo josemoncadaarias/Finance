@@ -506,7 +506,8 @@ could not prove.
     small line on top with "Desde"/"Hacia" and, when the end has products,
     "¿Qué cambia?" (only its icon under 260 px, a container query) - no line
     of its own; then the account and, hanging from it, its product, each with
-    its chevron; on the empty right side the caption on the account's line
+    its chevron; with no "¿Qué cambia?" on top, the caption sits on the top
+    line's right and the figure alone on its line; otherwise the caption on the account's line
     and the figure under it on the product's line when the product moves, or
     caption over figure (3 px apart) on the account's line when the account's
     balance does. The round "Invertir" is 32 px with room of its own between
