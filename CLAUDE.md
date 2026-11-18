@@ -505,7 +505,10 @@ could not prove.
     replacing the "Cupo disponible" line. "Desde"/"Hacia" is a narrow column
     centred on the account and its product (`.end.col`) ONLY when the top
     line would hold nothing else (Jose: with "¿Qué cambia?" beside it, the
-    column looked awful and cut the names). A transfer shows it in each end: a
+    column looked awful and cut the names). A spending's or an income's
+    "¿Qué cambia?" is no longer a big row under the category: it is the same
+    small chip as a transfer's, on the end's top line beside "Desde"/"Hacia"
+    (Jose, the same day). A transfer shows it in each end: a
     small line on top with "Desde"/"Hacia" and, when the end has products,
     "¿Qué cambia?" (only its icon under 260 px, a container query) - no line
     of its own; then the account and, hanging from it, its product, each with

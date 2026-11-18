@@ -244,14 +244,6 @@
                 <span>{{ cap.text }}</span>
               </div>
             }
-            <!-- ¿Qué cambia? on an account with products, started on the habit (4y). -->
-            @if (asksScope()) {
-              <button type="button" class="ui-row pick category scope" (click)="choosingScope.set(true)">
-                <app-badge [size]="42" [builtin]="scopeIcon" [fixed]="scopeTone"></app-badge>
-                <span class="ui-tx"><span class="k">{{ 'products.entry.scope' | t }}</span><b>{{ scopeName() }}</b></span>
-                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-              </button>
-            }
             @if (!many()) { <ng-container *ngTemplateOutlet="dayTpl"></ng-container> }
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           }
@@ -338,7 +330,9 @@
   @let split = side === 'to' ? splitTarget() : splitAccount();
   <!-- A transfer says each end's balance in the end; a spending or an income beside the amount. -->
   @let after = !isTransfer() ? null : side === 'to' ? afterLine().to : afterLine().from;
-  @let asks = side === 'from' ? asksFromScope() : asksToScope();
+  <!-- ¿Qué cambia?: each end of a transfer between accounts (17b); a spending's
+       or an income's own (4y), on the same top line (Jose, 2026-11-18). -->
+  @let asks = !isTransfer() ? side === 'from' && asksScope() : side === 'from' ? asksFromScope() : asksToScope();
   @let byProduct = !!after && after.on === 'product' && split && !!acc;
   <!-- One end (Jose, 2026-11-18): "Desde" with "¿Qué cambia?" beside it; the
        account and, hanging from it, its product; on the right the balance's
@@ -357,10 +351,11 @@
         <span>{{ sideLabel(side) }}</span>
         @if (asks) {
           <!-- ¿Qué cambia? at this end of a transfer between two accounts (17b). -->
-          <button type="button" class="ui-chip scope-chip" (click)="choosingTransferScope.set(side)"
-                  [attr.aria-label]="scopeChipName(side)">
+          @let scopeText = isTransfer() ? scopeChipName(side) : scopeName();
+          <button type="button" class="ui-chip scope-chip" (click)="isTransfer() ? choosingTransferScope.set(side) : choosingScope.set(true)"
+                  [attr.aria-label]="('products.entry.scope' | t) + ' ' + scopeText">
             <ion-icon name="git-compare-outline"></ion-icon>
-            <span class="ui-one">{{ scopeChipName(side) }}</span>
+            <span class="ui-one">{{ scopeText }}</span>
             <ion-icon class="down" name="chevron-down-outline"></ion-icon>
           </button>
         } @else if (capOnTop && after) {
