@@ -246,6 +246,11 @@ name as tester feedback; goes in the next closed-testing release).
 Calendars and fields answer at once: formatters kept, not made on every
 tap (2026-11-13, #325, "How to work").
 
+The movement form says each end's new balance, its ends use their space,
+the cover line is short, and a notice tapped over a form in progress opens
+(2026-11-18, #328, "How to work"; to go in the next closed-testing release
+with the tester's comment).
+
 **Bolsa de valores, first part (2026-11-12)**: a broker's statement read
 into purchases, sales and dividends, positions with their value, charts, and
 today's prices through a Google Sheet of the person's own - see "Bolsa de
@@ -485,7 +490,7 @@ could not prove.
   (invented data). Only movements corrected after the update change; one
   already saved on another account keeps its cover until corrected again.
 - **The movement form says the new balance, and a tapped notice opens over
-  a form in progress** (Jose, 2026-11-18, from the phone; to name as
+  a form in progress** (#328; Jose, 2026-11-18, from the phone; to name as
   feedback a tester writes in the Play Store).
   - **"Movimiento detectado" tapped while a movement was being typed** left
     Por revisar on the message's origin without opening it. Reproduced in a
