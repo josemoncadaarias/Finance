@@ -1298,8 +1298,10 @@ export class EntryComponent implements OnInit, OnDestroy {
       const key = favor ? (fresh ? 'ui.entry.after.favor' : 'ui.entry.now.favor') : (fresh ? 'ui.entry.after.debt' : 'ui.entry.now.debt');
       return { caption: this.i18n.t(key), amount: money, negative: false, fresh, on };
     }
+    // The account's own balance while a product is on show: said so.
+    const ofAccount = after.of === 'account' && products.length > 1;
     return {
-      caption: this.i18n.t(fresh ? 'ui.entry.after' : 'ui.entry.now'),
+      caption: this.i18n.t(ofAccount ? (fresh ? 'ui.entry.after.account' : 'ui.entry.now.account') : (fresh ? 'ui.entry.after' : 'ui.entry.now')),
       amount: `${after.minor < 0 ? '\u2212\u2060' : ''}${money}`,
       negative: after.minor < 0, fresh, on,
     };

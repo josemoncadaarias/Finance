@@ -495,15 +495,16 @@ could not prove.
     show when the form began to close (`willDismiss`) and, if another one was
     set meanwhile, opens it once the old one is gone (`entryClosed` in
     `compose-host.component.ts`). What was being typed is still lost.
-  - **Each end of the form redrawn to use its space, with its balance**
-    (Jose, the same day: a band across the row "desperdicia mucho"; "re
-    distribuir todos los controles"). "Desde"/"Hacia" is no longer a column
-    the whole height of the end: it is a small caption on top, as
-    "Categoría", with "Saldo" (no amount yet) or "Nuevo saldo" (once typed) at
-    the right of that caption row; the account and its product take the
-    whole width, and the figure sits at the right of the line it belongs to -
-    beside the product when the product moves, beside the account when the
-    account's balance does - red below zero; each line has its own chevron.
+  - **Each end of the form is two lines, with its balance** (Jose, the same
+    day, twice: no blank space, "redistribuir todos los controles"). Line
+    one: "Desde"/"Hacia", the account, "›" and its product (each tapped opens
+    its own list), the chevron. Line two: "¿Qué cambia?" of a transfer (only
+    its icon when the row is under 300 px, a container query) on the left,
+    and on the right "Saldo" (no amount yet) or "Nuevo saldo" over its figure,
+    red below zero; with no "¿Qué cambia?" there, caption and figure share
+    the line. The round "Invertir" is 32 px with room of its own between the
+    ends, never over a figure. "Nuevo saldo de la cuenta" when the account's
+    balance moves while a product is on show.
     Which figure, by "¿Qué cambia?" (`afterLine` in `entry.component.ts`,
     pure `balanceAfter` in `core/yields/balance-after.ts`,
     `balance-after.test.mjs`): a split account's product for "Producto y
