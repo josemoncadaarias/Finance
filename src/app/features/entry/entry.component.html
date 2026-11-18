@@ -343,14 +343,16 @@
   <!-- One end (Jose, 2026-11-18): "Desde" with "¿Qué cambia?" beside it; the
        account and, hanging from it, its product; on the right the balance's
        caption and, under it, its figure - beside what it belongs to. -->
-  <!-- A spending or an income: "Desde"/"Hacia" a narrow column centred on
-       the account and its product. A transfer: on a small top line, beside
-       "¿Qué cambia?" or the balance's caption, so the names keep their width. -->
+  <!-- "Desde"/"Hacia" on a small top line beside "¿Qué cambia?" or the
+       balance's caption; with nothing beside it, a narrow column centred on
+       the account and its product. -->
   @let capOnTop = isTransfer() && !!after && !asks;
-  <div class="ui-row end" [class.needed]="acc === null" [class.col]="!isTransfer()">
-    @if (!isTransfer()) { <span class="side">{{ sideLabel(side) }}</span> }
+  <!-- "Desde" goes beside the account only when the top line would hold nothing else. -->
+  @let col = !asks && !capOnTop;
+  <div class="ui-row end" [class.needed]="acc === null" [class.col]="col">
+    @if (col) { <span class="side">{{ sideLabel(side) }}</span> }
     <div class="body">
-    @if (isTransfer()) {
+    @if (!col) {
       <div class="cap">
         <span>{{ sideLabel(side) }}</span>
         @if (asks) {
