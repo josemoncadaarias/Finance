@@ -11,8 +11,8 @@ export const STOCKS_ES = {
   'stocks.title': 'Bolsa de valores',
   'more.stocks': 'Bolsa de valores',
   'more.stocks.hint': 'Tus acciones y fondos, y cuánto valen hoy',
-  'more.stocks.count': '{count} posiciones en bolsa',
-  'more.stocks.count.one': '1 posición en bolsa',
+  'more.stocks.count': '{count} empresas y fondos en bolsa',
+  'more.stocks.count.one': '1 empresa o fondo en bolsa',
 
   'stocks.empty.title': 'Lleva aquí tus acciones y fondos',
   'stocks.empty.text': 'Importa el extracto de tu bróker (la plataforma donde compras acciones) y la app arma el historial de cada compra, cada venta y cada dividendo.',
@@ -87,7 +87,7 @@ export const STOCKS_ES = {
   'stocks.tile.dividends': 'Dividendos recibidos',
   'stocks.tile.realized': 'Ganancia de lo que vendiste',
   'stocks.tile.cash': 'Efectivo en el bróker',
-  'stocks.tile.held': 'Posiciones abiertas',
+  'stocks.tile.held': 'Empresas y fondos que tienes',
 
   'stocks.face.positions': 'Posiciones',
   'stocks.face.charts': 'Gráficos',
@@ -345,14 +345,17 @@ export const STOCKS_ES = {
   'stocks.photo.part.quantity': 'las unidades',
   'stocks.photo.part.price': 'el precio de compra',
   'stocks.photo.part.day': 'la fecha de compra',
+  'stocks.tile.lots': 'Compras que siguen abiertas',
+  'stocks.detail.lots': 'Compras que siguen abiertas',
+  'stocks.history.invested': 'invertido',
 } as const;
 
 export const STOCKS_EN: Record<keyof typeof STOCKS_ES, string> = {
   'stocks.title': 'Stock market',
   'more.stocks': 'Stock market',
   'more.stocks.hint': 'Your shares and funds, and what they are worth today',
-  'more.stocks.count': '{count} positions in the market',
-  'more.stocks.count.one': '1 position in the market',
+  'more.stocks.count': '{count} companies and funds in the market',
+  'more.stocks.count.one': '1 company or fund in the market',
 
   'stocks.empty.title': 'Keep your shares and funds here',
   'stocks.empty.text': 'Import the statement from your broker (the platform where you buy shares) and the app builds the history of every purchase, sale and dividend.',
@@ -427,7 +430,7 @@ export const STOCKS_EN: Record<keyof typeof STOCKS_ES, string> = {
   'stocks.tile.dividends': 'Dividends received',
   'stocks.tile.realized': 'Gain on what you sold',
   'stocks.tile.cash': 'Cash at the broker',
-  'stocks.tile.held': 'Open positions',
+  'stocks.tile.held': 'Companies and funds you hold',
 
   'stocks.face.positions': 'Positions',
   'stocks.face.charts': 'Charts',
@@ -686,4 +689,7 @@ export const STOCKS_EN: Record<keyof typeof STOCKS_ES, string> = {
   'stocks.photo.part.quantity': 'the units',
   'stocks.photo.part.price': 'the purchase price',
   'stocks.photo.part.day': 'the purchase date',
+  'stocks.tile.lots': 'Purchases still open',
+  'stocks.detail.lots': 'Purchases still open',
+  'stocks.history.invested': 'invested',
 };

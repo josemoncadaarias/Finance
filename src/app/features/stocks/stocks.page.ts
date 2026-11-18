@@ -45,6 +45,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { MainCurrencyService } from '../../core/currencies/main-currency.service';
 import { ReturnsChartComponent } from './returns-chart.component';
+import { FeedbackService } from '../../core/feedback/feedback.service';
 
 type Face = 'positions' | 'charts' | 'history';
 type HistoryFilter = 'all' | 'trades' | 'dividends' | 'cash' | 'sameDay';
@@ -112,6 +113,7 @@ export class StocksPage {
   private readonly database = inject(DatabaseService);
   private readonly flow = inject(StatementFlowService);
   private readonly toast = inject(ToastService);
+  private readonly feedback = inject(FeedbackService);
   private readonly location = inject(Location);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -413,7 +415,23 @@ export class StocksPage {
       : group === 'day' ? new Intl.DateTimeFormat(this.i18n.dateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(fromIsoDay(key))
         : key === '' ? this.i18n.t('stocks.history.noSymbol')
           : group === 'symbol' ? key : this.i18n.t(`stocks.kind.${key}` as 'stocks.kind.stock');
-    const list = [...sections.entries()].map(([key, trades]) => ({ key, title: title(key), trades }));
+    const assetOfKey = (key: string): AssetKind | null => (['stock', 'etf', 'crypto', 'other'] as const).find(kind => kind === key) ?? null;
+    const list = [...sections.entries()].map(([key, trades]) => {
+      // What a purchase took is money still invested, never money gone: it is said apart, with no sign.
+      const investedMinor = trades.filter(trade => trade.kind === 'buy').reduce((sum, trade) => sum + Math.abs(trade.amountMinor), 0);
+      const flowMinor = trades.filter(trade => trade.kind !== 'buy' && trade.kind !== 'split').reduce((sum, trade) => sum + trade.amountMinor, 0);
+      const counts = new Map<TradeKind, number>();
+      for (const trade of trades) counts.set(trade.kind, (counts.get(trade.kind) ?? 0) + 1);
+      const holds = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([kind, count]) => this.i18n.t(`stocks.import.kind.${kind}` as 'stocks.import.kind.buy', { count }));
+      const look = group === 'symbol'
+        ? (key === '' ? { icon: 'wallet-outline', color: '#2ec4b6', ticker: null } : { icon: null, color: colorOf(key), ticker: key.slice(0, 4) })
+        : group === 'asset'
+          ? (assetOfKey(key) !== null ? { icon: ASSET_ICON[assetOfKey(key) as AssetKind], color: ASSET_COLOR[assetOfKey(key) as AssetKind], ticker: null }
+            : { icon: key === '' ? 'wallet-outline' : 'help-outline', color: OTHERS, ticker: null })
+          : { icon: group === 'day' ? 'today-outline' : 'calendar-outline', color: '#6378ff', ticker: null };
+      return { key, title: title(key), trades, investedMinor, flowMinor, holds: holds.join(' · '), look };
+    });
     // By ticker or kind: the one with most movements first; what names no ticker last.
     if (group === 'symbol' || group === 'asset') list.sort((a, b) => (a.key === '' ? 1 : 0) - (b.key === '' ? 1 : 0) || b.trades.length - a.trades.length);
     return list;
@@ -626,6 +644,23 @@ export class StocksPage {
     return formatMoney(minor, currency);
   }
 
+  /**
+   * What a movement of the history shows as its figure. A purchase is the
+   * money invested, with no sign: it stays at the broker as shares (Jose,
+   * 2026-11-18). Money that came in or went out - a sale, a dividend, a
+   * withholding, a fee, a deposit - keeps its sign.
+   */
+  figureOf(trade: Trade): { text: string; tone: 'g' | 'r' | null; note: string | null } | null {
+    if (trade.kind === 'split') return null;
+    if (trade.kind === 'buy') {
+      return { text: this.money(Math.abs(trade.amountMinor), trade.currency), tone: null, note: this.i18n.t('stocks.history.invested') };
+    }
+    return { text: this.signed(trade.amountMinor, trade.currency), tone: trade.amountMinor > 0 ? 'g' : trade.amountMinor < 0 ? 'r' : null, note: null };
+  }
+
+  /** The purchases still open: every one counts, not one per company. */
+  readonly openLots = computed(() => this.held().reduce((sum, one) => sum + one.position.lots.length, 0));
+
   signed(minor: number, currency: string = this.currency()): string {
     const text = formatMoney(Math.abs(minor), currency);
     return amountsHidden() ? text : `${minor < 0 ? '−' : '+'}${text}`;
@@ -803,17 +838,22 @@ export class StocksPage {
     try {
       await textOfImages([file]);
       read = readPosition(lastPages);
+      this.feedback.noteRead({ position: read });
     } catch (problem) {
       this.toast.say(this.i18n.t(problem instanceof ReaderNotReady ? 'receipt.notReady' : 'stocks.photo.noText'), 7000, { icon: 'alert-circle' });
       return;
     }
     if (read.found.length === 0) {
-      this.toast.say(this.i18n.t('stocks.photo.nothing'), 8000, { icon: 'alert-circle' });
+      this.toast.say(this.i18n.t('stocks.photo.nothing'), 12_000, {
+        icon: 'alert-circle',
+        action: { label: this.i18n.t('receipt.report'), run: () => this.feedback.open('bug', true) },
+      });
       return;
     }
     await this.newTrade(read.symbol);
     if (this.editing() !== 'new') return;
     const plain = (value: number, scale: number): string => String(value / scale).replace('.', ',');
+    if (read.asset) this.formAsset.set(read.asset);
     if (read.day) this.formDay.set(read.day);
     if (read.currency) this.formCurrency.set(read.currency);
     if (read.quantityE8 !== null) this.formQuantity.set(plain(read.quantityE8, QUANTITY_SCALE));
@@ -825,7 +865,12 @@ export class StocksPage {
     const missing = (['symbol', 'quantity', 'price', 'day'] as const).filter(one => !read.found.includes(one))
       .map(one => this.i18n.t(`stocks.photo.part.${one}` as 'stocks.photo.part.symbol'));
     this.fromPhoto.set(missing.length === 0 ? this.i18n.t('stocks.photo.check') : this.i18n.t('stocks.photo.missing', { parts: missing.join(', ') }));
-    this.toast.say(this.i18n.t('stocks.photo.read'), 5000, { icon: 'camera-outline' });
+    // What the phone read is kept with what the app made of it, so "Reportar un fallo" can carry both.
+    this.feedback.noteRead({ position: read });
+    this.toast.say(this.i18n.t('stocks.photo.read'), 12_000, {
+      icon: 'camera-outline',
+      action: { label: this.i18n.t('receipt.report'), run: () => this.feedback.open('bug', true) },
+    });
   }
 
   async eraseAll(): Promise<void> {

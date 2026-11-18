@@ -15,7 +15,7 @@
 
 import type { IsoDate } from '../database/types';
 import type { OcrLine, OcrPage } from '../statements/ocr-items';
-import { NOT_A_TICKER, PRICE_SCALE, QUANTITY_SCALE, scaledOf } from './read-broker';
+import { NOT_A_TICKER, PRICE_SCALE, QUANTITY_SCALE, scaledOf, type AssetKind } from './read-broker';
 
 export interface PositionRead {
   symbol: string | null;
@@ -26,6 +26,8 @@ export interface PositionRead {
   amountMinor: number | null;
   day: IsoDate | null;
   currency: string | null;
+  /** The kind of asset, when the screen says it ("Acción", "ETF"). */
+  asset: AssetKind | null;
   /** The price on the day of the picture, when the screen says it. */
   currentE6: number | null;
   /** What was read off the picture, by name: the form says what to check. */
@@ -37,7 +39,7 @@ type Field = 'quantity' | 'price' | 'amount' | 'day' | 'current';
 /** The words of each thing, most telling first. Spanish and English; accents folded. */
 const LABELS: [Field, RegExp][] = [
   ['current', /\b(ultimo precio|precio actual|precio de mercado|last price|current price|market price)\b/],
-  ['price', /\b(precio de (apertura|compra|entrada)|precio promedio|precio medio|open(ing)? price|purchase price|buy price|entry price|average price|avg\.? price)\b/],
+  ['price', /\b(precio (medio |promedio )?de (la )?(apertura|compra|entrada|orden)|precio promedio|precio medio|open(ing)? price|order price|purchase price|buy price|entry price|average price|avg\.? price)\b/],
   ['day', /\b((fecha|hora|dia) de (apertura|compra|entrada)|abierta el|comprad[ao] el|open(ing)? (date|time)|purchase date|opened on|bought on)\b/],
   ['amount', /\b(valor de (apertura|compra)|importe invertido|monto invertido|invertido|inversion|invested|amount invested|open(ing)? value|purchase value|cost basis)\b/],
   ['quantity', /\b(acciones|unidades|volumen|cantidad|titulos|participaciones|shares|units|volume|quantity)\b/],
@@ -152,12 +154,31 @@ function tickerOf(blocks: readonly Block[]): string | null {
   }
   // "NVDA.US", or a line that is a ticker and nothing else (a tag beside it is let go).
   for (const block of blocks) {
-    const first = block.text.trim().split(/\s+/)[0];
-    if (/^[A-Z][A-Z0-9]{0,5}\.[A-Z]{2}$/.test(first)) return bare(first);
+    // "NVDA.US, NVIDIA Corp": any word of the line, its punctuation left out
+    // (a name printed over it may have been joined to the same block).
+    for (const raw of block.text.trim().split(/\s+/)) {
+      const word = raw.replace(/[,;:()]+/g, '');
+      if (/^[A-Z][A-Z0-9]{0,5}\.[A-Z]{2}$/.test(word)) return bare(word);
+    }
   }
   for (const block of blocks) {
     const words = block.text.trim().split(/\s+/);
     if (words.length <= 2 && fits(words[0]) && words[0].length >= 2 && (words.length === 1 || !/^[A-Za-z]{3,}$/.test(words[1]))) return words[0];
+  }
+  return null;
+}
+
+/** "Acción", "ETF", "Cripto": said on the screen as a word of its own. */
+function assetOf(blocks: readonly Block[]): AssetKind | null {
+  for (const block of blocks) {
+    for (const word of fold(block.text).split(/[^a-z0-9]+/)) {
+      if (word === 'etf' || word === 'etfs') return 'etf';
+      if (word === 'accion' || word === 'acciones' || word === 'stock' || word === 'stocks' || word === 'share' || word === 'shares') {
+        // "Acciones 0.848395" is the count of units, not the kind.
+        if (numberIn(block.text) === null) return 'stock';
+      }
+      if (word === 'cripto' || word === 'crypto' || word === 'criptomoneda' || word === 'cryptocurrency') return 'crypto';
+    }
   }
   return null;
 }
@@ -207,7 +228,7 @@ export function readPosition(pages: readonly OcrPage[]): PositionRead {
   const current = plain('current');
 
   return {
-    symbol, quantityE8, priceE6: priceE6 !== null && priceE6 > 0 ? priceE6 : null, amountMinor, day,
+    symbol, quantityE8, priceE6: priceE6 !== null && priceE6 > 0 ? priceE6 : null, amountMinor, day, asset: assetOf(blocks),
     currency: code ? code[1] : /\$/.test(all) ? 'USD' : null,
     currentE6: current !== null ? scaledOf(current, PRICE_SCALE) : null,
     found,
