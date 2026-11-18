@@ -11,10 +11,13 @@
     <app-ask-button></app-ask-button>
   </header>
 
-  <div class="ui-main plan">
+  <div class="ui-main plan ui-split">
     @if (debts() === null) {
       <div class="loading"><ion-spinner name="crescent"></ion-spinner></div>
     } @else if (plan(); as p) {
+      <!-- Sideways the question and its answer stay on the left, the bars and
+           the order on the right (58f); in portrait this wrapper is not drawn. -->
+      <div class="ui-side ui-side-stack">
       <!-- How much more each month: the app suggests, the person decides. -->
       <div class="ui-list" data-tour="plan-extra">
         <label class="ui-field">
@@ -76,6 +79,8 @@
           <span>{{ (referenced().length === 1 ? 'ui.plan.reference' : 'ui.plan.referenceMany') | t:{ name: referenced()[0].name, names: referencedNames(), rate: rate(referenced()[0].rateScaled) } }}
             <b>{{ (referenced().length === 1 ? 'ui.plan.reference.set' : 'ui.plan.reference.setFirst') | t:{ name: referenced()[0].name } }}</b></span></button>
       }
+
+      </div>
 
       @if (!single() && !p.endless) {
         <div class="ui-card bars">

@@ -399,7 +399,7 @@ ion-content.chat {
 .ui-sheet-body > .ui-btn { width: 100%; margin-top: 12px; }
 
 /* Sideways: the conversation at a width that reads as one, centred. */
-:host-context(body.wide) {
+:host-context(body.cols) {
   .chat .ui-main { max-width: 760px; margin-inline: auto; }
   .compose-bar { padding-inline: max(16px, calc((100% - 760px) / 2)); }
 }

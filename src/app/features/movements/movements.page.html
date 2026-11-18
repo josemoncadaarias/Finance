@@ -76,7 +76,7 @@
           </div>
         }
         @case ('faces') {
-          @if (layout.wide()) {
+          @if (layout.cols()) {
             <!-- Sideways (58a): the chart and the list at once, each its own column. -->
             @if (view.shown('home.chart')) { <div class="chart-slot"><ng-container *ngTemplateOutlet="chartBlock"></ng-container></div> }
             @if (view.shown('home.list')) {
@@ -211,7 +211,7 @@
         }
         </div>
 
-        @if (!layout.wide()) {
+        @if (!layout.cols()) {
         <button type="button" class="fold-less" (click)="setSummary(false)" [attr.aria-expanded]="true">
           {{ 'home.fold.less' | t }}<ion-icon name="chevron-up-outline"></ion-icon>
         </button>

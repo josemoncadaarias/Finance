@@ -2772,6 +2772,8 @@ app-amounts-eye.corner { position: absolute; top: 12px; right: 12px; }
  * (`:host-context(body.wide)`). Nothing here changes a portrait phone.
  */
 body { --app-rail: 76px; }
+/* A wrapper that only exists for the sideways columns. */
+.ui-side-stack { display: contents; }
 body.wide {
   ion-app {
     max-width: 1180px;
@@ -2816,7 +2818,14 @@ body.wide {
      Bolsa): the card stays on the left while the rest scrolls on the right
      (58e-58j). Marked in the page: `ui-split` on its main, `ui-side` on the
      card; with no card on show (empty, loading) nothing changes. */
-  .ui-split:has(> .ui-side) {
+  /* Several pieces on the left (the summary and a plan): stacked. */
+  &.cols .ui-split > .ui-side.ui-side-stack { display: flex; flex-direction: column; gap: 10px; }
+
+  /* While a form is open on the right, the page moves into the space left of
+     it (a phone's width), so the list it was opened from stays in view. */
+  &.panel ion-router-outlet#main { right: min(34rem, 64%); }
+
+  &.cols .ui-split:has(> .ui-side) {
     display: grid;
     grid-template-columns: minmax(290px, 40%) minmax(0, 1fr);
     column-gap: 14px;
@@ -2829,6 +2838,10 @@ body.wide {
       position: sticky;
       top: 12px;
       margin-top: 0;
+      max-height: calc(100dvh - 84px - var(--ion-safe-area-top, 0px));
+      overflow-y: auto;
+      scrollbar-width: none;
+      &::-webkit-scrollbar { display: none; }
       /* A narrower card than portrait: the figures step down a size and
          never wrap, so "$" stays with its number. */
       .ui-big { font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2843,5 +2856,7 @@ body.wide {
     --max-width: 34rem;
     --border-radius: 22px 0 0 22px;
     justify-content: flex-end;
+    /* The page beside it is the context, not something to hide. */
+    --backdrop-opacity: 0.18;
   }
 }

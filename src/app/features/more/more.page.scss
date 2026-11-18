@@ -45,7 +45,7 @@ small.late { color: var(--app-red) !important; }
 /* Sideways (58k): the groups in two columns, every row in view with little
    scrolling. The Google card and Finance Pro stay across the width; a group's
    heading never ends a column away from its rows. */
-:host-context(body.wide) {
+:host-context(body.cols) {
   .ui-main { column-count: 2; column-gap: 14px; }
   .ui-hero, .ui-pro-card { column-span: all; }
   .ui-h { break-after: avoid; }

@@ -213,7 +213,7 @@
    The header is one row: the account, the period, the assistant. The three
    blocks are columns; the balance and the chart stay in view while the list
    scrolls (sticky), each scrolling by itself if taller than the screen. */
-:host-context(body.wide) {
+:host-context(body.cols) {
   .ui-header {
     display: flex;
     align-items: center;

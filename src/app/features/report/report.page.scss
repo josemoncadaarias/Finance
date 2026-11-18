@@ -307,7 +307,7 @@
    The title, the two faces, the account and the period on one row; under it
    the headline figures across the width and every other section in two
    columns that fill like a wall (each section whole in one column). */
-:host-context(body.wide) {
+:host-context(body.cols) {
   .report-top {
     display: flex;
     align-items: center;
