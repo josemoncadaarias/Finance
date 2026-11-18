@@ -12,7 +12,7 @@
     <app-ask-button></app-ask-button>
   </div>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     <app-accounts-faces on="balances"></app-accounts-faces>
 
     @if (status() === 'opening') {
@@ -32,7 +32,7 @@
         </button>
       </div>
     } @else {
-      <section class="ui-hero worth">
+      <section class="ui-hero worth ui-side">
         <!-- The label and the eye share the top line, so the figure and the two
              tiles under it have the card's whole width (Jose, 2026-10-15). -->
         <div class="top">

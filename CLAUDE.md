@@ -251,6 +251,12 @@ the cover line is short, and a notice tapped over a form in progress opens
 (2026-11-18, #328, "How to work"; to go in the next closed-testing release
 with the tester's comment).
 
+**The phone held sideways (2026-11-18)**: a rail on the left instead of the
+floating bar, Inicio in three columns, the Reporte as a board, a summary
+card beside its list on Cuentas, Deudas, Rendimientos and Bolsa, Más in two
+columns, the movement form as a panel on the right - see "The phone held
+sideways" under "How to work". Drawn first as mockups `58a`-`58l`.
+
 **Bolsa de valores, first part (2026-11-12)**: a broker's statement read
 into purchases, sales and dividends, positions with their value, charts, and
 today's prices through a Google Sheet of the person's own - see "Bolsa de
@@ -333,6 +339,36 @@ could not prove.
   under the period instead of 46 %. Home tour step `since: 21`. Checked in a
   browser on the sample data (all accounts and a card, folded and open, dark
   and light, kept after a reload); not on the phone.
+- **The phone held sideways** (Jose, 2026-11-18, after a video of Lukas;
+  mockups `58a`-`58l`; "comienza por las que tú consideres"). Before it, a
+  sideways phone showed the 480px phone column in the middle (the rule for
+  browsers, `@media (min-width: 34rem)` in global.scss). Now
+  `LayoutService` (`core/ui/layout.service.ts`) answers `wide()` - sideways
+  and at least 640px wide (`WIDE_QUERY`) - and puts `wide` on the body, so a
+  stylesheet writes `:host-context(body.wide)` and never repeats the query.
+  Sideways: the app takes the whole width (up to 1180px); the floating bar is
+  a rail on the left of `--app-rail` (76px) with the "+" in the middle
+  (`tab-bar.component.ts`), and every page starts right of it (none when the
+  bar is put away: the assistant); bottom sheets are 36rem wide and centred;
+  the movement form and every `entry-sheet` editor open as a panel on the
+  right (`min(34rem, 64%)`), what was tapped still in view. **Inicio**: the
+  header is one row (account, period, assistant); the balance card always
+  open (`cardOpen`), the chart and the list each a column at once (the
+  faces template split into `#chartBlock` and `#listBlock`), the first two
+  sticky while the list scrolls. **Reporte**: one header row (no title - the
+  rail says it), every section open, the headline figures across the width
+  and the rest in two columns (CSS columns). **Cuentas, Deudas,
+  Rendimientos, Bolsa**: `ui-split` on the page's main and `ui-side` on its
+  summary card put the card on the left, sticky, the rest on the right
+  (global.scss; with no card on show nothing changes). **Más**: two columns.
+  **Asistente**: the conversation 760px wide, centred. Portrait is
+  unchanged (compared in a browser at 412x915). Home tour step "Gira el
+  celular" `since: 23`. Checked in a browser at 915x412 on the sample data;
+  **not on the phone** (Android rotates the app by itself: the manifest
+  fixes no orientation). Not done yet, from the mockups: an account's
+  detail beside the list on Cuentas (58e), the debts plan beside the list
+  (58f), Por revisar's form beside the rows (58h, today the form opens as
+  the right panel over the list), Presupuestos.
 - **Three fixes from Jose's phone, 2026-11-10** (#312; branch
   `claude/receipt-detection-category-bugs-8dqf67`; to name as feedback a
   tester writes in the Play Store).
@@ -8173,7 +8209,7 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Bolsa de valores: a free, licensed source of daily price history,
       so the return chart follows the market between purchases - to look
       for together.
-- [ ] The app held sideways (mockups `58a`-`58l`, 2026-11-18): say which screens to build and whether the rail on the left reads well. Today the app does not lock its orientation (no `screenOrientation` in the manifest), so sideways it shows the portrait column stretched.
+- [ ] The app held sideways (built 2026-11-18, first part): turn the phone on Inicio, the Reporte, Cuentas, Deudas, Bolsa and Más and say what reads wrong, and whether the rail on the left reads well.
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
       down on narrow phones was proposed and not built.

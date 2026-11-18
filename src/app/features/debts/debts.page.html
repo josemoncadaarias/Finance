@@ -8,11 +8,11 @@
     <app-ask-button></app-ask-button>
   </div>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     <app-accounts-faces on="debts"></app-accounts-faces>
 
     @if (cards(); as cards) {
-      <section class="ui-hero owed">
+      <section class="ui-hero owed ui-side">
         <div class="top">
           <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
           <app-amounts-eye></app-amounts-eye>

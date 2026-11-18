@@ -2785,6 +2785,8 @@ body.wide {
     width: auto;
     right: 0;
   }
+  /* A screen that puts the bar away (the assistant) has no rail either. */
+  &:has(app-tab-bar.away) ion-router-outlet#main { left: 0; }
 
   /* No floating bar to scroll clear of: only the phone's own inset. */
   ion-router-outlet > .ion-page > ion-content {
@@ -2809,6 +2811,30 @@ body.wide {
     &.tall { --height: 96%; }
   }
   ion-modal.editor-sheet { --max-width: 34rem; }
+
+  /* A screen with a summary card on top (Cuentas, Deudas, Rendimientos,
+     Bolsa): the card stays on the left while the rest scrolls on the right
+     (58e-58j). Marked in the page: `ui-split` on its main, `ui-side` on the
+     card; with no card on show (empty, loading) nothing changes. */
+  .ui-split:has(> .ui-side) {
+    display: grid;
+    grid-template-columns: minmax(290px, 40%) minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 0;
+    align-items: start;
+    > * { grid-column: 2; }
+    > .ui-side {
+      grid-column: 1;
+      grid-row: 1 / span 99;
+      position: sticky;
+      top: 12px;
+      margin-top: 0;
+      /* A narrower card than portrait: the figures step down a size and
+         never wrap, so "$" stays with its number. */
+      .ui-big { font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sides b, .kinds b, .ui-mini b { font-size: 14.5px; white-space: nowrap; }
+    }
+  }
 
   /* The movement form opens as a panel on the right (58b): what was tapped
      stays in view on the left, dimmed, and the form is never 900px wide. */

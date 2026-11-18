@@ -13,7 +13,7 @@
     <app-ask-button></app-ask-button>
   </header>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     @if (!stocks.loaded()) {
       <div class="waiting"><ion-spinner name="crescent"></ion-spinner></div>
     } @else if (stocks.trades().length === 0) {
@@ -39,7 +39,7 @@
       <!-- What it is all worth today, or what was paid while there are no prices. One figure, one line of gain,
            the state of the prices; the rest opens on a tap (Jose, 2026-11-12: "muy colapsada de tanta info"). -->
       @if (total(); as sum) {
-        <section class="ui-hero" data-tour="stocks-hero">
+        <section class="ui-hero ui-side" data-tour="stocks-hero">
           <app-amounts-eye class="corner"></app-amounts-eye>
           <div class="ui-lab">{{ (priced() ? 'stocks.hero.value' : 'stocks.hero.invested') | t }}</div>
           <div class="ui-big">{{ money(sum.valueMinor) }}</div>
