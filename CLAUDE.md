@@ -7954,7 +7954,7 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   - 32 tests in `stocks.test.mjs`; checked in a browser on the sample data
     (hero, detail, prices sheet, history by month and by ticker, search,
     the "+", the form, the currency sheet, Más). Not seen on the phone.
-- **Third round, from the phone (2026-11-18)**:
+- **Third round, from the phone (2026-11-18; merged as #330)**:
   - **The history's groups look like Inicio's** (`.ui-group`, a head row
     per month, day, ticker or kind of asset, with its badge - the ticker's
     own circle by ticker -, what it holds in words, "3 compras · 2
