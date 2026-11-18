@@ -13,7 +13,7 @@
     <app-ask-button></app-ask-button>
   </header>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     <div class="ui-seg faces">
       <button type="button" [class.on]="face() === 'limits'" (click)="face.set('limits')">
         <ion-icon name="speedometer-outline"></ion-icon>{{ 'plans.face.limits' | t }}
@@ -61,7 +61,7 @@
       } @else {
         <!-- 15c -->
         @if (goals.inCourse().length > 0) {
-          <section class="ui-hero total">
+          <section class="ui-hero total ui-side">
             <span class="ui-lab">{{ 'goals.total.label' | t }}</span>
             <div class="ui-big">{{ money(goals.totals().saved) }} <small>{{ 'plans.of' | t:{ amount: money(goals.totals().amount) } }}</small></div>
             <span class="gbar"><i [style.width.%]="goalsPercent()"></i></span>
@@ -131,7 +131,7 @@
       @let total = view().total!;
       @if (total.state === 'passed') {
         <!-- Every limit together went over (14l). -->
-        <section class="ui-hero red total">
+        <section class="ui-hero red total ui-side">
           <div class="head"><ion-icon name="warning-outline"></ion-icon><span class="ui-lab">{{ 'plans.total.passed.label' | t }}</span></div>
           <div class="ui-big ui-r">$ {{ money(total.overMinor) }} <small>{{ 'plans.over' | t }}</small></div>
           <app-limit-bar class="big" [percent]="ratio(total)" state="passed"></app-limit-bar>
@@ -149,7 +149,7 @@
         </section>
       } @else if (worst(); as w) {
         <!-- One limit, or several, went over; the total did not (14g). -->
-        <section class="ui-hero red">
+        <section class="ui-hero red ui-side">
           <div class="head">
             <ion-icon name="alert-circle"></ion-icon>
             <span class="ui-lab">
@@ -174,7 +174,7 @@
         </section>
       } @else {
         <!-- Every limit together (14c). -->
-        <section class="ui-hero total">
+        <section class="ui-hero total ui-side">
           <span class="ui-lab">{{ 'plans.total.label' | t }}</span>
           <div class="ui-big">{{ money(total.spentMinor) }} <small>{{ 'plans.of' | t:{ amount: money(total.amountMinor) } }}</small></div>
           <app-limit-bar class="big" [percent]="ratio(total)" [state]="total.state"></app-limit-bar>

@@ -171,3 +171,6 @@ app-accounts-faces { margin-bottom: 12px; }
     cursor: pointer;
   }
 }
+
+/* Sideways: the account shown beside the list is lit in it (58e). */
+.ui-row.account.chosen { background: rgba(var(--app-pr-rgb), 0.14); box-shadow: inset 3px 0 0 var(--app-pr); }

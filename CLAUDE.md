@@ -253,8 +253,9 @@ with the tester's comment).
 
 **The phone held sideways (2026-11-18)**: a rail on the left instead of the
 floating bar, Inicio in three columns, the Reporte as a board, a summary
-card beside its list on Cuentas, Deudas, Rendimientos and Bolsa, Más in two
-columns, the movement form as a panel on the right - see "The phone held
+card beside its list on Cuentas, Deudas, Rendimientos, Bolsa and
+Presupuestos, an account's detail beside Cuentas' list, Más in two
+columns, the movement form as a panel on the right with its page beside it - see "The phone held
 sideways" under "How to work". Drawn first as mockups `58a`-`58l`.
 
 **Bolsa de valores, first part (2026-11-12)**: a broker's statement read
@@ -344,8 +345,15 @@ could not prove.
   sideways phone showed the 480px phone column in the middle (the rule for
   browsers, `@media (min-width: 34rem)` in global.scss). Now
   `LayoutService` (`core/ui/layout.service.ts`) answers `wide()` - sideways
-  and at least 640px wide (`WIDE_QUERY`) - and puts `wide` on the body, so a
-  stylesheet writes `:host-context(body.wide)` and never repeats the query.
+  and at least 640px wide (`WIDE_QUERY`) - and puts classes on the body, so
+  a stylesheet never repeats the query: `wide` (the rail, sheets, forms as a
+  panel), `panel` while an `entry-sheet` modal is open on the right (read
+  from Ionic's `ionModalWillPresent`/`WillDismiss`, which bubble), and
+  `cols` = wide and no panel - **page columns are written under
+  `:host-context(body.cols)`**, so with a form open the page moves into the
+  space left of it (`body.wide.panel` sets the outlet's `right`) and reads
+  as a phone again, the list it was opened from in view (Por revisar's rows
+  beside "Revisar movimiento", 58h).
   Sideways: the app takes the whole width (up to 1180px); the floating bar is
   a rail on the left of `--app-rail` (76px) with the "+" in the middle
   (`tab-bar.component.ts`), and every page starts right of it (none when the
@@ -360,15 +368,28 @@ could not prove.
   and the rest in two columns (CSS columns). **Cuentas, Deudas,
   Rendimientos, Bolsa**: `ui-split` on the page's main and `ui-side` on its
   summary card put the card on the left, sticky, the rest on the right
-  (global.scss; with no card on show nothing changes). **Más**: two columns.
+  (global.scss; with no card on show nothing changes); several pieces on
+  the left are wrapped in `ui-side ui-side-stack`, a wrapper drawn only
+  sideways (`display: contents` otherwise). **Cuentas**: an account tapped
+  shows beside the list instead of opening Inicio (`account-detail.component.ts`:
+  balance, what came in and left this month, the close of each of the last 6
+  months from `core/accounts/balance-months.ts` - worked back from today's
+  balance, `balance-months.test.mjs` -, its 5 latest movements, "Ver todos
+  sus movimientos en Inicio", "Editar la cuenta", X back to net worth), the
+  row lit. **Deudas**: the summary and "Salir de tus deudas" on the left;
+  the plan page keeps the extra, the two orders and the answer on the left,
+  the bars and the order on the right. **Presupuestos**: the month's summary
+  card (or the red one of a cap passed, or the goals' total) on the left.
+  **Más**: two columns.
   **Asistente**: the conversation 760px wide, centred. Portrait is
   unchanged (compared in a browser at 412x915). Home tour step "Gira el
-  celular" `since: 23`. Checked in a browser at 915x412 on the sample data;
-  **not on the phone** (Android rotates the app by itself: the manifest
-  fixes no orientation). Not done yet, from the mockups: an account's
-  detail beside the list on Cuentas (58e), the debts plan beside the list
-  (58f), Por revisar's form beside the rows (58h, today the form opens as
-  the right panel over the list), Presupuestos.
+  celular" `since: 23`. Checked in a browser at 915x412 on the sample data
+  (each screen above, a form opened from Inicio and from Por revisar) and
+  portrait at 412x915 (Inicio, Reporte, Cuentas, Deudas, the plan,
+  Presupuestos unchanged); **not on the phone** (Android rotates the app by
+  itself: the manifest fixes no orientation). Not built from the mockups:
+  the assistant's answer as a big card beside the chat (58i) and the "+"
+  in two columns (58l) - the "+" is a centred sheet 36rem wide.
 - **Three fixes from Jose's phone, 2026-11-10** (#312; branch
   `claude/receipt-detection-category-bugs-8dqf67`; to name as feedback a
   tester writes in the Play Store).
@@ -652,7 +673,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1268 on 2026-11-18, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1272 on 2026-11-18, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -8209,7 +8230,7 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Bolsa de valores: a free, licensed source of daily price history,
       so the return chart follows the market between purchases - to look
       for together.
-- [ ] The app held sideways (built 2026-11-18, first part): turn the phone on Inicio, the Reporte, Cuentas, Deudas, Bolsa and Más and say what reads wrong, and whether the rail on the left reads well.
+- [ ] The app held sideways (built 2026-11-18): turn the phone on Inicio, the Reporte, Cuentas (tap an account), Deudas and its plan, Presupuestos, Bolsa, Más and Por revisar (open a movement) and say what reads wrong, and whether the rail on the left reads well.
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
       down on narrow phones was proposed and not built.

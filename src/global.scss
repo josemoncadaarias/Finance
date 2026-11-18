@@ -2845,6 +2845,8 @@ body.wide {
       /* A narrower card than portrait: the figures step down a size and
          never wrap, so "$" stays with its number. */
       .ui-big { font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      /* What follows the figure ("COP", "de 106.000.000") gets a line of its own. */
+      .ui-big small { display: block; margin-top: 2px; white-space: normal; }
       .sides b, .kinds b, .ui-mini b { font-size: 14.5px; white-space: nowrap; }
     }
   }
