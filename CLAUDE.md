@@ -495,17 +495,24 @@ could not prove.
     show when the form began to close (`willDismiss`) and, if another one was
     set meanwhile, opens it once the old one is gone (`entryClosed` in
     `compose-host.component.ts`). What was being typed is still lost.
-  - **"Nuevo saldo" under each end** once an amount is typed: one line across
-    the whole row, the name left and the figure right, red when it goes below
-    zero (`afterLine` in `entry.component.ts`, pure `balanceAfter` in
-    `core/yields/balance-after.ts`, `balance-after.test.mjs`). Which figure, by
-    "¿Qué cambia?": a split account's product for "Producto y patrimonio" and
-    "Solo el producto" ("Nuevo saldo de {producto}"), the account's balance
-    for "Solo el patrimonio" ("Nuevo saldo de la cuenta") and for an account
-    with one product or none; a card says "Nueva deuda" or "Nuevo saldo a
-    favor"; a transfer shows both ends; a cover switched on counts what it
-    moves in. Not on a correction, several at once or a loan's payment. The
-    income's "Saldo actual" line shows only while no amount is typed.
+  - **Each end of the form redrawn to use its space, with its balance**
+    (Jose, the same day: a band across the row "desperdicia mucho"; "re
+    distribuir todos los controles"). "Desde"/"Hacia" is no longer a column
+    the whole height of the end: it is a small caption on top, as
+    "Categoría", with "Saldo" (no amount yet) or "Nuevo saldo" (once typed) at
+    the right of that caption row; the account and its product take the
+    whole width, and the figure sits at the right of the line it belongs to -
+    beside the product when the product moves, beside the account when the
+    account's balance does - red below zero; each line has its own chevron.
+    Which figure, by "¿Qué cambia?" (`afterLine` in `entry.component.ts`,
+    pure `balanceAfter` in `core/yields/balance-after.ts`,
+    `balance-after.test.mjs`): a split account's product for "Producto y
+    patrimonio" and "Solo el producto"; the account for "Solo el patrimonio"
+    and for an account with one product or none; a card says "Deuda" /
+    "Nueva deuda" (or "Saldo a favor"); a transfer, both ends; a cover
+    switched on counts what it moves in. Not on a correction, several at
+    once or a loan's payment. The income's "Saldo actual" line under the
+    amount is gone (the end says it).
   - **The cover line is one short line**: "Cubrir con {bolsillo}" / "Se cubre
     con..." / "{producto} quedaría en negativo", an (i) with the whole
     explanation, and its switch. Entry tour: step 6 reworded and a new step 8,

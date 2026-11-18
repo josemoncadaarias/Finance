@@ -1263,11 +1263,10 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   readonly afterLine = computed(() => ({ from: this.afterOf('from'), to: this.afterOf('to') }));
 
-  private afterOf(side: 'from' | 'to'): { label: string; amount: string; negative: boolean } | null {
+  private afterOf(side: 'from' | 'to'): { caption: string; amount: string; negative: boolean; fresh: boolean; on: 'account' | 'product' } | null {
     if (this.isEditing() || this.many() || this.loanEntry() || this.request().loan) return null;
     if (side === 'to' && !this.isTransfer()) return null;
-    const minor = side === 'to' && this.crossesCurrency() ? this.targetAmount().minor : this.amount().minor;
-    if (minor <= 0) return null;
+    const minor = Math.max(0, side === 'to' && this.crossesCurrency() ? this.targetAmount().minor : this.amount().minor);
     const account = side === 'to' ? this.toAccount() : this.account();
     const figures = side === 'to' ? this.endFigures().to : this.endFigures().from;
     if (!account || !figures || figures.accountId !== account.id) return null;
@@ -1279,7 +1278,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     const leaves = side === 'from' && (this.isTransfer() || this.kind() === 'expense');
     let change = leaves ? -minor : minor;
     // Covered from another product: the one money leaves gets what was missing.
-    const cover = side === 'from' ? this.coverToWrite() : null;
+    const cover = side === 'from' && minor > 0 ? this.coverToWrite() : null;
     if (cover && cover.toProductId === productId) change += cover.amountMinor;
     const after = balanceAfter({
       scope,
@@ -1289,19 +1288,23 @@ export class EntryComponent implements OnInit, OnDestroy {
       changeMinor: change,
     });
     if (!after) return null;
+    // Before an amount is typed, today's figure; then what it becomes.
+    const fresh = minor > 0;
     const code = side === 'to' ? this.targetCurrency() : this.currency();
     const money = formatMoney(Math.abs(after.minor), code).replace(/ /g, '\u00a0');
-    const signed = `${after.minor < 0 ? '\u2212\u2060' : ''}${money}`;
+    const on: 'account' | 'product' = after.of === 'product' && products.length > 1 ? 'product' : 'account';
     if (account.type === 'credit' && after.of === 'account') {
-      return after.minor > 0
-        ? { label: this.i18n.t('ui.entry.after.favor'), amount: money, negative: false }
-        : { label: this.i18n.t('ui.entry.after.debt'), amount: money, negative: false };
+      const favor = after.minor > 0;
+      const key = favor ? (fresh ? 'ui.entry.after.favor' : 'ui.entry.now.favor') : (fresh ? 'ui.entry.after.debt' : 'ui.entry.now.debt');
+      return { caption: this.i18n.t(key), amount: money, negative: false, fresh, on };
     }
-    const name = this.productOf(products, productId)?.name ?? '';
-    const key = after.of === 'product' ? 'ui.entry.after.of'
-      : products.length > 0 ? 'ui.entry.after.account' : 'ui.entry.after';
-    return { label: this.i18n.t(key, { name }), amount: signed, negative: after.minor < 0 };
+    return {
+      caption: this.i18n.t(fresh ? 'ui.entry.after' : 'ui.entry.now'),
+      amount: `${after.minor < 0 ? '\u2212\u2060' : ''}${money}`,
+      negative: after.minor < 0, fresh, on,
+    };
   }
+
 
   private readonly limitsService = inject(LimitsService);
 

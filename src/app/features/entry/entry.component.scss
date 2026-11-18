@@ -158,27 +158,24 @@
 .ends { overflow: visible; }
 
 .end {
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 12px 14px;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 14px 12px;
+  gap: 6px;
 
-  .side {
-    width: 52px;
-    flex: none;
-    color: var(--app-mu);
-    font-size: 14.5px;
-  }
-
-  .what {
-    flex: 1;
-    min-width: 0;
+  /* "Desde" left, "Saldo" / "Nuevo saldo" right: small captions, as "Categoría". */
+  .cap {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--app-mu);
+    font-size: 12.5px;
+    line-height: 1.2;
   }
+  .cap-r { text-align: right; }
 
-  .acc, .prod {
+  .line {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -193,29 +190,38 @@
     width: 100%;
   }
 
-  .acc b {
-    font-size: 16px;
+  .name { flex: 1; min-width: 0; }
+  .acc .name { font-size: 16px; font-weight: 600; }
+
+  /* The figure that belongs to this line, on its right. */
+  .fig {
+    flex: none;
+    font-size: 15px;
     font-weight: 600;
-    min-width: 0;
+    color: var(--app-mu);
+    font-variant-numeric: tabular-nums;
+    &.fresh { color: var(--app-tx); }
+    &.neg { color: var(--app-red); }
   }
+
+  .chev { flex: none; font-size: 16px; color: var(--app-mu); }
 
   /* The product hangs from its account: a line comes down from the circle
      and turns into it, indented, smaller and lighter. */
   .prod {
     position: relative;
     padding-left: 34px;
-    color: var(--app-mu2, var(--app-mu));
     font-size: 15px;
-
-    .ui-one { min-width: 0; color: var(--app-tx2, #c7cfdd); }
+    .name { color: var(--app-tx2, #c7cfdd); }
+    .fig { font-size: 14px; }
   }
 
   .hang {
     position: absolute;
     left: 13px;
-    top: -6px;
+    top: -8px;
     width: 14px;
-    height: 18px;
+    height: 20px;
     border-left: 2px solid var(--app-s3);
     border-bottom: 2px solid var(--app-s3);
     border-bottom-left-radius: 8px;
@@ -223,25 +229,7 @@
 
   .ui-info { flex: none; }
 
-  /* What this end holds once saved: a line of its own across the whole row. */
-  .after {
-    flex-basis: 100%;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 2px;
-    padding: 8px 12px;
-    border-radius: 12px;
-    background: var(--app-s2);
-    font-size: 13.5px;
-    color: var(--app-mu);
-    .ui-one { min-width: 0; }
-    b { flex: none; color: var(--app-tx); font-weight: 600; font-variant-numeric: tabular-nums; }
-    &.neg { background: rgba(var(--app-red-rgb), 0.12); b { color: var(--app-red); } }
-  }
-
-  &.needed .acc b { color: var(--app-yel); }
+  &.needed .acc .name { color: var(--app-yel); }
 }
 
 /* "Invertir": a round button on the line between the two ends. */
@@ -500,8 +488,8 @@
 .loan-warn { color: var(--app-yel); font-size: 13px; line-height: 1.4; margin: 8px 4px 0; }
 
 /* ¿Qué cambia? inside one end of a transfer between two accounts (17b). */
-.end .what .scope-chip {
-  align-self: flex-start; margin: 7px 0 2px 2px; padding: 4px 10px 4px 7px; gap: 6px;
+.end .scope-chip {
+  align-self: flex-start; margin: 2px 0 0 38px; padding: 4px 10px 4px 7px; gap: 6px;
   display: inline-flex; align-items: center; max-width: 100%;
   font-size: 12.8px; color: #c9b8ff; background: rgba(155, 123, 255, .14); border: 1px solid rgba(155, 123, 255, .35);
   ion-icon { font-size: 15px; flex: none; }
