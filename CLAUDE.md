@@ -616,7 +616,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1268 on 2026-11-18, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1269 on 2026-11-18, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -7897,6 +7897,35 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   - 32 tests in `stocks.test.mjs`; checked in a browser on the sample data
     (hero, detail, prices sheet, history by month and by ticker, search,
     the "+", the form, the currency sheet, Más). Not seen on the phone.
+- **Third round, from the phone (2026-11-18)**:
+  - **The history's groups look like Inicio's** (`.ui-group`, a head row
+    per month, day, ticker or kind of asset, with its badge - the ticker's
+    own circle by ticker -, what it holds in words, "3 compras · 2
+    dividendos", and its figure; inside a ticker's group the rows say only
+    the kind).
+  - **A purchase has no sign** (Jose: the money is still at the broker as
+    shares): its figure is the money invested with "invertido" under it,
+    in the history, a position's page and a row's sheet (`figureOf`). A
+    sale, a dividend, a withholding, a fee or a deposit keeps its sign. A
+    group's figure is what its purchases invested, or else the signed sum
+    of the rest.
+  - **"Posiciones abiertas" said 18 on his eToro file** - the 18 companies
+    and funds held, while he counts operations. Now the detail says both:
+    "Empresas y fondos que tienes" and "Compras que siguen abiertas" (the
+    open lots, `openLots`; 80 on his eToro file, 27 on his XTB statement),
+    and a position's page says its own open purchases. Más's row says
+    "empresas y fondos en bolsa".
+  - **A position read from a computer's screen** (his XTB desktop detail:
+    four columns, each label over its value): "Precio de orden" is a
+    purchase price now, a ticker followed by a comma ("NVDA.US, NVIDIA
+    Corp") or joined to the name printed over it is found, and "Acción" /
+    "ETF" / "Cripto" sets the kind of asset. Test on an invented screen of
+    that shape. **What the phone read last time** (0,2792 units at 179,08,
+    9 Nov) are exactly the figures of his EARLIER mobile screenshot, not of
+    the desktop one; why that picture was read is not known (assumed: the
+    other image was chosen from the gallery). The photo's notice now offers
+    "Reportar un fallo" with what the phone read (`noteRead`), so the next
+    misread is replayed instead of guessed.
 - **Not built yet** (to offer Jose, in this order): seeing one broker at a
   time when there are several (today all are one book; a ticker held at two
   brokers is one position); the assistant's questions about it; a returns

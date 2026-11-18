@@ -181,3 +181,11 @@
 .ui-titlebar h1 .ui-pro { margin-left: 8px; }
 
 .ui-sheet-body .ui-row b::first-letter { text-transform: uppercase; }
+
+/* The history's groups, as Inicio draws its days and categories. */
+.history-group {
+  margin-top: 10px;
+  > .head .ui-tx { min-width: 0; }
+  > .head .total { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; small { font-size: 11.5px; font-weight: 500; color: var(--app-mu); } }
+}
+.ticker.small { width: 30px; height: 30px; font-size: 8px; }
