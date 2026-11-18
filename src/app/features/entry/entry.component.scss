@@ -272,7 +272,7 @@
 
   .swap {
     position: absolute;
-    right: 84px;
+    left: 86px;
     top: 50%;
     transform: translateY(-50%);
     width: 32px;
@@ -290,8 +290,8 @@
 }
 /* Room above and below for the round button, so it never sits on a figure. */
 .ends .end:has(+ .turn), .ends .cover-line:has(+ .turn) { margin-bottom: 8px; }
-.ends .end:has(+ .turn) { padding-bottom: 14px; }
-.ends .turn + .end { padding-top: 14px; }
+.ends .end:has(+ .turn) { padding-bottom: 18px; }
+.ends .turn + .end { padding-top: 18px; }
 
 .ends .turn + .ui-row::before { display: none; }
 

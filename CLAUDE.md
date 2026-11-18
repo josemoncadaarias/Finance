@@ -510,8 +510,9 @@ could not prove.
     line's right and the figure alone on its line; otherwise the caption on the account's line
     and the figure under it on the product's line when the product moves, or
     caption over figure (3 px apart) on the account's line when the account's
-    balance does. The round "Invertir" is 32 px with room of its own between
-    the ends. "Nuevo saldo de la cuenta" when the account's balance moves
+    balance does. The round "Invertir" is 32 px, on the left of the line
+    between the ends (left: 86px), with room above and below, away from every
+    caption and figure. "Nuevo saldo de la cuenta" when the account's balance moves
     while a product is on show.
     Which figure, by "¿Qué cambia?" (`afterLine` in `entry.component.ts`,
     pure `balanceAfter` in `core/yields/balance-after.ts`,
