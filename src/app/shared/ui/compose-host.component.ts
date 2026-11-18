@@ -148,7 +148,7 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
       </ng-template>
     </ion-modal>
 
-    <ion-modal class="entry-sheet" [isOpen]="compose.entry() !== null" (didDismiss)="compose.close()">
+    <ion-modal class="entry-sheet" [isOpen]="compose.entry() !== null" (willDismiss)="leaving = compose.entry()" (didDismiss)="entryClosed()">
       <ng-template>
         @for (request of [compose.entry()]; track request) {
           @if (request) {
@@ -199,6 +199,23 @@ export class ComposeHostComponent {
   readonly MOVE = MOVE_COLOR;
 
   readonly compose = inject(ComposeService);
+
+  /**
+   * The request on show when the form began to close. Another one set while
+   * it closes (Jose, 2026-11-18: "Movimiento detectado" tapped while a
+   * movement was being typed: going to Por revisar closed that form, and its
+   * closing wiped the message's form the review screen had just opened) is
+   * opened again once the old one is gone.
+   */
+  leaving: unknown = null;
+
+  entryClosed(): void {
+    const now = this.compose.entry();
+    const was = this.leaving;
+    this.leaving = null;
+    this.compose.close();
+    if (now !== null && was !== null && now !== was) setTimeout(() => this.compose.entry.set(now));
+  }
   private readonly database = inject(DatabaseService);
   private readonly statements = inject(StatementsService);
   private readonly flow = inject(StatementFlowService);

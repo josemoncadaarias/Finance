@@ -484,6 +484,33 @@ could not prove.
   move (`dropCover`). Tests in `reminders.test.mjs` and `cover.test.mjs`
   (invented data). Only movements corrected after the update change; one
   already saved on another account keeps its cover until corrected again.
+- **The movement form says the new balance, and a tapped notice opens over
+  a form in progress** (Jose, 2026-11-18, from the phone; to name as
+  feedback a tester writes in the Play Store).
+  - **"Movimiento detectado" tapped while a movement was being typed** left
+    Por revisar on the message's origin without opening it. Reproduced in a
+    browser: going to Por revisar closes the open form (`closeOnLeaving`),
+    and that form's `didDismiss` cleared the message's form the review screen
+    had just set (`compose.close()`). Now the host remembers the request on
+    show when the form began to close (`willDismiss`) and, if another one was
+    set meanwhile, opens it once the old one is gone (`entryClosed` in
+    `compose-host.component.ts`). What was being typed is still lost.
+  - **"Nuevo saldo" under each end** once an amount is typed: one line across
+    the whole row, the name left and the figure right, red when it goes below
+    zero (`afterLine` in `entry.component.ts`, pure `balanceAfter` in
+    `core/yields/balance-after.ts`, `balance-after.test.mjs`). Which figure, by
+    "¿Qué cambia?": a split account's product for "Producto y patrimonio" and
+    "Solo el producto" ("Nuevo saldo de {producto}"), the account's balance
+    for "Solo el patrimonio" ("Nuevo saldo de la cuenta") and for an account
+    with one product or none; a card says "Nueva deuda" or "Nuevo saldo a
+    favor"; a transfer shows both ends; a cover switched on counts what it
+    moves in. Not on a correction, several at once or a loan's payment. The
+    income's "Saldo actual" line shows only while no amount is typed.
+  - **The cover line is one short line**: "Cubrir con {bolsillo}" / "Se cubre
+    con..." / "{producto} quedaría en negativo", an (i) with the whole
+    explanation, and its switch. Entry tour: step 6 reworded and a new step 8,
+    both `since: 6`. Checked in a browser on the sample data (each case, the
+    race before and after the fix); not on the phone.
 - **"Tu celular está pausando Finance" says the steps** (2026-11-09, Jose's
   partner on a Samsung: she turned off the phone's power saving mode, which
   the card's words seemed to ask for, and nothing changed; the setting was
@@ -561,7 +588,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1262 on 2026-11-15, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1268 on 2026-11-18, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

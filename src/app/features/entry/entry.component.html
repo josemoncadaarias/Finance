@@ -163,7 +163,7 @@
               @if (card.available !== null) { · {{ 'ui.entry.creditLeft' | t }} · <b>{{ card.available }}</b> }
             }
           </p>
-        } @else if (!isTransfer() && !isEditing() && kind() === 'income' && holdsNow() !== null) {
+        } @else if (!isTransfer() && !isEditing() && kind() === 'income' && holdsNow() !== null && amount().minor <= 0) {
           <p class="holds-now">{{ 'ui.entry.holdsNow' | t }} · <b>{{ holdsNowText() }}</b></p>
         }
 
@@ -181,22 +181,18 @@
             <div class="cover-line" [class.on]="line.on" role="group">
               <ion-icon [name]="line.on ? 'swap-vertical' : 'alert-circle-outline'"></ion-icon>
               @if (line.none) {
-                <span class="ui-tx"><span class="wrap">{{ line.below }}</span><small class="wrap">{{ line.noneText }}</small></span>
-              } @else if (line.on) {
-                <button type="button" class="ui-tx" (click)="pickingCover.set(true)">
-                  <span class="wrap">{{ line.onTitle }}</span>
-                  <small class="wrap">{{ line.moves }}</small>
-                  @if (line.byHabit) { <small class="wrap">{{ line.byHabit }}</small> }
-                </button>
+                <span class="ui-tx"><span class="ui-one">{{ line.short }}</span></span>
               } @else {
                 <button type="button" class="ui-tx" (click)="pickingCover.set(true)">
-                  <span class="wrap">{{ line.below }}</span>
-                  <small class="wrap offer">{{ line.offer }}</small>
+                  <span class="ui-one" [class.offer]="!line.on">{{ line.short }}</span>
                 </button>
               }
+              <span class="ui-info" role="button" (click)="showInfo(line.info)" [attr.aria-label]="'ui.info' | t">
+                <ion-icon name="information"></ion-icon>
+              </span>
               @if (!line.none) {
                 <button type="button" class="ui-switch" [class.on]="line.on" role="switch" [attr.aria-checked]="line.on"
-                        [attr.aria-label]="line.offer" (click)="toggleCover()"></button>
+                        [attr.aria-label]="line.short" (click)="toggleCover()"></button>
               }
             </div>
           } @else if (coveredText()) {
@@ -369,6 +365,14 @@
       }
     </div>
     <ion-icon class="ui-chev" name="chevron-down-outline" (click)="openAccountSheet(side)"></ion-icon>
+    <!-- What this end holds once saved, across the whole row (Jose, 2026-11-18). -->
+    @let after = side === 'to' ? afterLine().to : afterLine().from;
+    @if (after) {
+      <div class="after" [class.neg]="after.negative">
+        <span class="ui-one">{{ after.label }}</span>
+        <b>{{ after.amount }}</b>
+      </div>
+    }
   </div>
 </ng-template>
 

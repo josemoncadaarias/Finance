@@ -159,6 +159,7 @@
 
 .end {
   align-items: center;
+  flex-wrap: wrap;
   padding: 12px 14px;
   gap: 10px;
 
@@ -221,6 +222,24 @@
   }
 
   .ui-info { flex: none; }
+
+  /* What this end holds once saved: a line of its own across the whole row. */
+  .after {
+    flex-basis: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 2px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--app-s2);
+    font-size: 13.5px;
+    color: var(--app-mu);
+    .ui-one { min-width: 0; }
+    b { flex: none; color: var(--app-tx); font-weight: 600; font-variant-numeric: tabular-nums; }
+    &.neg { background: rgba(var(--app-red-rgb), 0.12); b { color: var(--app-red); } }
+  }
 
   &.needed .acc b { color: var(--app-yel); }
 }
@@ -606,6 +625,8 @@
   .wrap { white-space: normal; display: block; }
   small { color: var(--app-mu); }
   .offer { color: var(--app-pr); font-weight: 500; }
+  .ui-one { display: block; min-width: 0; }
+  .ui-info { flex: none; }
   &.on { background: rgba(var(--app-pr-rgb), 0.12); }
   &.on > ion-icon { color: var(--app-move); }
 }

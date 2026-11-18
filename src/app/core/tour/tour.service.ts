@@ -344,8 +344,9 @@ const TOUR_LIST = {
       { sel: 'app-entry .ui-list.ends', title: 'tour.entry.3.title', text: 'tour.entry.3.text' },
       { sel: 'app-entry app-form-foot .again', title: 'tour.entry.4.title', text: 'tour.entry.4.text' },
       { title: 'tour.entry.5.title', text: 'tour.entry.5.text', since: 2 },
-      { title: 'tour.entry.6.title', text: 'tour.entry.6.text', since: 3 },
+      { title: 'tour.entry.6.title', text: 'tour.entry.6.text', since: 6 },
       { title: 'tour.entry.7.title', text: 'tour.entry.7.text', since: 5 },
+      { sel: 'app-entry .ui-list.ends', title: 'tour.entry.8.title', text: 'tour.entry.8.text', since: 6 },
     ],
   },
 } satisfies Record<string, Tour>;
