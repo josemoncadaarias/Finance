@@ -542,6 +542,7 @@ export const UI_ES = {
   'ui.entry.cap.over': 'Con este gasto, te pasas de tu tope de {name} por {over}. Tu tope es {cap} al mes.',
   'ui.entry.cap.stillOver': 'Tu tope de {name} ya estaba pasado. Con este gasto, quedas {over} por encima.',
   'ui.entry.creditLeft': 'Cupo disponible',
+  'ui.entry.creditAfter': 'Cupo que te queda',
   'ui.entry.overCredit': 'Supera tu cupo disponible',
   'ui.entry.owed': 'Debes',
   'ui.entry.payAll': 'Toda la deuda',
@@ -3201,7 +3202,7 @@ export const UI_ES = {
   'tour.entry.6.title': "Cubrir con un bolsillo",
   'tour.entry.6.text': 'Si el producto de donde sale el dinero no alcanza, aparece una línea corta para cubrirlo con otro producto de la misma cuenta. Enciéndela y, al guardar, se pasa únicamente lo que falta. Toca la (i) para ver el detalle, o el nombre del producto para elegir otro.',
   'tour.entry.8.title': 'El nuevo saldo',
-  'tour.entry.8.text': 'Cuando escribes el valor, debajo de cada cuenta ves su saldo, y al escribir el valor, el nuevo saldo después de guardar: el del producto o el de la cuenta, según lo que elegiste en ¿Qué cambia?. En una tarjeta ves tu nueva deuda. Si queda en negativo, sale en rojo.',
+  'tour.entry.8.text': 'Al escribir el valor ves el nuevo saldo después de guardar, en un recuadro junto a Gastar todo. En una transferencia lo ves en cada cuenta. Es el saldo del producto o el de la cuenta, según lo que elegiste en ¿Qué cambia?. En una tarjeta ves tu nueva deuda y el cupo que te queda. Si queda en negativo, sale en rojo.',
   'tour.entry.7.title': 'Corrige o deshaz lo que guardaste',
   'tour.entry.7.text': 'Al guardar, arriba aparece un aviso con lo que se guardó durante 5 segundos. Sale también al guardar varios a la vez desde Movimientos por revisar. Tócalo para corregir el movimiento, o toca Deshacer si lo guardaste por error y se quita. Si no haces nada, el movimiento queda guardado.',
 
@@ -3757,6 +3758,7 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'ui.entry.cap.over': 'With this spending you go over your {name} cap by {over}. Your cap is {cap} a month.',
   'ui.entry.cap.stillOver': 'Your {name} cap was already over. With this spending you are {over} over it.',
   'ui.entry.creditLeft': 'Credit available',
+  'ui.entry.creditAfter': 'Credit left after this',
   'ui.entry.overCredit': 'More than your credit available',
   'ui.entry.owed': 'You owe',
   'ui.entry.payAll': 'All the debt',
@@ -6416,7 +6418,7 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'tour.entry.6.title': "Cover it from a pocket",
   'tour.entry.6.text': "If the product the money leaves from does not hold enough, a short line appears to cover it from another product of the same account. Switch it on and, when you save, only what is missing moves. Tap the (i) for the details, or the product's name to choose another one.",
   'tour.entry.8.title': 'Your new balance',
-  'tour.entry.8.text': 'Once you type the amount, under each account you see its balance, and once you type the amount, the new balance after saving: the product\'s or the account\'s, by what you chose in What changes?. On a card you see your new debt. If it goes below zero, it shows in red.',
+  'tour.entry.8.text': 'Once you type the amount you see the new balance after saving, in a box beside Spend it all. In a transfer you see it in each account. It is the product\'s balance or the account\'s, by what you chose in What changes?. On a card you see your new debt and the credit left. If it goes below zero, it shows in red.',
   'tour.entry.7.title': 'Fix or undo what you saved',
   'tour.entry.7.text': 'When you save, a notice with what was saved appears at the top for 5 seconds. It also shows when you save several at once from Movements to review. Tap it to correct the movement, or tap Undo if you saved it by mistake and it is removed. If you do nothing, the movement stays saved.',
 

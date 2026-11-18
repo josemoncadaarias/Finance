@@ -1263,7 +1263,34 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   readonly afterLine = computed(() => ({ from: this.afterOf('from'), to: this.afterOf('to') }));
 
-  private afterOf(side: 'from' | 'to'): { caption: string; amount: string; negative: boolean; fresh: boolean; on: 'account' | 'product' } | null {
+  /**
+   * A spending's or an income's balance as a tile beside "Gastar todo".
+   * Before an amount is typed it says today's balance, unless "Gastar todo"
+   * already says that same figure.
+   */
+  readonly balanceTile = computed(() => {
+    if (this.isTransfer()) return null;
+    const after = this.afterLine().from;
+    if (!after) return null;
+    if (!after.fresh && this.fillTiles().length > 0) return null;
+    return after;
+  });
+
+  /** A card's credit left once saved, beside its new debt (replaces the "Cupo disponible" line). */
+  readonly creditTile = computed(() => {
+    const account = this.account();
+    const after = this.balanceTile();
+    if (!after || !account || account.type !== 'credit' || account.credit_limit_minor === null) return null;
+    const left = account.credit_limit_minor + after.minor;
+    return {
+      caption: this.i18n.t(left < 0 ? 'ui.entry.overCredit' : after.fresh ? 'ui.entry.creditAfter' : 'ui.entry.creditLeft'),
+      amount: formatMoney(Math.abs(left), this.currency()).replace(/ /g, '\u00a0'),
+      over: left < 0,
+      fresh: after.fresh,
+    };
+  });
+
+  private afterOf(side: 'from' | 'to'): { caption: string; amount: string; negative: boolean; fresh: boolean; on: 'account' | 'product'; minor: number } | null {
     if (this.isEditing() || this.many() || this.loanEntry() || this.request().loan) return null;
     if (side === 'to' && !this.isTransfer()) return null;
     const minor = Math.max(0, side === 'to' && this.crossesCurrency() ? this.targetAmount().minor : this.amount().minor);
@@ -1296,14 +1323,14 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (account.type === 'credit' && after.of === 'account') {
       const favor = after.minor > 0;
       const key = favor ? (fresh ? 'ui.entry.after.favor' : 'ui.entry.now.favor') : (fresh ? 'ui.entry.after.debt' : 'ui.entry.now.debt');
-      return { caption: this.i18n.t(key), amount: money, negative: false, fresh, on };
+      return { caption: this.i18n.t(key), amount: money, negative: false, fresh, on, minor: after.minor };
     }
     // The account's own balance while a product is on show: said so.
     const ofAccount = after.of === 'account' && products.length > 1;
     return {
       caption: this.i18n.t(ofAccount ? (fresh ? 'ui.entry.after.account' : 'ui.entry.now.account') : (fresh ? 'ui.entry.after' : 'ui.entry.now')),
       amount: `${after.minor < 0 ? '\u2212\u2060' : ''}${money}`,
-      negative: after.minor < 0, fresh, on,
+      negative: after.minor < 0, fresh, on, minor: after.minor,
     };
   }
 

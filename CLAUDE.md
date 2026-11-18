@@ -495,19 +495,23 @@ could not prove.
     show when the form began to close (`willDismiss`) and, if another one was
     set meanwhile, opens it once the old one is gone (`entryClosed` in
     `compose-host.component.ts`). What was being typed is still lost.
-  - **Each end of the form, with its balance, no line wasted** (Jose, the
-    same day, three rounds; he tried account and product on one line and
-    turned it down: "se quita mucho texto"). A small line on top: "Desde" /
-    "Hacia" left and, on a transfer whose end has products, "¿Qué cambia?"
-    right (only its icon under 260 px, a container query) - it no longer
-    takes a line of its own. Then the account and, hanging from it, its
-    product, each line with its chevron. The balance sits in the empty right
-    side: "Saldo" (no amount yet) or "Nuevo saldo" as a caption on the
-    account's line and the figure under it on the product's line when the
-    product moves; caption over figure on the account's line when the
-    account's balance does; red below zero. The round "Invertir" is 32 px
-    with room of its own between the ends. "Nuevo saldo de la cuenta" when
-    the account's balance moves while a product is on show.
+  - **The new balance: beside the amount for one end, in each end for a
+    transfer** (Jose, the same day, four rounds; account and product on one
+    line was turned down: "se quita mucho texto"). A spending or an income
+    shows it as a dashed tile beside "Gastar todo" ("Saldo" before an amount
+    is typed, only when no "Gastar todo" already says it; "Nuevo saldo" once
+    typed; red below zero; `balanceTile`), and a card two tiles, "Nueva
+    deuda" and "Cupo que te queda" (amber past the limit; `creditTile`),
+    replacing the "Cupo disponible" line. A transfer shows it in each end: a
+    small line on top with "Desde"/"Hacia" and, when the end has products,
+    "¿Qué cambia?" (only its icon under 260 px, a container query) - no line
+    of its own; then the account and, hanging from it, its product, each with
+    its chevron; on the empty right side the caption on the account's line
+    and the figure under it on the product's line when the product moves, or
+    caption over figure (3 px apart) on the account's line when the account's
+    balance does. The round "Invertir" is 32 px with room of its own between
+    the ends. "Nuevo saldo de la cuenta" when the account's balance moves
+    while a product is on show.
     Which figure, by "¿Qué cambia?" (`afterLine` in `entry.component.ts`,
     pure `balanceAfter` in `core/yields/balance-after.ts`,
     `balance-after.test.mjs`): a split account's product for "Producto y

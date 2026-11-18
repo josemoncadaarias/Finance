@@ -126,12 +126,23 @@
 
         <!-- Fill the amount in one tap: what the origin holds, and into a card
              its statement and its whole debt, side by side (mockup 18 A). -->
-        @if (fillTiles().length > 0) {
+        @if (fillTiles().length > 0 || balanceTile()) {
           <div class="fill-tiles">
             @for (tile of fillTiles(); track tile.key) {
               <button type="button" class="fill-tile" [class.on]="tile.on" (click)="fillWith(tile.minor)">
                 <small>{{ tile.label }}</small><b>{{ tile.text }}</b>
               </button>
+            }
+            <!-- A spending's or an income's balance, beside "Gastar todo" (Jose, 2026-11-18). -->
+            @if (balanceTile(); as tile) {
+              <div class="fill-tile balance" [class.neg]="tile.negative" [class.fresh]="tile.fresh">
+                <small>{{ tile.caption }}</small><b>{{ tile.amount }}</b>
+              </div>
+            }
+            @if (creditTile(); as tile) {
+              <div class="fill-tile balance" [class.over]="tile.over" [class.fresh]="tile.fresh">
+                <small>{{ tile.caption }}</small><b>{{ tile.amount }}</b>
+              </div>
             }
           </div>
         }
@@ -150,7 +161,7 @@
              payment. Any other account, on an income: what it holds now. -->
         @if (accruingToday()) {
           <p class="holds-now accruing"><ion-spinner name="crescent"></ion-spinner>{{ 'ui.entry.accruing' | t }}</p>
-        } @else if (!isTransfer() && !isEditing() && !loanEntry() && cardLine(); as card) {
+        } @else if (!isTransfer() && !isEditing() && !loanEntry() && !balanceTile() && cardLine(); as card) {
           <p class="holds-now" [class.over]="card.over">
             @if (kind() === 'expense') {
               @if (card.available !== null) {
@@ -325,7 +336,8 @@
   @let prods = side === 'to' ? toProducts() : products();
   @let chosen = side === 'to' ? toProductId() : productId();
   @let split = side === 'to' ? splitTarget() : splitAccount();
-  @let after = side === 'to' ? afterLine().to : afterLine().from;
+  <!-- A transfer says each end's balance in the end; a spending or an income beside the amount. -->
+  @let after = !isTransfer() ? null : side === 'to' ? afterLine().to : afterLine().from;
   @let asks = side === 'from' ? asksFromScope() : asksToScope();
   @let byProduct = !!after && after.on === 'product' && split && !!acc;
   <!-- One end (Jose, 2026-11-18): "Desde" with "¿Qué cambia?" beside it; the
