@@ -674,7 +674,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1273 on 2026-11-19, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1276 on 2026-11-19, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
