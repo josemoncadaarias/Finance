@@ -251,7 +251,7 @@ the cover line is short, and a notice tapped over a form in progress opens
 (2026-11-18, #328, "How to work"; to go in the next closed-testing release
 with the tester's comment).
 
-**The phone held sideways (2026-11-18)**: a rail on the left instead of the
+**The phone held sideways (2026-11-18, #331)**: a rail on the left instead of the
 floating bar, Inicio in three columns, the Reporte as a board, a summary
 card beside its list on Cuentas, Deudas, Rendimientos, Bolsa and
 Presupuestos, an account's detail beside Cuentas' list, Más in two
@@ -340,7 +340,7 @@ could not prove.
   under the period instead of 46 %. Home tour step `since: 21`. Checked in a
   browser on the sample data (all accounts and a card, folded and open, dark
   and light, kept after a reload); not on the phone.
-- **The phone held sideways** (Jose, 2026-11-18, after a video of Lukas;
+- **The phone held sideways** (#331; Jose, 2026-11-18, after a video of Lukas;
   mockups `58a`-`58l`; "comienza por las que tú consideres"). Before it, a
   sideways phone showed the 480px phone column in the middle (the rule for
   browsers, `@media (min-width: 34rem)` in global.scss). Now
