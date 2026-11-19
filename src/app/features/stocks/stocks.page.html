@@ -83,6 +83,7 @@
                 <div><ion-icon name="wallet-outline"></ion-icon><span>{{ 'stocks.tile.cash' | t }}</span><b>{{ money(sum.cashMinor) }}</b></div>
               }
               <div><ion-icon name="pie-chart-outline"></ion-icon><span>{{ 'stocks.tile.held' | t }}</span><b>{{ sum.held }}</b></div>
+              <div><ion-icon name="layers-outline"></ion-icon><span>{{ 'stocks.tile.lots' | t }}</span><b>{{ openLots() }}</b></div>
             </div>
           }
         </section>
@@ -320,13 +321,25 @@
           <app-empty [compact]="true" icon="list-outline" [title]="'stocks.history.none' | t"></app-empty>
         }
         @for (section of historySections(); track section.key) {
-          <button type="button" class="fold" (click)="toggleSection(section.key)">
-            <span class="name">{{ section.title }}</span>
-            <span class="count">{{ 'stocks.history.count' | t:{ count: section.trades.length } }}</span>
-            <ion-icon [name]="isSectionOpen(section.key) ? 'chevron-up' : 'chevron-down'"></ion-icon>
-          </button>
-          @if (isSectionOpen(section.key)) {
-            <div class="ui-list">
+          <div class="ui-list ui-group history-group">
+            <div class="ui-row head" (click)="toggleSection(section.key)">
+              @if (section.look.ticker !== null) {
+                <span class="ticker small" [style.background]="section.look.color">{{ section.look.ticker }}</span>
+              } @else {
+                <app-badge shape="ci" [size]="30" [builtin]="section.look.icon" [fixed]="section.look.color"></app-badge>
+              }
+              <span class="ui-tx">
+                <b class="wrap">{{ section.title }}</b>
+                <small class="wrap">{{ section.holds }}</small>
+              </span>
+              @if (section.investedMinor > 0) {
+                <span class="total">{{ money(section.investedMinor) }}<small>{{ 'stocks.history.invested' | t }}</small></span>
+              } @else if (section.flowMinor !== 0) {
+                <span class="total" [class.ui-g]="section.flowMinor > 0" [class.ui-r]="section.flowMinor < 0">{{ signed(section.flowMinor) }}</span>
+              }
+              <ion-icon class="ui-chev" [name]="isSectionOpen(section.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </div>
+            @if (isSectionOpen(section.key)) {
               @for (trade of section.trades; track trade.id) {
                 <button type="button" class="ui-row" (click)="openTrade(trade)">
                   @if (pairs().has(trade.id)) {
@@ -334,15 +347,16 @@
                   } @else {
                     <app-badge shape="ci" [size]="38" [builtin]="kindIcon(trade.kind)" [fixed]="kindColor(trade.kind)"></app-badge>
                   }
-                  <span class="ui-tx"><b class="wrap">{{ tradeTitle(trade) }}</b><small class="wrap">{{ tradeLine(trade) }}</small>
+                  <span class="ui-tx"><b class="wrap">{{ group() === 'symbol' ? word('stocks.trade.' + trade.kind) : tradeTitle(trade) }}</b><small class="wrap">{{ tradeLine(trade) }}</small>
                     @if (pairs().has(trade.id)) { <small class="wrap undone-tag">{{ 'stocks.undone.tag' | t }}</small> }</span>
-                  @if (trade.kind !== 'split') {
-                    <span class="figures"><b [class.ui-g]="trade.amountMinor > 0">{{ signed(trade.amountMinor, trade.currency) }}</b></span>
+                  @if (figureOf(trade); as figure) {
+                    <span class="figures"><b [class.ui-g]="figure.tone === 'g'" [class.ui-r]="figure.tone === 'r'">{{ figure.text }}</b>
+                      @if (figure.note) { <small class="ui-mu">{{ figure.note }}</small> }</span>
                   }
                 </button>
               }
-            </div>
-          }
+            }
+          </div>
         }
         <button type="button" class="erase" (click)="erasing.set(true)">
           <ion-icon name="trash-outline"></ion-icon>{{ 'stocks.erase.row' | t }}
@@ -436,6 +450,7 @@
               <div><span>{{ 'stocks.detail.quantity' | t }}</span><b>{{ quantity(one.position.quantityE8) }}</b></div>
               <div><span>{{ 'stocks.detail.average' | t }}</span><b>{{ price(one.position.averageE6 ?? 0, one.position.currency) }}</b></div>
               <div><span>{{ 'stocks.detail.paid' | t }}</span><b>{{ money(one.position.costMinor, one.position.currency) }}</b></div>
+              <div><span>{{ 'stocks.detail.lots' | t }}</span><b>{{ one.position.lots.length }}</b></div>
               <div><span>{{ 'stocks.detail.share' | t }}</span><b>{{ sharePct(one.position.symbol) }}</b></div>
             }
             @if (one.position.soldMinor > 0) {
@@ -492,8 +507,9 @@
               <button type="button" class="ui-row" (click)="openTrade(trade)">
                 <app-badge shape="ci" [size]="36" [builtin]="kindIcon(trade.kind)" [fixed]="kindColor(trade.kind)"></app-badge>
                 <span class="ui-tx"><b class="wrap">{{ word('stocks.trade.' + trade.kind) }}</b><small class="wrap">{{ tradeLine(trade) }}</small></span>
-                @if (trade.kind !== 'split') {
-                  <span class="figures"><b [class.ui-g]="trade.amountMinor > 0">{{ signed(trade.amountMinor, trade.currency) }}</b></span>
+                @if (figureOf(trade); as figure) {
+                  <span class="figures"><b [class.ui-g]="figure.tone === 'g'" [class.ui-r]="figure.tone === 'r'">{{ figure.text }}</b>
+                    @if (figure.note) { <small class="ui-mu">{{ figure.note }}</small> }</span>
                 }
               </button>
             }
@@ -703,7 +719,7 @@
         <div class="sheet-head view-head">
           <b>{{ tradeTitle(trade) }}</b>
           <small>{{ tradeLine(trade) }}</small>
-          @if (trade.kind !== 'split') { <small>{{ signed(trade.amountMinor, trade.currency) }}</small> }
+          @if (figureOf(trade); as figure) { <small>{{ figure.text }}@if (figure.note) { · {{ figure.note }} }</small> }
           <small>{{ (trade.source === 'statement' ? 'stocks.view.fromStatement' : 'stocks.view.byHand') | t:{ account: accountName(trade.accountId) } }}</small>
         </div>
         <div class="ui-list">

@@ -614,3 +614,28 @@ test('numbers and days as screens write them', () => {
   assert.equal(dayIn('10 de junio de 2024'), '2024-06-10');
   assert.equal(dayIn('2026-11-09 14:20'), '2026-11-09');
 });
+
+test('a position\'s detail on a computer: four columns, each label over its value', () => {
+  // The shape of a broker's desktop detail: labels in a row, their values on the row under them.
+  const line = (left, top, text) => [left, top, text];
+  const read = readPosition([{ width: 810, height: 490, lines: [
+    line(35, 26, 'Detalles de la posición'),
+    line(83, 86, 'Solar Acción'), line(83, 105, 'SOLR.US, SOLAR ANDINA Corp'),
+    line(35, 138, 'Tipo'), line(225, 138, 'Volumen de la posición'), line(415, 138, 'Precio de orden'), line(605, 138, 'Beneficio neto'),
+    line(43, 156, 'Buy'), line(225, 156, '0.3029'), line(415, 156, '165.08 USD'), line(605, 156, '+0.05 USD'), line(605, 175, '+0.10%'),
+    line(35, 239, 'Precio actual'), line(225, 239, 'Valor de mercado'), line(415, 239, 'Valor de apertura'), line(605, 239, 'Hora de apertura'),
+    line(35, 257, '165.25 USD'), line(225, 257, '50.05 USD'), line(415, 257, '50.00 USD'), line(605, 257, '12.11.2026'), line(605, 276, '11:28'),
+    line(35, 307, 'Comisión de apertura'), line(225, 307, 'ID de posición'), line(415, 307, 'ID de Orden'), line(605, 307, 'Origen de apertura'),
+    line(35, 324, '0.00 USD'), line(225, 324, '2937346066'), line(415, 324, '2937346065'), line(605, 324, 'xStation5'),
+    line(35, 359, 'Comentario'), line(35, 376, '-'),
+    line(670, 434, 'Cerrar posición'),
+  ].map(([left, top, text]) => ({ text, left, top, right: left + text.length * 7, bottom: top + 14 })) }]);
+  assert.equal(read.symbol, 'SOLR');
+  assert.equal(read.quantityE8, 30_290_000);
+  assert.equal(read.priceE6, 165_080_000, 'the order\'s price, never the price of today');
+  assert.equal(read.amountMinor, 5000);
+  assert.equal(read.day, '2026-11-12');
+  assert.equal(read.currentE6, 165_250_000);
+  assert.equal(read.asset, 'stock');
+  assert.equal(read.currency, 'USD');
+});
