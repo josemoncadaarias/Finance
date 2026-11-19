@@ -486,6 +486,42 @@
             }
           }
 
+          <!-- The company's own figures, from its last annual filing with the SEC (2026-11-19). -->
+          @if (company(); as co) {
+            @if (companyRatios(); as r) {
+              <h3 class="ui-h">{{ 'stocks.co.title' | t }}</h3>
+              <div class="ui-card facts company">
+                @if (bigFigure(co.revenue, co.currency); as v) {
+                  <div><span>{{ 'stocks.co.revenue' | t }}@if (growthPercent(r.revenueGrowth); as g) { <small [class.up]="r.revenueGrowth! >= 0" [class.down]="r.revenueGrowth! < 0">{{ 'stocks.co.growth' | t:{ pct: g } }}</small> }</span><b>{{ v }}</b></div>
+                }
+                @if (bigFigure(co.netIncome, co.currency); as v) {
+                  <div><span>{{ 'stocks.co.netIncome' | t }}@if (growthPercent(r.profitGrowth); as g) { <small [class.up]="r.profitGrowth! >= 0" [class.down]="r.profitGrowth! < 0">{{ 'stocks.co.growth' | t:{ pct: g } }}</small> }</span><b>{{ v }}</b></div>
+                }
+                @if (percent(r.grossMargin); as v) { <div><span>{{ 'stocks.co.gross' | t }}<small>{{ 'stocks.co.gross.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (percent(r.operatingMargin); as v) { <div><span>{{ 'stocks.co.operating' | t }}<small>{{ 'stocks.co.operating.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (percent(r.netMargin); as v) { <div><span>{{ 'stocks.co.net' | t }}<small>{{ 'stocks.co.net.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (percent(r.roe); as v) { <div><span>{{ 'stocks.co.roe' | t }}<small>{{ 'stocks.co.roe.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (bigFigure(co.cash, co.currency); as v) { <div><span>{{ 'stocks.co.cash' | t }}</span><b>{{ v }}</b></div> }
+                @if (bigFigure(co.debt, co.currency); as v) { <div><span>{{ 'stocks.co.debt' | t }}</span><b>{{ v }}</b></div> }
+                @if (times(r.debtToEquity); as v) { <div><span>{{ 'stocks.co.debtToEquity' | t }}<small>{{ 'stocks.co.debtToEquity.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (times(r.currentRatio); as v) { <div><span>{{ 'stocks.co.current' | t }}<small>{{ 'stocks.co.current.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (bigFigure(r.freeCash, co.currency); as v) { <div><span>{{ 'stocks.co.freeCash' | t }}<small>{{ 'stocks.co.freeCash.hint' | t }}</small></span><b>{{ v }}</b></div> }
+                @if (perShare(co.eps, co.currency); as v) { <div><span>{{ 'stocks.co.eps' | t }}</span><b>{{ v }}</b></div> }
+                @if (perShare(co.dividendsPerShare, co.currency); as v) { <div><span>{{ 'stocks.co.dividends' | t }}</span><b>{{ v }}</b></div> }
+              </div>
+              <p class="hint">{{ 'stocks.co.source' | t:{ form: co.form, filed: dayWords(co.filed), end: dayWords(co.yearEnd), currency: co.currency } }}</p>
+            }
+          } @else if (companyWorking()) {
+            <h3 class="ui-h">{{ 'stocks.co.title' | t }}</h3>
+            <p class="hint"><ion-spinner name="crescent"></ion-spinner> {{ 'stocks.co.reading' | t }}</p>
+          } @else if (companyFailed()) {
+            <h3 class="ui-h">{{ 'stocks.co.title' | t }}</h3>
+            <p class="hint">{{ 'stocks.co.failed' | t }}</p>
+          } @else if (companyNone()) {
+            <h3 class="ui-h">{{ 'stocks.co.title' | t }}</h3>
+            <p class="hint">{{ 'stocks.co.none' | t }}</p>
+          }
+
           <h3 class="ui-h">{{ 'stocks.detail.google' | t }}</h3>
           <div class="ui-card price-card">
             <div class="price-now">

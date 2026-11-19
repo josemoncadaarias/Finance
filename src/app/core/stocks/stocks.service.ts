@@ -22,6 +22,8 @@ import { bookOf, totalsOf, valueOf, type Quote, type Trade } from './positions';
 import { readBroker, type BrokerReading, type BrokerRow } from './read-broker';
 import { candidatesFor, inCurrency, quotesFrom, toE6 } from './quotes';
 import { alertSettingsOf, ALERTS_OFF, type AlertSettings } from './alerts';
+import { cikFor, companyOf, companyStale, type SecTicker } from './company';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { SheetsError, askSheet, createSheet } from './sheets-client';
 import { StocksRepository, type Instrument, type PriceRow, type TradeInput } from './stocks.repository';
 
@@ -31,6 +33,13 @@ const SHEET_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const SHEET_ID = 'stocks.sheet';
 const PRICES_AT = 'stocks.pricesAt';
 const AUTO = 'stocks.auto';
+/**
+ * The SEC asks every program reading its data to say who it is, with a way to
+ * reach them: the app's own public contact, never the person's.
+ */
+const SEC_AGENT = 'Finance by Jadex Labs jadex.apps@gmail.com';
+const SEC_TICKERS = 'https://www.sec.gov/files/company_tickers.json';
+const secFacts = (cik: number) => `https://data.sec.gov/api/xbrl/companyfacts/CIK${String(cik).padStart(10, '0')}.json`;
 /** The strong-move alerts, as `AlertSettings` (2026-11-19). In `settings`, so it travels in the backup. */
 const ALERTS = 'stocks.alerts';
 
@@ -111,6 +120,9 @@ export class StocksService {
   readonly pricesAt = signal<string | null>(null);
   /** The person turned automatic prices on. */
   readonly auto = signal(false);
+  /** A company's filing being read: 'working', or 'failed' when it could not be. */
+  readonly companyState = signal<Map<string, 'working' | 'failed'>>(new Map());
+  private secTickers: SecTicker[] | null = null;
   /** Ring when a position held moves past a threshold today. */
   readonly alerts = signal<AlertSettings>(ALERTS_OFF);
   /** Tickers held that Google did not answer for, the last time it was asked. */
@@ -364,6 +376,57 @@ export class StocksService {
       const kind = failure instanceof SheetsError ? failure.kind : 'server';
       this.pricesState.set(kind === 'network' ? (navigator.onLine ? 'failed' : 'offline') : kind === 'disabled' ? 'disabled' : 'failed');
     }
+  }
+
+  /** Reading the SEC needs the phone: a browser is refused (the SEC sends no CORS header). */
+  readonly canReadCompanies = Capacitor.isNativePlatform();
+
+  /**
+   * A company's last annual filing, read from the SEC when the position's
+   * page opens and what is kept is a year old (or never read). One company at
+   * a time, about 300 KB through the network; never with the sample data.
+   */
+  async loadCompany(symbol: string): Promise<void> {
+    if (!this.canReadCompanies || this.demo.active()) return;
+    const kept = this.instruments().get(symbol)?.company ?? null;
+    const today = isoDay(new Date());
+    if (kept && 'none' in kept) {
+      // A fund, or not listed in the US: looked for again once a month.
+      if (Date.parse(today) - Date.parse(kept.readAt.slice(0, 10)) < 30 * 86_400_000) return;
+    } else if (!companyStale(kept, today)) {
+      return;
+    }
+    if (this.companyState().get(symbol) === 'working') return;
+    this.setCompanyState(symbol, 'working');
+    const readAt = new Date().toISOString();
+    try {
+      let cik = kept && !('none' in kept) ? kept.cik : null;
+      if (!cik) {
+        this.secTickers ??= Object.values(await this.secGet<Record<string, SecTicker>>(SEC_TICKERS));
+        cik = cikFor(symbol, this.secTickers)?.cik_str ?? null;
+      }
+      const company = cik ? companyOf(await this.secGet(secFacts(cik)), readAt) : null;
+      await this.repository().saveCompany(symbol, company ?? { none: true, readAt });
+      this.setCompanyState(symbol, null);
+      await this.load();
+    } catch (failure) {
+      noteError(failure);
+      this.setCompanyState(symbol, 'failed');
+    }
+  }
+
+  private setCompanyState(symbol: string, state: 'working' | 'failed' | null): void {
+    const next = new Map(this.companyState());
+    if (state === null) next.delete(symbol); else next.set(symbol, state);
+    this.companyState.set(next);
+  }
+
+  private async secGet<T>(url: string): Promise<T> {
+    const response = await CapacitorHttp.get({ url, headers: { 'User-Agent': SEC_AGENT, Accept: 'application/json' }, connectTimeout: 10_000, readTimeout: 30_000 });
+    // A company the SEC has no facts for answers 404: none to show.
+    if (response.status === 404) return {} as T;
+    if (response.status !== 200) throw new Error(`SEC ${response.status}`);
+    return (typeof response.data === 'string' ? JSON.parse(response.data) : response.data) as T;
   }
 
   async setAlerts(settings: AlertSettings): Promise<void> {
