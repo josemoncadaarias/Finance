@@ -39,8 +39,13 @@ export function candidatesFor(symbol: string, asset: AssetKind | null, currency:
     out.push(`${symbol}${currency}`, symbol);
   } else {
     out.push(symbol);
-    if (/^[A-Z]{3,4}[AB]$/.test(symbol)) out.push(`${symbol.slice(0, -1)}.${symbol.slice(-1)}`);
-    if (/^[A-Z]+\.[A-Z]$/.test(symbol)) out.push(symbol.replace('.', '-'));
+    // A class of shares ("BRKB", "BRK.B"): Google Finance knows it by its market,
+    // "NYSE:BRK.B", and often not without it.
+    const share = symbol.match(/^([A-Z]{2,4})\.?([AB])$/);
+    if (share && (symbol.includes('.') || share[1].length >= 3)) {
+      const dotted = `${share[1]}.${share[2]}`;
+      out.push(dotted, `NYSE:${dotted}`, `NASDAQ:${dotted}`, `${share[1]}-${share[2]}`);
+    }
   }
   return [...new Set(out)];
 }

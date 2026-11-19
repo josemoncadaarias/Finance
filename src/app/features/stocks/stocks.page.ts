@@ -195,8 +195,8 @@ export class StocksPage {
   readonly pricesLine = computed(() => {
     const quotes = this.held().map(one => one.quote).filter(quote => quote !== null);
     if (quotes.length === 0) return this.i18n.t('stocks.prices.none');
-    const day = quotes.map(quote => quote.day).sort()[0];
     const today = isoDay(new Date());
+    const day = quotes.some(quote => quote.day === today) ? today : quotes.map(quote => quote.day).sort()[0];
     const typed = quotes.every(quote => quote.source === 'manual');
     const demo = quotes.some(quote => quote.source === 'demo');
     if (demo) return this.i18n.t('stocks.prices.demo');
@@ -219,12 +219,16 @@ export class StocksPage {
     const quotes = this.held().map(one => one.quote).filter(quote => quote !== null);
     if (quotes.length === 0) return { tone: 'none', icon: 'help-circle-outline', text: this.i18n.t('stocks.chip.none') };
     if (quotes.some(quote => quote.source === 'demo')) return { tone: 'info', icon: 'flask-outline', text: this.i18n.t('stocks.chip.demo') };
-    const day = quotes.map(quote => quote.day).sort()[0];
     const today = isoDay(new Date());
-    if (day !== today) return { tone: 'warn', icon: 'time-outline', text: this.i18n.t('stocks.chip.from', { day: this.shortDay(day) }) };
+    // Some prices of today and some older: today's are what the figure leans on, and
+    // the others are counted, never the whole chip dated by the oldest one.
+    if (!quotes.some(quote => quote.day === today)) {
+      const day = quotes.map(quote => quote.day).sort()[0];
+      return { tone: 'warn', icon: 'time-outline', text: this.i18n.t('stocks.chip.from', { day: this.shortDay(day) }) };
+    }
     const at = this.stocks.pricesAt();
-    const total = this.total();
-    if (total && total.unquoted > 0) return { tone: 'warn', icon: 'alert-circle-outline', text: this.i18n.t('stocks.chip.some', { count: total.unquoted }) };
+    const stale = this.held().filter(one => one.quote?.day !== today).length;
+    if (stale > 0) return { tone: 'warn', icon: 'alert-circle-outline', text: this.i18n.t('stocks.chip.some', { count: stale }) };
     if (at && quotes.some(quote => quote.source === 'sheet')) {
       const time = new Intl.DateTimeFormat(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' }).format(new Date(at));
       return { tone: 'good', icon: 'checkmark-circle', text: this.i18n.t('stocks.chip.today', { time }) };
