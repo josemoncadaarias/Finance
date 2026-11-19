@@ -59,6 +59,13 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       cursor: pointer;
       &:disabled { opacity: 0.45; filter: grayscale(0.4); cursor: default; }
     }
+    /* Sideways the height is short: what is missing, "Registrar otro" and
+       Guardar on one row. */
+    :host-context(body.wide) .pad { display: flex; align-items: center; padding-bottom: var(--ion-safe-area-bottom, 0px); }
+    :host-context(body.wide) .missing { flex: 1; min-width: 0; text-align: left; padding: 6px 4px 6px 16px; }
+    :host-context(body.wide) .actions { flex: 0 1 auto; margin-left: auto; padding: 8px 12px; }
+    :host-context(body.wide) .again { height: 44px; }
+    :host-context(body.wide) .save { flex: none; width: 220px; height: 44px; font-size: 16px; }
   `],
   template: `
     <footer class="pad">

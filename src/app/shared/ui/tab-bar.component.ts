@@ -133,10 +133,10 @@ import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
     :host-context(body.wide) {
       top: 0;
       right: auto;
-      width: calc(var(--app-rail) + var(--ion-safe-area-left, 0px));
+      width: var(--app-rail);
       max-width: none;
       margin: 0;
-      padding: var(--ion-safe-area-top, 0px) 0 var(--ion-safe-area-bottom, 0px) var(--ion-safe-area-left, 0px);
+      padding: var(--ion-safe-area-top, 0px) 0 var(--ion-safe-area-bottom, 0px);
       background: var(--app-top);
       border-right: 1px solid var(--app-line);
     }
@@ -144,17 +144,18 @@ import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
       height: 100%;
       flex-direction: column;
       justify-content: center;
-      gap: 4px;
-      padding: 8px 7px;
+      gap: 2px;
+      padding: 6px 4px;
       border: 0;
       border-radius: 0;
       background: none;
       box-shadow: none;
     }
-    :host-context(body.wide) button { flex: none; width: 100%; padding: 6px 0; border-radius: 16px; font-size: 10.5px; }
-    :host-context(body.wide) button ion-icon { font-size: 21px; }
-    :host-context(body.wide) button.plus { width: 50px; height: 50px; margin: 6px auto; }
-    :host-context(body.wide) .dot { top: 4px; right: calc(50% - 18px); }
+    :host-context(body.wide) button { flex: none; width: 100%; padding: 5px 0; gap: 1px; border-radius: 14px; font-size: 9.5px; letter-spacing: -0.1px; }
+    :host-context(body.wide) button ion-icon { font-size: 20px; }
+    :host-context(body.wide) button.plus { width: 42px; height: 42px; margin: 4px auto; }
+    :host-context(body.wide) button.plus ion-icon { font-size: 24px; }
+    :host-context(body.wide) .dot { top: 3px; right: calc(50% - 16px); }
   `],
 })
 export class TabBarComponent {

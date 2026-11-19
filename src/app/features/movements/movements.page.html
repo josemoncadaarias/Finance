@@ -63,6 +63,23 @@
          Pendientes, the balance, and the chart or list. -->
     <!-- One space between the blocks whatever their order: each block keeps
          no margin of its own on the outside. -->
+    @if (layout.cols()) {
+      <!-- Sideways (58a): two columns. On the left the balance and, under it,
+           the chart; on the right the list. Both scroll on their own. -->
+      <div class="home-cols">
+        <div class="side-col">
+          <ng-container *ngTemplateOutlet="figuresBlock"></ng-container>
+          <app-first-steps></app-first-steps>
+          <app-notices-invite></app-notices-invite>
+          @if (view.shown('home.chart') && view.shown('home.list')) { <ng-container *ngTemplateOutlet="chartBlock"></ng-container> }
+        </div>
+        <div class="list-slot">
+          @if (!view.shown('home.list')) { <ng-container *ngTemplateOutlet="chartBlock"></ng-container> }
+          @else if (store.loading() && store.groups().length === 0) { <div class="state"><ion-spinner></ion-spinner></div> }
+          @else { <ng-container *ngTemplateOutlet="listBlock"></ng-container> }
+        </div>
+      </div>
+    } @else {
     <div class="home-slots">
     @for (slot of homeSlots(); track slot) {
       @switch (slot) {
@@ -76,22 +93,12 @@
           </div>
         }
         @case ('faces') {
-          @if (layout.cols()) {
-            <!-- Sideways (58a): the chart and the list at once, each its own column. -->
-            @if (view.shown('home.chart')) { <div class="chart-slot"><ng-container *ngTemplateOutlet="chartBlock"></ng-container></div> }
-            @if (view.shown('home.list')) {
-              <div class="list-slot">
-                @if (store.loading() && store.groups().length === 0) { <div class="state"><ion-spinner></ion-spinner></div> }
-                @else { <ng-container *ngTemplateOutlet="listBlock"></ng-container> }
-              </div>
-            }
-          } @else {
-            <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div>
-          }
+          <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div>
         }
       }
     }
     </div>
+    }
 
 
     <ng-template #figuresBlock>

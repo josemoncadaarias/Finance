@@ -252,10 +252,10 @@ the cover line is short, and a notice tapped over a form in progress opens
 with the tester's comment).
 
 **The phone held sideways (2026-11-18, #331)**: a rail on the left instead of the
-floating bar, Inicio in three columns, the Reporte as a board, a summary
+floating bar, Inicio in two columns, the Reporte as a board, a summary
 card beside its list on Cuentas, Deudas, Rendimientos, Bolsa and
 Presupuestos, an account's detail beside Cuentas' list, Más in two
-columns, the movement form as a panel on the right with its page beside it - see "The phone held
+columns, the movement form full screen in two halves (2026-11-19) - see "The phone held
 sideways" under "How to work". Drawn first as mockups `58a`-`58l`.
 
 **Bolsa de valores, first part (2026-11-12)**: a broker's statement read
@@ -347,24 +347,19 @@ could not prove.
   browsers, `@media (min-width: 34rem)` in global.scss). Now
   `LayoutService` (`core/ui/layout.service.ts`) answers `wide()` - sideways
   and at least 640px wide (`WIDE_QUERY`) - and puts classes on the body, so
-  a stylesheet never repeats the query: `wide` (the rail, sheets, forms as a
-  panel), `panel` while an `entry-sheet` modal is open on the right (read
-  from Ionic's `ionModalWillPresent`/`WillDismiss`, which bubble), and
-  `cols` = wide and no panel - **page columns are written under
-  `:host-context(body.cols)`**, so with a form open the page moves into the
-  space left of it (`body.wide.panel` sets the outlet's `right`) and reads
-  as a phone again, the list it was opened from in view (Por revisar's rows
-  beside "Revisar movimiento", 58h).
+  a stylesheet never repeats the query: `wide` and `cols` (the same since
+  2026-11-19, when the panel on the right was dropped - below) - **page
+  columns are written under `:host-context(body.cols)`**.
   Sideways: the app takes the whole width (up to 1180px); the floating bar is
-  a rail on the left of `--app-rail` (76px) with the "+" in the middle
+  a rail on the left of `--app-rail` (58px since 2026-11-19) with the "+" in the middle
   (`tab-bar.component.ts`), and every page starts right of it (none when the
   bar is put away: the assistant); bottom sheets are 36rem wide and centred;
-  the movement form and every `entry-sheet` editor open as a panel on the
-  right (`min(34rem, 64%)`), what was tapped still in view. **Inicio**: the
+  the movement form and every `entry-sheet` editor cover the screen (see the
+  second round below). **Inicio**: the
   header is one row (account, period, assistant); the balance card always
-  open (`cardOpen`), the chart and the list each a column at once (the
-  faces template split into `#chartBlock` and `#listBlock`), the first two
-  sticky while the list scrolls. **Reporte**: one header row (no title - the
+  open (`cardOpen`), the balance and the chart in a sticky column on the
+  left and the list on the right (the faces template split into
+  `#chartBlock` and `#listBlock`). **Reporte**: a two-row header (no title - the
   rail says it), every section open, the headline figures across the width
   and the rest in two columns (CSS columns). **Cuentas, Deudas,
   Rendimientos, Bolsa**: `ui-split` on the page's main and `ui-side` on its
@@ -391,6 +386,41 @@ could not prove.
   itself: the manifest fixes no orientation). Not built from the mockups:
   the assistant's answer as a big card beside the chat (58i) and the "+"
   in two columns (58l) - the "+" is a centred sheet 36rem wide.
+- **Sideways, second round from the phone** (Jose, 2026-11-19, three
+  screenshots: Android's buttons covered what the screen said, the form on
+  the right "se ve horrible", an account's page on Productos y rendimientos
+  cut on the left, the rail too wide). What changed:
+  - **Android's buttons**: sideways they sit on the left or right edge, and
+    every inset rule read only top and bottom. Now `body.wide ion-app` takes
+    `left`/`right` from `--safe-area-inset-left/right` (Capacitor 8's
+    SystemBars writes them; `env()` otherwise) and sets
+    `--ion-safe-area-left/right` to 0 inside, so the rail, every page and
+    every modal stay clear and nothing adds the inset twice. Proved in a
+    browser by writing those variables as Capacitor does (42px right, then
+    42px left); NOT on the phone.
+  - **The rail is 58px** (was 76): labels 9.5px, the "+" 42px.
+  - **No panel on the right any more**: `LayoutService` has no `panel`.
+    The movement form and every `entry-sheet` cover the screen with their
+    content in a centred column (`min(44rem, 100%)`), and the movement form
+    splits in two halves (`.entry-a`: the kind, the amount, its tiles;
+    `.entry-b`: the ends, category, day, note - wrappers that are
+    `display: contents` upright, so the portrait form is unchanged, and
+    writing the note still shows the note alone). Its foot is one row
+    sideways (`app-form-foot`).
+  - **An account's page on the products screen** starts right of the rail
+    and hides its own copy of the bar (`ion-modal.account-page`): that copy
+    had been drawn as a second rail over its content.
+  - **Inicio is two columns** (`.home-cols`), not three: three did not fit a
+    real phone (about 680px beside the rail and Android's buttons).
+  - Titles, title bars and `.ui-main` step down sideways; a `.ui-seg` of
+    three buttons drops its icons; a side card's tiles (`.sides`, `.kinds`)
+    stack; the Reporte's header is two rows.
+  - Checked in a browser at 780x360 (a phone's real size sideways) on the
+    sample data: Inicio, the "+", the form (spending, transfer), Cuentas,
+    Rendimientos and an account's page, Deudas and the plan, Presupuestos,
+    Bolsa, Por revisar, Más, the assistant, Categorías, Recordatorios, Renta,
+    Monedas, Notificaciones, Finance Pro, Personaliza, Google; portrait at
+    412x915 unchanged. Not on the phone.
 - **Three fixes from Jose's phone, 2026-11-10** (#312; branch
   `claude/receipt-detection-category-bugs-8dqf67`; to name as feedback a
   tester writes in the Play Store).
@@ -8373,7 +8403,7 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Bolsa de valores: a free, licensed source of daily price history,
       so the return chart follows the market between purchases - to look
       for together.
-- [ ] The app held sideways (built 2026-11-18): turn the phone on Inicio, the Reporte, Cuentas (tap an account), Deudas and its plan, Presupuestos, Bolsa, Más and Por revisar (open a movement) and say what reads wrong, and whether the rail on the left reads well.
+- [ ] The app held sideways (2026-11-18, second round 2026-11-19): say whether Android's buttons still cover anything, how the form reads in two halves, and whether the narrower rail reads well.
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
       down on narrow phones was proposed and not built.

@@ -65,6 +65,29 @@
   flex-direction: column;
   gap: 10px;
 }
+/* The two halves of the form: the kind and the amount, then where it goes.
+   One column on a phone held upright; side by side when it is held sideways
+   (Jose, 2026-11-19: the form as a narrow panel on the right read badly, and
+   one column only showed the amount above the foot). */
+.entry-a, .entry-b { display: contents; }
+:host-context(body.wide) {
+  .entry-top { padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 8px; h1 { font-size: 18px; } }
+  /* Three tiles in half the form: two to a row rather than cut. */
+  .fill-tiles { flex-wrap: wrap; > * { flex: 1 1 120px; } }
+  .entry:not(.writing-note) .entry-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 14px;
+    padding: 10px 16px 14px;
+  }
+  .entry:not(.writing-note) {
+    .entry-a, .entry-b { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .entry-a > *, .entry-b > * { flex-shrink: 0; }
+    /* The kind and the amount stay in view while the right half scrolls. */
+    .entry-a { position: sticky; top: 10px; }
+  }
+}
 
 .kinds {
   margin-top: 0;
@@ -506,10 +529,13 @@
    drawn again: a textarea drawn again loses its focus, and on the phone the
    keyboard with it, which is what closed the note the moment it opened. */
 .entry.writing-note {
-  .entry-body > :not(.ui-list) { display: none; }
-  .entry-body > .ui-list:not(:has(.note)) { display: none; }
-  .entry-body > .ui-list > :not(.note):not(.hints) { display: none; }
-  .entry-body > .ui-list { background: none; border: 0; }
+  .entry-body { display: flex; }
+  .entry-a { display: none; }
+  .entry-b { display: contents; }
+  .entry-b > :not(.ui-list) { display: none; }
+  .entry-b > .ui-list:not(:has(.note)) { display: none; }
+  .entry-b > .ui-list > :not(.note):not(.hints) { display: none; }
+  .entry-b > .ui-list { background: none; border: 0; }
   .hints { margin-top: 10px; background: var(--app-s1); border-radius: 16px; border: 1px solid var(--app-border); }
 }
 
