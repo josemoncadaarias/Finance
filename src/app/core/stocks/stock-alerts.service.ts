@@ -12,7 +12,7 @@
 import { Injectable, effect, inject, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications, type ActionPerformed } from '@capacitor/local-notifications';
 
 import { formatMoney } from '../database/money';
@@ -23,6 +23,14 @@ import { I18nService } from '../i18n/i18n.service';
 import { PaywallService } from '../paywall/paywall.service';
 import { alertsFor, keptTold, type Alert } from './alerts';
 import { StocksService } from './stocks.service';
+import { GoogleAccountService } from '../cloud/google-account.service';
+
+/** The background check (`StockWatch.java`): what to watch, and the moves told by either side. */
+const Watch = registerPlugin<{
+  configure(options: { config: Record<string, unknown> }): Promise<void>;
+  told(): Promise<{ keys: string[]; lastRun: number }>;
+  markTold(options: { keys: string[] }): Promise<void>;
+}>('StockWatch');
 
 const TOLD_KEY = 'finance.stocks.alertsTold';
 const KIND = 'stockMove';
@@ -38,6 +46,7 @@ export class StockAlertsService {
   private readonly pro = inject(PaywallService);
   private readonly router = inject(Router);
   private readonly stocks = inject(StocksService);
+  private readonly google = inject(GoogleAccountService);
 
   constructor() {
     if (!Capacitor.isNativePlatform()) return;
@@ -54,6 +63,36 @@ export class StockAlertsService {
       const on = this.stocks.alerts().on;
       if (on) untracked(() => void this.look());
     });
+    // What the background check watches, handed over again on every change.
+    effect(() => {
+      const config = this.watchConfig();
+      untracked(() => { void Watch.configure({ config }).catch(() => undefined); });
+    });
+  }
+
+  /**
+   * Only tickers Google already answered for (their way of writing is kept),
+   * only with Finance Pro, never with the sample data, and only with the
+   * Google account and its sheet known.
+   */
+  private watchConfig(): Record<string, unknown> {
+    const settings = this.stocks.alerts();
+    const user = this.google.user();
+    const sheet = this.stocks.sheetId();
+    const instruments = this.stocks.instruments();
+    const rows = this.stocks.heldValuedEverywhere()
+      .map(one => ({ symbol: one.position.symbol, quote: instruments.get(one.position.symbol)?.quote ?? null }))
+      .filter((row): row is { symbol: string; quote: string } => !!row.quote);
+    const on = settings.on && this.pro.unlocked() && !this.demo.active() && !!user && !!sheet && rows.length > 0;
+    const t = (key: Parameters<I18nService['t']>[0]) => this.i18n.t(key);
+    return {
+      on, pct: settings.pct, email: user?.email ?? '', sheet: sheet ?? '', rows,
+      locale: this.i18n.dateLocale(),
+      up: this.i18n.t('stocks.alerts.upShort', { symbol: '{symbol}', pct: '{pct}' }),
+      down: this.i18n.t('stocks.alerts.downShort', { symbol: '{symbol}', pct: '{pct}' }),
+      many: this.i18n.t('stocks.alerts.many', { count: '{count}' }),
+      body: t('stocks.alerts.body'), channel: t('stocks.alerts.channel'), channelAbout: t('stocks.alerts.channel.about'),
+    };
   }
 
   /** Turning the alerts on asks the phone for its notices, once. */
@@ -70,18 +109,23 @@ export class StockAlertsService {
     await this.stocks.refreshPrices();
   }
 
-  private told(): Set<string> {
-    try { return new Set(JSON.parse(localStorage.getItem(TOLD_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+  /** The moves already told today, by the app or by the background check. */
+  private async told(): Promise<Set<string>> {
+    let kept: string[] = [];
+    try { kept = JSON.parse(localStorage.getItem(TOLD_KEY) ?? '[]') as string[]; } catch { /* none */ }
+    try { kept = kept.concat((await Watch.told()).keys); } catch { /* no background check on this phone */ }
+    return new Set(kept);
   }
 
-  private keep(told: Iterable<string>, today: string): void {
+  private async keep(told: Iterable<string>, today: string, fresh: string[]): Promise<void> {
     try { localStorage.setItem(TOLD_KEY, JSON.stringify(keptTold(told, today))); } catch { /* told again, at worst */ }
+    try { await Watch.markTold({ keys: fresh }); } catch { /* no background check on this phone */ }
   }
 
   private async look(): Promise<void> {
     if (this.demo.active() || !this.pro.unlocked()) return;
     const today = isoDay(new Date());
-    const told = this.told();
+    const told = await this.told();
     const alerts = alertsFor(this.stocks.heldValuedEverywhere(), this.stocks.alerts(), today, told);
     if (alerts.length === 0) return;
     if ((await LocalNotifications.checkPermissions()).display !== 'granted') return;
@@ -100,7 +144,7 @@ export class StockAlertsService {
         }],
       });
       for (const alert of alerts) told.add(alert.key);
-      this.keep(told, today);
+      await this.keep(told, today, alerts.map(alert => alert.key));
     } catch {
       // Not told: the next look tries again.
     }

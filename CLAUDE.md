@@ -674,7 +674,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1280 on 2026-11-19, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1281 on 2026-11-19, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -8044,10 +8044,23 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   or "3 de tus acciones se movieron mucho hoy" with a line each, on channel
   `stock_moves` at high importance; a tap opens Bolsa de valores on that
   position. Once a day per ticker and direction (`finance.stocks.alertsTold`,
-  today's keys only). Every broker, whatever is on view. **Nothing runs with
-  the app closed** (the sheet says so): a check in the background would need
-  native work (WorkManager calling Sheets) - not built. Never with the
-  sample data. Stocks tour step `since: 4`. Checked in a browser (the switch
+  today's keys only). Every broker, whatever is on view. **With the app
+  closed too (built the same day)**: `StockWatch.java`, a receiver on an
+  inexact alarm about every half hour, set again after boot and update,
+  runs on weekdays from 3:00 to 16:30 New York time; it asks Google for a
+  token with nothing on screen (the Drive copy's way, `drive.file`), writes
+  each held ticker's price and closeyest formulas into the person's own
+  sheet, reads them back and rings on `stock_moves` (percent only, no
+  amount); a tap opens the app through the shortcut extra `stock:SYMBOL`
+  (`ShortcutsService`). The app hands it what to watch on every change
+  (`StockWatchPlugin.configure`: on, threshold, the Google account, the
+  sheet, tickers whose Google symbol is known, the words), and both sides
+  share the moves told (`told`/`markTold`), so one move rings once. Nothing
+  rings on a weekend (Friday's move was told on Friday). Assumed, not
+  verified: that the phone delivers the alarm to a closed app (Xiaomi may
+  hold it) and that GOOGLEFINANCE works its cells out when written through
+  the API with nobody looking. The Java compiled with `javac` (only
+  Android's classes missing). Never with the sample data. Stocks tour step `since: 4`. Checked in a browser (the switch
   and the threshold); the notice itself only on the phone.
 - **A company's own figures, from the SEC (2026-11-19)**: a position's page
   shows "La empresa en su último año" - sales and profit with their growth,
@@ -8085,8 +8098,7 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   the broker on view and the ticker chosen for the chart. Months drawn
   between known prices are said to be estimates. Stocks tour step `since: 5`.
   Checked in a browser on the sample data.
-- **Not built yet** (to offer Jose, in this order): the strong-move alerts
-  with the app closed (native background work); CSV or Excel statements;
+- **Not built yet** (to offer Jose, in this order): CSV or Excel statements;
   a screener over the whole market (not possible free, see below).
 
 #### The analysis of 2026-10-22, as it was written

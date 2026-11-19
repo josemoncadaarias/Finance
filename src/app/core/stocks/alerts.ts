@@ -42,6 +42,9 @@ export function alertSettingsOf(stored: string | null): AlertSettings {
 
 export function alertsFor(valued: readonly Valued[], settings: AlertSettings, today: string, told: ReadonlySet<string>): Alert[] {
   if (!settings.on) return [];
+  // On a weekend a quote is Friday's close against Thursday's: Friday's move, already told.
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+  if (weekday === 0 || weekday === 6) return [];
   const out: Alert[] = [];
   for (const one of valued) {
     if (one.position.quantityE8 <= 0 || one.quote === null || one.dayPct === null || one.dayMinor === null) continue;

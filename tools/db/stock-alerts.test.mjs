@@ -33,3 +33,10 @@ test('the settings read back whatever was stored, and the told list keeps today 
   assert.deepEqual(alertSettingsOf('nonsense'), { on: false, pct: 5 });
   assert.deepEqual(keptTold(['A|2026-11-18|up', `B|${TODAY}|down`], TODAY), [`B|${TODAY}|down`]);
 });
+
+test('on a weekend nothing rings: Friday\'s move was told on Friday', () => {
+  const saturday = '2026-11-21';
+  const list = [one('SOLR', 8, { day: saturday })];
+  assert.deepEqual(alertsFor(list, { on: true, pct: 5 }, saturday, new Set()), []);
+  assert.equal(alertsFor([one('SOLR', 8, { day: '2026-11-20' })], { on: true, pct: 5 }, '2026-11-20', new Set()).length, 1, 'Friday rings');
+});
