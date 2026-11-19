@@ -26,9 +26,9 @@ import { currencyName, flagOf } from '../../core/currencies/catalog';
 import { foldText } from '../../core/text/fold-text';
 import { JumpComponent } from '../../shared/ui/jump.component';
 import { StatementFlowService } from '../../core/statements/statement-flow.service';
-import { StocksService, type StockImport } from '../../core/stocks/stocks.service';
+import { StocksService, type BrokerChoice, type StockImport } from '../../core/stocks/stocks.service';
 import {
-  formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
+  bookOf, formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
 } from '../../core/stocks/positions';
 import { PRICE_SCALE, QUANTITY_SCALE, scaledOf, type AssetKind, type BrokerRow, type TradeKind } from '../../core/stocks/read-broker';
 import type { TradeInput } from '../../core/stocks/stocks.repository';
@@ -252,6 +252,39 @@ export class StocksPage {
     keep(DETAIL_KEY, this.detailOpen() ? '1' : '0');
   }
   readonly pricesSheet = signal(false);
+
+  // ---- Each broker apart (Jose, 2026-11-19) -----------------------------------------
+
+  readonly brokerSheet = signal(false);
+
+  brokerLabel(choice: BrokerChoice): string {
+    return choice === 'all' ? this.i18n.t('stocks.broker.all') : this.accountName(choice);
+  }
+
+  /** "Todos tus brókeres" first, then each broker with how much it holds. */
+  readonly brokerRows = computed(() => {
+    const all = this.stocks.allTrades();
+    const accounts = new Map(this.accounts().map(account => [account.id, account]));
+    const heldBy = (trades: readonly Trade[]) => bookOf(trades).positions.filter(position => position.quantityE8 > 0).length;
+    const line = (trades: readonly Trade[]) => {
+      const held = heldBy(trades);
+      return held === 0 ? this.i18n.t('stocks.broker.nothing') : this.i18n.t('stocks.broker.holds', { count: held });
+    };
+    return [
+      { key: 'all', choice: 'all' as BrokerChoice, name: this.i18n.t('stocks.broker.all'), line: line(all), account: null },
+      ...this.stocks.brokers().map(id => {
+        const mine = all.filter(trade => trade.accountId === id);
+        return { key: String(id), choice: id as BrokerChoice, name: this.brokerLabel(id), line: line(mine), account: id === null ? null : accounts.get(id) ?? null };
+      }),
+    ];
+  });
+
+  pickBroker(choice: BrokerChoice): void {
+    this.stocks.chooseBroker(choice);
+    this.brokerSheet.set(false);
+    this.returnsSymbol.set(null);
+    this.openSymbol.set(null);
+  }
   readonly addSheet = signal(false);
 
   // ---- Charts ---------------------------------------------------------------------
@@ -600,6 +633,19 @@ export class StocksPage {
     // "?import=1" from another screen opens the file chooser's sheet at once.
     const asked = this.route.snapshot.queryParamMap.get('new');
     if (asked === 'trade') queueMicrotask(() => { void this.newTrade(); });
+    // "?symbol=NVDA" from the assistant opens that position once the trades are read.
+    const symbol = this.route.snapshot.queryParamMap.get('symbol');
+    if (symbol) {
+      const opened = effect(() => {
+        if (!this.stocks.loaded()) return;
+        untracked(() => {
+          // A position of another broker than the one on view: every broker is shown first.
+          if (!this.stocks.trades().some(trade => trade.symbol === symbol)) this.stocks.chooseBroker('all');
+          if (this.stocks.allTrades().some(trade => trade.symbol === symbol)) this.openSymbol.set(symbol);
+        });
+        opened.destroy();
+      });
+    }
   }
 
   private async loadAccounts(): Promise<void> {
@@ -1030,6 +1076,6 @@ export class StocksPage {
 
   editingTrade(): Trade | null {
     const id = this.editing();
-    return typeof id === 'number' ? this.stocks.trades().find(trade => trade.id === id) ?? null : null;
+    return typeof id === 'number' ? this.stocks.allTrades().find(trade => trade.id === id) ?? null : null;
   }
 }

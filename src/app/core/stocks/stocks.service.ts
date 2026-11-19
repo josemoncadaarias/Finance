@@ -53,6 +53,21 @@ export interface StockImport {
   reading: BrokerReading;
 }
 
+/** 'all', or an account's id, or null for trades with no account. */
+export type BrokerChoice = 'all' | number | null;
+
+const BROKER_KEY = 'finance.stocks.broker';
+
+function keptBroker(): BrokerChoice {
+  try {
+    const kept = localStorage.getItem(BROKER_KEY);
+    if (kept === null || kept === 'all') return 'all';
+    if (kept === 'none') return null;
+    const id = Number(kept);
+    return Number.isInteger(id) ? id : 'all';
+  } catch { return 'all'; }
+}
+
 @Injectable({ providedIn: 'root' })
 export class StocksService {
   private readonly database = inject(DatabaseService);
@@ -61,7 +76,27 @@ export class StocksService {
   private readonly i18n = inject(I18nService);
 
   readonly loaded = signal(false);
-  readonly trades = signal<Trade[]>([]);
+  /** Every trade on record, of every broker. */
+  readonly allTrades = signal<Trade[]>([]);
+  /**
+   * The broker on view: an account's id, null for trades with no account,
+   * 'all' for every broker together (Jose, 2026-11-19). Kept on the device.
+   */
+  readonly broker = signal<BrokerChoice>(keptBroker());
+  /** The accounts the trades belong to, in the order they first appear; null for none. */
+  readonly brokers = computed(() => [...new Set(this.allTrades().map(trade => trade.accountId))]);
+  /** The broker really on view: 'all' while there is only one, or the one chosen is gone. */
+  readonly onView = computed((): BrokerChoice => {
+    const chosen = this.broker();
+    const brokers = this.brokers();
+    return brokers.length < 2 || chosen === 'all' || !brokers.includes(chosen) ? 'all' : chosen;
+  });
+  /** The trades on view: every one, or the chosen broker's. */
+  readonly trades = computed(() => {
+    const broker = this.onView();
+    const all = this.allTrades();
+    return broker === 'all' ? all : all.filter(trade => trade.accountId === broker);
+  });
   readonly instruments = signal<Map<string, Instrument>>(new Map());
   readonly quotes = signal<Map<string, Quote>>(new Map());
   readonly history = signal<PriceRow[]>([]);
@@ -85,6 +120,19 @@ export class StocksService {
   });
   readonly totals = computed(() => totalsOf(this.book(), this.valued()));
   readonly held = computed(() => this.valued().filter(one => one.position.quantityE8 > 0));
+  /** What is held at every broker: prices are asked for all of it, whatever is on view. */
+  /** One total per currency of every broker together: what the assistant answers with. */
+  readonly totalsEverywhere = computed(() => {
+    const book = bookOf(this.allTrades());
+    const quotes = this.quotes();
+    return totalsOf(book, book.positions.map(position => valueOf(position, quotes.get(position.symbol) ?? null)));
+  });
+  readonly heldEverywhere = computed(() => bookOf(this.allTrades()).positions.filter(position => position.quantityE8 > 0));
+
+  chooseBroker(choice: BrokerChoice): void {
+    this.broker.set(choice);
+    try { localStorage.setItem(BROKER_KEY, choice === 'all' ? 'all' : choice === null ? 'none' : String(choice)); } catch { /* kept for this opening only */ }
+  }
   readonly canAskGoogle = this.google.available;
 
   private generation = 0;
@@ -111,7 +159,7 @@ export class StocksService {
       const count = await repository.count();
       if (count === 0) {
         if (mine !== this.generation) return;
-        this.trades.set([]);
+        this.allTrades.set([]);
         this.quotes.set(new Map());
         this.history.set([]);
         this.instruments.set(new Map());
@@ -126,7 +174,7 @@ export class StocksService {
       if (mine !== this.generation) return;
       const pesos = new Map<string, number>([['COP', 1]]);
       for (const [code, rate] of rates) pesos.set(code, rate.rate_scaled / RATE_SCALE);
-      this.trades.set(trades);
+      this.allTrades.set(trades);
       this.instruments.set(instruments);
       this.quotes.set(quotes);
       this.history.set(history);
@@ -228,7 +276,7 @@ export class StocksService {
    */
   async refreshPrices(options: { ask?: boolean } = {}): Promise<void> {
     if (this.pricesState() === 'working') return;
-    const held = this.held();
+    const held = this.heldEverywhere();
     if (held.length === 0) return;
     if (this.demo.active()) { this.pricesState.set('demo'); return; }
     if (!this.google.available) { this.pricesState.set('unavailable'); return; }
@@ -242,12 +290,12 @@ export class StocksService {
       if (!token) { this.pricesState.set(options.ask ? 'declined' : 'idle'); return; }
 
       const instruments = this.instruments();
-      const asked = held.map(one => {
-        const known = instruments.get(one.position.symbol)?.quote;
+      const asked = held.map(position => {
+        const known = instruments.get(position.symbol)?.quote;
         return {
-          symbol: one.position.symbol,
-          currency: one.position.currency,
-          candidates: known ? [known] : candidatesFor(one.position.symbol, one.position.asset, one.position.currency),
+          symbol: position.symbol,
+          currency: position.currency,
+          candidates: known ? [known] : candidatesFor(position.symbol, position.asset, position.currency),
         };
       });
       const candidates = [...new Set(asked.flatMap(one => one.candidates))];

@@ -147,7 +147,7 @@ export class MorePage {
   private readonly stocks = inject(StocksService);
   /** Bolsa de valores: how many positions are held, or what the screen is for. */
   readonly stocksLine = computed(() => {
-    const count = this.stocks.held().length;
+    const count = this.stocks.heldEverywhere().length;
     return count === 0 ? this.i18n.t('more.stocks.hint') : this.i18n.t('more.stocks.count', { count });
   });
   /** Reminders whose day passed and nobody settled. */

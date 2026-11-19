@@ -679,3 +679,37 @@ test('how to do something in the app: the steps, never a question about money (J
   assert.equal(move.intent, 'register');
   assert.equal(move.side, 'transfer');
 });
+
+test('the stock market, asked any way: the portfolio, one ticker, the dividends (2026-11-19)', () => {
+  const tickers = new Map([['SOLR', 'Solar Andina Corp'], ['NUBE', 'Nube Datos Inc'], ['NU', 'Nu Holdings Ltd.'], ['VUAA.UK', 'Fondo Mundo Entero']]);
+  const c = ctx({ accounts: [...ctx().accounts, { id: 7, name: 'Nu', type: 'debit' }], tickers });
+  const overview = ['¿cómo van mis acciones?', '¿cuánto llevo ganado en bolsa?', 'mi portafolio', '¿cuánto valen mis acciones hoy?',
+    '¿cómo va mi bolsa de valores?', 'how are my stocks doing?', '¿cuánto he ganado en la bolsa de valores?'];
+  for (const said of overview) {
+    const r = readPhrase(said, c);
+    assert.equal(r.intent, 'stocks', said);
+    assert.equal(r.stock?.ask, 'overview', said);
+  }
+  const one = [['¿cómo va SOLR?', 'SOLR'], ['¿cuánto tengo en NUBE?', 'NUBE'], ['¿cómo va solar andina?', 'SOLR'],
+    ['¿y vuaa?', 'VUAA.UK'], ['¿cómo van mis acciones de NU?', 'NU']];
+  for (const [said, symbol] of one) {
+    const r = readPhrase(said, c);
+    assert.equal(r.intent, 'stocks', said);
+    assert.equal(r.stock?.ask, 'one', said);
+    assert.equal(r.stock?.symbol, symbol, said);
+  }
+  for (const said of ['¿cuánto me dieron de dividendos este año?', 'mis dividendos', 'dividends this year']) {
+    const r = readPhrase(said, c);
+    assert.equal(r.intent, 'stocks', said);
+    assert.equal(r.stock?.ask, 'dividends', said);
+  }
+  assert.equal(readPhrase('¿cuánto me dieron de dividendos en septiembre?', c).period?.from, '2026-09-01');
+  // "nu" in lower case is the bank, never the ticker; the rest of the app's questions stay what they were.
+  assert.notEqual(readPhrase('¿cuánto tengo en nu?', c).intent, 'stocks');
+  for (const [said, intent] of [['¿cuánto me han dado mis cuentas?', 'yields'], ['¿cuánto tengo?', 'have'],
+    ['gasté 20 mil en mercado', 'register'], ['¿cómo voy este mes?', 'howAmI']]) {
+    assert.equal(readPhrase(said, c).intent, intent, said);
+  }
+  // Without a ticker on record nothing changes for someone with no shares.
+  assert.equal(readPhrase('¿cómo va SOLR?', ctx()).intent === 'stocks', false);
+});

@@ -5,7 +5,7 @@
       <ion-icon name="chevron-back"></ion-icon>
     </button>
     <h1>{{ 'stocks.title' | t }}@if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }</h1>
-    @if (stocks.trades().length > 0) {
+    @if (stocks.allTrades().length > 0) {
       <button type="button" class="ui-round" (click)="addSheet.set(true)" [attr.aria-label]="'stocks.add.title' | t" data-tour="stocks-new">
         <ion-icon name="add"></ion-icon>
       </button>
@@ -16,7 +16,7 @@
   <div class="ui-main ui-split">
     @if (!stocks.loaded()) {
       <div class="waiting"><ion-spinner name="crescent"></ion-spinner></div>
-    } @else if (stocks.trades().length === 0) {
+    } @else if (stocks.allTrades().length === 0) {
       <app-empty icon="stats-chart-outline" color="#34c98b" [title]="'stocks.empty.title' | t" [text]="'stocks.empty.text' | t"
                  [action]="'stocks.empty.import' | t" actionIcon="document-text-outline" (act)="chooseFile()"
                  [second]="'stocks.empty.byHand' | t" (secondAct)="newTrade()"></app-empty>
@@ -28,6 +28,14 @@
         </button>
       }
     } @else {
+      <!-- Each broker apart, or all together (Jose, 2026-11-19). Only with two or more. -->
+      @if (stocks.brokers().length > 1) {
+        <button type="button" class="broker-pick" (click)="brokerSheet.set(true)" data-tour="stocks-broker">
+          <ion-icon name="briefcase-outline"></ion-icon>
+          <span>{{ brokerLabel(stocks.onView()) }}</span>
+          <ion-icon class="go" name="chevron-down"></ion-icon>
+        </button>
+      }
       @if (currencies().length > 1) {
         <div class="ui-seg currencies">
           @for (code of currencies(); track code) {
@@ -855,6 +863,31 @@
   </ng-template>
 </ion-modal>
 
+<!-- Which broker is on view. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="brokerSheet()" (didDismiss)="brokerSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="brokerSheet.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'stocks.broker.title' | t }}</h2>
+      <div class="ui-list">
+        @for (one of brokerRows(); track one.key) {
+          <button type="button" class="ui-row" (click)="pickBroker(one.choice)">
+            @if (one.account; as account) {
+              <app-badge shape="ci" [size]="38" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id" [tone]="account.color" [seed]="account.id" fallback="briefcase"></app-badge>
+            } @else {
+              <app-badge shape="ci" [size]="38" [builtin]="one.choice === 'all' ? 'layers-outline' : 'briefcase-outline'" [fixed]="one.choice === 'all' ? '#6378ff' : '#8a93a8'"></app-badge>
+            }
+            <span class="ui-tx"><b class="wrap">{{ one.name }}</b><small class="wrap">{{ one.line }}</small></span>
+            @if (stocks.onView() === one.choice) { <ion-icon class="ui-p check" name="checkmark"></ion-icon> }
+          </button>
+        }
+      </div>
+      <p class="hint center">{{ 'stocks.broker.hint' | t }}</p>
+    </div>
+  </ng-template>
+</ion-modal>
+
 <!-- The currency, with its flag. -->
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="currencySheet() !== null" (didDismiss)="currencySheet.set(null)">
   <ng-template>
@@ -876,7 +909,7 @@
 </ion-modal>
 
 <app-confirm [open]="erasing()" icon="trash-outline" tone="danger" [title]="'stocks.erase.ask' | t"
-             [body]="'stocks.erase.body' | t:{ count: stocks.trades().length }" [confirmLabel]="'stocks.erase.yes' | t:{ count: stocks.trades().length }"
+             [body]="'stocks.erase.body' | t:{ count: stocks.allTrades().length }" [confirmLabel]="'stocks.erase.yes' | t:{ count: stocks.allTrades().length }"
              (confirmed)="eraseAll()" (cancelled)="erasing.set(false)"></app-confirm>
 
 <app-confirm [open]="deleting() !== null" icon="trash-outline" tone="danger" [title]="'stocks.trade.delete.ask' | t"
