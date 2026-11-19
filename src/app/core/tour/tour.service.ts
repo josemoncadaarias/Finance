@@ -74,7 +74,7 @@ const TOUR_LIST = {
       // 2026-10-22: the shortcuts of the app's icon (a card in the middle).
       { title: 'tour.home.shortcuts.title', text: 'tour.home.shortcuts.text', since: 9 },
       // The phone held sideways (58, 2026-11-18): a card in the middle, nothing to light.
-      { title: 'tour.home.sideways.title', text: 'tour.home.sideways.text', since: 23 },
+      { title: 'tour.home.sideways.title', text: 'tour.home.sideways.text', since: 24 },
       { target: 'more', title: 'tour.home.end.title', text: 'tour.home.end.text' },
     ],
   },

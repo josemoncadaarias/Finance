@@ -105,7 +105,7 @@ export class MovementsPage {
   /** The phone held sideways: the balance, the chart and the list side by side (58a). */
   readonly layout = inject(LayoutService);
   /** Sideways there is room, so the card always shows everything. */
-  readonly cardOpen = computed(() => this.layout.cols() || this.summaryOpen());
+  readonly cardOpen = computed(() => this.summaryOpen());
   setSummary(open: boolean): void {
     this.summaryOpen.set(open);
     try { localStorage.setItem(SUMMARY_KEY, open ? '1' : '0'); } catch { /* private mode: not kept */ }

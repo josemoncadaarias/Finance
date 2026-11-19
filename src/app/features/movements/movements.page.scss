@@ -214,11 +214,24 @@
    blocks are columns; the balance and the chart stay in view while the list
    scrolls (sticky), each scrolling by itself if taller than the screen. */
 :host-context(body.cols) {
+  /* The height is what a phone held sideways lacks: one low header row. */
   .ui-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 8px;
+    padding: calc(4px + var(--ion-safe-area-top, 0px)) 12px 5px;
+  }
+  .identity { min-height: 36px; }
+  .name .text { font-size: 16px; }
+  .ui-period { margin-top: 0; }
+  /* The balance card folded, as upright, and a size smaller: the label, the
+     figure and its buttons on one row (Jose's partner, 2026-11-19: "se ve muy
+     apeñuscado"). A tap still opens the rest. */
+  .figures {
+    padding: 12px 14px;
+    .ui-big { font-size: 23px !important; }
+    .quick .ui-round { width: 36px; height: 36px; }
+    .glance { margin-top: 8px; padding-top: 8px; .items { font-size: 13px; } }
   }
   .identity-row { display: contents; }
   /* The assistant's button stays last: it is laid out by its own host, so the
