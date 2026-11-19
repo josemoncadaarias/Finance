@@ -7995,9 +7995,21 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   ("BRKB", "BRK.B") is also asked as "NYSE:BRK.B", "NASDAQ:BRK.B" and
   "BRK-B" (`candidatesFor`), since Google Finance often knows it only by
   its market (assumed from public examples; to see on the phone).
-- **Not built yet** (to offer Jose, in this order): seeing one broker at a
-  time when there are several (today all are one book; a ticker held at two
-  brokers is one position); the assistant's questions about it; a returns
+- **Each broker on its own (2026-11-19, Jose: "dale")**: with trades in two
+  or more accounts, a pill on top of Bolsa de valores ("Todos tus
+  brókeres" or the account's name) opens "¿Qué bróker quieres ver?": all
+  together, then each account with how many companies and funds it holds,
+  wearing the account's own icon. The choice is kept on the device
+  (`finance.stocks.broker`) and filters everything on screen - the hero,
+  positions, charts, the returns chart and the history - through
+  `StocksService.trades` (now a computed over `allTrades`, `onView`,
+  `brokers`, `chooseBroker`); prices are still asked for what is held at
+  every broker (`heldEverywhere`), Más counts every broker, and erasing
+  still erases all. A ticker held at two brokers is one position under
+  "Todos" and its own share under each. Movements are split by the account
+  chosen when each statement was imported, so a statement saved with "Sin
+  cuenta" is a broker of its own. Stocks tour step `since: 3`.
+- **Not built yet** (to offer Jose, in this order): the assistant's questions about it; a returns
   report by period (month, 6 months, year: it needs the app's own price
   history to grow, or prices typed); fundamentals from the SEC's EDGAR;
   screeners and price alerts (not possible in this shape, see below);
