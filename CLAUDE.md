@@ -674,7 +674,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1276 on 2026-11-19, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1279 on 2026-11-19, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -8049,6 +8049,30 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   native work (WorkManager calling Sheets) - not built. Never with the
   sample data. Stocks tour step `since: 4`. Checked in a browser (the switch
   and the threshold); the notice itself only on the phone.
+- **A company's own figures, from the SEC (2026-11-19)**: a position's page
+  shows "La empresa en su último año" - sales and profit with their growth,
+  gross, operating and net margins, ROE, cash, long-term debt, debt to
+  equity, liquidity, free cash flow, earnings and dividend per share - each
+  ratio with one line saying what it means, and the filing it came from.
+  Read on the phone from the SEC's free public data (`data.sec.gov`
+  companyfacts, `www.sec.gov/files/company_tickers.json` for the CIK) with
+  `CapacitorHttp` and the User-Agent the SEC asks for (the app's public
+  contact, never the person's; a browser is refused: no CORS), when the
+  position's page opens and what is kept is a year old (`loadCompany`,
+  `companyStale`); about 300 KB compressed per company. Pure reading in
+  `core/stocks/company.ts` (`companyOf`, `ratiosOf`, `cikFor`;
+  `stock-company.test.mjs` on invented facts): only the latest ANNUAL
+  filing (10-K, 20-F, 40-F and amendments, the newest filing winning), every
+  figure of that same year and never another (Berkshire reports no
+  operating income since 2012), US-GAAP or IFRS, in the filing's own
+  currency (Novo Nordisk in DKK). Kept in `stock_instruments.company`
+  (migration 065; `{none: true}` for a fund or a company not listed in the
+  US, looked for again monthly). Checked in the session against the real
+  filings of NVIDIA, Nu, Novo Nordisk and Berkshire (not committed); the
+  session's environment "Finance" allows data.sec.gov and www.sec.gov
+  (2026-11-19). The privacy policy names the SEC. The screen checked in a
+  browser with a company saved by hand; the reading itself only on the
+  phone.
 - **Not built yet** (to offer Jose, in this order): a returns
   report by period (month, 6 months, year: it needs the app's own price
   history to grow, or prices typed); fundamentals from the SEC's EDGAR;

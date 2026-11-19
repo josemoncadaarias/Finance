@@ -29,6 +29,7 @@ import { StatementFlowService } from '../../core/statements/statement-flow.servi
 import { StocksService, type BrokerChoice, type StockImport } from '../../core/stocks/stocks.service';
 import { StockAlertsService } from '../../core/stocks/stock-alerts.service';
 import { ALERT_CHOICES } from '../../core/stocks/alerts';
+import { ratiosOf } from '../../core/stocks/company';
 import {
   bookOf, formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
 } from '../../core/stocks/positions';
@@ -557,6 +558,55 @@ export class StocksPage {
     return symbol === null ? [] : this.stocks.trades().filter(trade => trade.symbol === symbol).reverse();
   });
   readonly instrument = computed(() => this.stocks.instruments().get(this.openSymbol() ?? '') ?? null);
+
+  // ---- The company's own figures, from the SEC (2026-11-19) ----------------------------
+
+  /** Its last annual filing, when it has one. */
+  readonly company = computed(() => {
+    const kept = this.instrument()?.company ?? null;
+    return kept && !('none' in kept) ? kept : null;
+  });
+  readonly companyRatios = computed(() => { const c = this.company(); return c ? ratiosOf(c) : null; });
+  /** Read from the SEC and found none: a fund, or a company not listed in the US. */
+  readonly companyNone = computed(() => { const kept = this.instrument()?.company; return !!kept && 'none' in kept; });
+  readonly companyWorking = computed(() => this.stocks.companyState().get(this.openSymbol() ?? '') === 'working');
+  readonly companyFailed = computed(() => this.stocks.companyState().get(this.openSymbol() ?? '') === 'failed');
+  private readonly askCompany = effect(() => {
+    const symbol = this.openSymbol();
+    if (symbol && this.stocks.loaded()) untracked(() => void this.stocks.loadCompany(symbol));
+  });
+
+  /** "215.938 millones", "1,2 mil millones": a filing's figure said in words. */
+  bigFigure(value: number | null, currency: string): string | null {
+    if (value === null) return null;
+    const n = (x: number, d = 1) => new Intl.NumberFormat(this.i18n.dateLocale(), { maximumFractionDigits: d }).format(x);
+    const abs = Math.abs(value);
+    const sign = value < 0 ? '−' : '';
+    const words = abs >= 1e9 ? this.i18n.t('stocks.co.billions', { n: n(abs / 1e9) })
+      : abs >= 1e6 ? this.i18n.t('stocks.co.millions', { n: n(abs / 1e6) }) : n(abs, 0);
+    return `${sign}${words} ${currency}`;
+  }
+
+  /** "+65,5 %": a change, with its sign. */
+  growthPercent(value: number | null): string | null {
+    if (value === null) return null;
+    return `${value >= 0 ? '+' : '−'}${this.percent(Math.abs(value))}`;
+  }
+
+  percent(value: number | null): string | null {
+    if (value === null) return null;
+    return `${new Intl.NumberFormat(this.i18n.dateLocale(), { maximumFractionDigits: 1 }).format(value)} %`;
+  }
+
+  times(value: number | null): string | null {
+    if (value === null) return null;
+    return new Intl.NumberFormat(this.i18n.dateLocale(), { maximumFractionDigits: 2 }).format(value);
+  }
+
+  perShare(value: number | null, currency: string): string | null {
+    if (value === null) return null;
+    return `${new Intl.NumberFormat(this.i18n.dateLocale(), { maximumFractionDigits: 2 }).format(value)} ${currency}`;
+  }
   /** Where today's price sits between the year's lowest and highest. */
   readonly range = computed(() => {
     const facts = this.instrument()?.facts;

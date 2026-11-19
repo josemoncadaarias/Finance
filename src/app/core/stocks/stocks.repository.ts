@@ -4,6 +4,7 @@
  * `positions.ts`; a statement is written many rows per statement, never one
  * round trip per row (the phone's bridge is what costs).
  */
+import type { Company } from './company';
 import type { SqlDriver } from '../database/sql-driver';
 import type { IsoDate } from '../database/types';
 import type { Quote, Trade } from './positions';
@@ -51,6 +52,8 @@ export interface Instrument {
   /** How Google Finance writes it, once found or typed. */
   quote: string | null;
   facts: Facts | null;
+  /** Its last annual filing with the SEC, read on the phone; `none` when it files none (a fund). */
+  company: Company | { none: true; readAt: string } | null;
 }
 
 /** The day's other figures, as Google Finance gives them. Any may be missing. */
@@ -218,11 +221,18 @@ export class StocksRepository {
   // ---- Tickers -----------------------------------------------------------------
 
   async instruments(): Promise<Map<string, Instrument>> {
-    const rows = await this.db.query<{ symbol: string; name: string | null; quote: string | null; facts: string | null }>(
-      'SELECT symbol, name, quote, facts FROM stock_instruments');
+    const rows = await this.db.query<{ symbol: string; name: string | null; quote: string | null; facts: string | null; company: string | null }>(
+      'SELECT symbol, name, quote, facts, company FROM stock_instruments');
     return new Map(rows.map(row => [row.symbol, {
-      symbol: row.symbol, name: row.name, quote: row.quote, facts: parseFacts(row.facts),
+      symbol: row.symbol, name: row.name, quote: row.quote, facts: parseFacts(row.facts), company: parseCompany(row.company),
     }]));
+  }
+
+  async saveCompany(symbol: string, company: Company | { none: true; readAt: string }): Promise<void> {
+    const t = this.now();
+    await this.db.run(
+      'INSERT INTO stock_instruments (symbol, updated_at) VALUES (?, ?) ON CONFLICT(symbol) DO NOTHING', [symbol, t]);
+    await this.db.run('UPDATE stock_instruments SET company = ?, updated_at = ? WHERE symbol = ?', [JSON.stringify(company), t, symbol]);
   }
 
   /** Only what is given changes: a name typed is not lost when a price arrives. */
@@ -356,4 +366,12 @@ function parseFacts(raw: string | null): Facts | null {
   } catch {
     return null;
   }
+}
+
+function parseCompany(text: string | null): Instrument['company'] {
+  if (!text) return null;
+  try {
+    const read = JSON.parse(text) as Instrument['company'];
+    return read && typeof read === 'object' ? read : null;
+  } catch { return null; }
 }
