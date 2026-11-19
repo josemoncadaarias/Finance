@@ -2771,19 +2771,30 @@ app-amounts-eye.corner { position: absolute; top: 12px; right: 12px; }
  * --app-rail, and each screen spreads into columns in its own stylesheet
  * (`:host-context(body.wide)`). Nothing here changes a portrait phone.
  */
-body { --app-rail: 76px; }
+body { --app-rail: 58px; }
 /* A wrapper that only exists for the sideways columns. */
 .ui-side-stack { display: contents; }
 body.wide {
+  /* Sideways, Android's own buttons sit on the left or right edge, and the
+     camera's notch on the other (Jose, 2026-11-19: the buttons covered what
+     the screen said). The whole app steps clear of both: ion-app is the box
+     every page, the rail and every modal are laid out in, so moving its
+     edges moves them all. Capacitor hands the insets to the page as
+     --safe-area-inset-* (env() where the WebView knows them). Inside, the
+     left and right insets are then 0, or a toolbar would add them again. */
   ion-app {
+    left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+    right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
     max-width: 1180px;
     margin-inline: auto;
     border-inline: 0;
+    --ion-safe-area-left: 0px;
+    --ion-safe-area-right: 0px;
   }
 
   /* Every page starts right of the rail. */
   ion-router-outlet#main {
-    left: calc(var(--app-rail) + var(--ion-safe-area-left, 0px));
+    left: var(--app-rail);
     width: auto;
     right: 0;
   }
@@ -2814,16 +2825,56 @@ body.wide {
   }
   ion-modal.editor-sheet { --max-width: 34rem; }
 
-  /* A screen with a summary card on top (Cuentas, Deudas, Rendimientos,
-     Bolsa): the card stays on the left while the rest scrolls on the right
-     (58e-58j). Marked in the page: `ui-split` on its main, `ui-side` on the
-     card; with no card on show (empty, loading) nothing changes. */
+  /* A form (the movement form and every editor) and an account's page on the
+     products screen cover the whole screen, as on a phone held upright, with
+     what they hold in a centred column of a readable width (Jose,
+     2026-11-19: the panel on the right "se ve horrible", and the account's
+     page started under the rail). The sides are the page's own colour. */
+  ion-modal.entry-sheet,
+  ion-modal.account-page {
+    --width: 100%;
+    --max-width: 100%;
+    --height: 100%;
+    --border-radius: 0;
+    --backdrop-opacity: 0;
+    --background: var(--app-bg);
+    > .ion-page, > .ion-delegate-host {
+      width: 100%;
+      max-width: min(44rem, 100%);
+      margin-inline: auto;
+      border-inline: 1px solid var(--app-line);
+    }
+  }
+
+  /* The height is what is short sideways (a phone gives some 340px): titles
+     and the space round them step down, and the rail already names the
+     screen. */
+  .ui-bigtitle {
+    padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 0;
+    min-height: 40px;
+    h1 { font-size: 20px; }
+  }
+  .ui-titlebar {
+    padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 8px;
+    h1 { font-size: 18px; }
+  }
+  .ui-main { padding: 10px 14px 0; }
+  /* A choice of three or more says only its words: their icons pushed
+     "Rendimientos" past its button. */
+  .ui-seg:has(> button:nth-child(3)) > button { gap: 0; ion-icon { display: none; } }
+
+  /* An account's page on the products screen stands in for a page: it starts
+     right of the rail, which stays in view beside it, as the floating bar
+     stays under it upright (it began under the rail, cut on the left). */
+  ion-modal.account-page {
+    left: var(--app-rail);
+    /* Its own copy of the bar (upright it floats over the page) is the rail
+       already beside it. */
+    app-tab-bar { display: none; }
+  }
+
   /* Several pieces on the left (the summary and a plan): stacked. */
   &.cols .ui-split > .ui-side.ui-side-stack { display: flex; flex-direction: column; gap: 10px; }
-
-  /* While a form is open on the right, the page moves into the space left of
-     it (a phone's width), so the list it was opened from stays in view. */
-  &.panel ion-router-outlet#main { right: min(34rem, 64%); }
 
   &.cols .ui-split:has(> .ui-side) {
     display: grid;
@@ -2848,17 +2899,9 @@ body.wide {
       /* What follows the figure ("COP", "de 106.000.000") gets a line of its own. */
       .ui-big small { display: block; margin-top: 2px; white-space: normal; }
       .sides b, .kinds b, .ui-mini b { font-size: 14.5px; white-space: nowrap; }
+      /* A tile of a big figure needs the card's width: one under another. */
+      .sides, .kinds { flex-direction: column; }
     }
   }
 
-  /* The movement form opens as a panel on the right (58b): what was tapped
-     stays in view on the left, dimmed, and the form is never 900px wide. */
-  ion-modal.entry-sheet {
-    --width: min(34rem, 64%);
-    --max-width: 34rem;
-    --border-radius: 22px 0 0 22px;
-    justify-content: flex-end;
-    /* The page beside it is the context, not something to hide. */
-    --backdrop-opacity: 0.18;
-  }
 }

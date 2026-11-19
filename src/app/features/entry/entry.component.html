@@ -32,6 +32,7 @@
       <!-- While the note is written, everything but the note steps aside by
            CSS (.writing-note): the note is never drawn a second time, since a
            textarea drawn again loses the focus and the phone its keyboard. -->
+        <div class="entry-a">
         <div class="ui-seg kinds">
           <button type="button" [class.on]="!isTransfer() && kind() === 'expense'" class="red"
                   [disabled]="isEditing() && !(!isTransfer() && kind() === 'expense')" (click)="switchKind('expense')">
@@ -180,7 +181,9 @@
         @if (error()) {
           <p class="error">{{ error() }}</p>
         }
+        </div>
 
+        <div class="entry-b">
         <!-- Where the money comes from and goes to: each end its account on one
              line and, hanging from it, its product (v7). -->
         <div class="ui-list ends">
@@ -309,6 +312,7 @@
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           </div>
         }
+        </div>
     </div>
   </div>
 

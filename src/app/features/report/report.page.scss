@@ -308,21 +308,23 @@
    the headline figures across the width and every other section in two
    columns that fill like a wall (each section whole in one column). */
 :host-context(body.cols) {
+  /* Two short rows: what is shown and the buttons; the account and the period. */
   .report-top {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "which acts" "account period";
     align-items: center;
-    gap: 10px;
-    padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 8px;
+    gap: 8px 10px;
+    padding: calc(6px + var(--ion-safe-area-top, 0px)) 14px 6px;
   }
-  .ui-bigtitle { display: contents; }
-  /* The rail already says Reporte: the title gives its room to the period. */
+  .ui-bigtitle, .head { display: contents; }
+  /* The rail already says Reporte: the title gives its room to the rest. */
   .ui-bigtitle h1 { display: none; }
-  .title-acts { order: 2; margin-left: auto; }
-  .head { order: 1; flex: 1 1 auto; min-width: 0; flex-direction: row; align-items: center; gap: 10px; padding: 0; }
-  .which { flex: 0 0 214px; button { font-size: 13px; padding-inline: 6px; } ion-icon { display: none; } }
-  .account-row { flex: 0 1 150px; min-width: 110px; }
+  .title-acts { grid-area: acts; }
+  .which { grid-area: which; max-width: 300px; button { font-size: 13px; padding-block: 7px; } }
+  .account-row { grid-area: account; min-width: 0; }
   .account { width: 100%; }
-  .ui-period { margin: 0; flex: 0 1 270px; min-width: 230px; }
+  .ui-period { grid-area: period; margin: 0; min-width: 0; width: 290px; }
 
   .body { column-count: 2; column-gap: 12px; padding: 12px 14px 0; }
   .lead, .state, app-empty { column-span: all; }
