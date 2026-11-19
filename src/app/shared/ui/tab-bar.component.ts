@@ -126,6 +126,35 @@ import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
       background: var(--app-red);
       border: 2px solid var(--app-s1);
     }
+
+    /* The phone held sideways (58a): the height is what is short, so the bar
+       becomes a rail on the left, full height, the "+" still in the middle.
+       Its width is --app-rail (global.scss), which the pages make room for. */
+    :host-context(body.wide) {
+      top: 0;
+      right: auto;
+      width: calc(var(--app-rail) + var(--ion-safe-area-left, 0px));
+      max-width: none;
+      margin: 0;
+      padding: var(--ion-safe-area-top, 0px) 0 var(--ion-safe-area-bottom, 0px) var(--ion-safe-area-left, 0px);
+      background: var(--app-top);
+      border-right: 1px solid var(--app-line);
+    }
+    :host-context(body.wide) nav {
+      height: 100%;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 7px;
+      border: 0;
+      border-radius: 0;
+      background: none;
+      box-shadow: none;
+    }
+    :host-context(body.wide) button { flex: none; width: 100%; padding: 6px 0; border-radius: 16px; font-size: 10.5px; }
+    :host-context(body.wide) button ion-icon { font-size: 21px; }
+    :host-context(body.wide) button.plus { width: 50px; height: 50px; margin: 6px auto; }
+    :host-context(body.wide) .dot { top: 4px; right: calc(50% - 18px); }
   `],
 })
 export class TabBarComponent {

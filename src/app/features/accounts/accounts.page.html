@@ -12,7 +12,7 @@
     <app-ask-button></app-ask-button>
   </div>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     <app-accounts-faces on="balances"></app-accounts-faces>
 
     @if (status() === 'opening') {
@@ -32,7 +32,12 @@
         </button>
       </div>
     } @else {
-      <section class="ui-hero worth">
+      <!-- Sideways, an account tapped shows here, beside the list (58e). -->
+      @if (layout.cols() && selected(); as chosen) {
+        <app-account-detail class="ui-side" [balance]="chosen" (closed)="selectedId.set(null)"
+                            (toHome)="open(chosen.account, true)" (edit)="edit(chosen.account)"></app-account-detail>
+      } @else {
+      <section class="ui-hero worth ui-side">
         <!-- The label and the eye share the top line, so the figure and the two
              tiles under it have the card's whole width (Jose, 2026-10-15). -->
         <div class="top">
@@ -65,6 +70,7 @@
           </button>
         }
       </section>
+      }
 
       <div class="ui-seg sort">
         <button type="button" [class.on]="sortBy() === 'amount'" (click)="setSort('amount')">{{ 'accounts.sort.amount' | t }}</button>
@@ -125,7 +131,7 @@
     }
     @for (balance of entry.balances; track balance.account.id) {
       @let account = balance.account;
-      <div class="ui-row account" [class.nested]="entry.group" [class.dim]="past">
+      <div class="ui-row account" [class.nested]="entry.group" [class.dim]="past" [class.chosen]="layout.cols() && selectedId() === account.id">
         <button type="button" class="open" (click)="open(account)">
           @if (entry.group) {
             <span class="code" [style.color]="codeColor(account.currency_code)"

@@ -26,6 +26,7 @@ import { ReviewEveningService } from './core/proposals/review-evening.service';
 import { ShortcutsService } from './core/shortcuts/shortcuts.service';
 import { MarqueeService } from './core/ui/marquee.service';
 import { TabBarComponent } from './shared/ui/tab-bar.component';
+import { LayoutService } from './core/ui/layout.service';
 import { ComposeHostComponent } from './shared/ui/compose-host.component';
 import { StatementFlowComponent } from './shared/ui/statement-flow.component';
 import { ToastComponent } from './shared/ui/toast.component';
@@ -101,6 +102,8 @@ export class AppComponent {
 
   /** The shortcuts of the app's icon, handed to Android and answered. */
   private readonly shortcuts = inject(ShortcutsService);
+  /** The phone held sideways: the rail on the left and screens in columns (58). */
+  private readonly layout = inject(LayoutService);
 
   /**
    * A sheet never outlives the screen it was opened on (Jose, 2026-09-28:

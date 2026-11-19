@@ -13,7 +13,7 @@
     <app-ask-button></app-ask-button>
   </div>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     <app-accounts-faces on="yields"></app-accounts-faces>
 
     @if (status() === 'opening') {
@@ -32,7 +32,7 @@
     } @else {
       <!-- The headline, and under it the sentence that keeps this screen
            honest: none of this is net worth. -->
-      <section class="ui-hero total">
+      <section class="ui-hero total ui-side">
         <app-amounts-eye class="corner"></app-amounts-eye>
         <span class="ui-lab">{{ 'products.total' | t }}</span>
         <div class="ui-big ui-g">{{ money(copTotalMinor()) }} <small>COP</small></div>

@@ -8,10 +8,13 @@
     <app-ask-button></app-ask-button>
   </div>
 
-  <div class="ui-main">
+  <div class="ui-main ui-split">
     <app-accounts-faces on="debts"></app-accounts-faces>
 
     @if (cards(); as cards) {
+      <!-- Sideways the summary and the plan stay on the left (58f); in portrait
+           this wrapper is not drawn (display: contents). -->
+      <div class="ui-side ui-side-stack">
       <section class="ui-hero owed">
         <div class="top">
           <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
@@ -55,6 +58,7 @@
           <ion-icon class="ui-chev" name="chevron-forward"></ion-icon>
         </button>
       }
+      </div>
 
       <!-- Only what the person has (Jose, 2026-10-15, 31b): a kind with
            nothing in it is not a section, only a line saying where to add one. -->

@@ -21,6 +21,8 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { LayoutService } from '../../core/ui/layout.service';
+import { AccountDetailComponent } from './account-detail.component';
 import { FilterService } from '../../core/filters/filter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
@@ -48,7 +50,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
   selector: 'app-accounts',
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
-  imports: [AskButtonComponent, 
+  imports: [AskButtonComponent, AccountDetailComponent, 
     AmountsEyeComponent,
     NgTemplateOutlet, MoneyPipe, TranslatePipe, AccountEditorComponent,
     BadgeComponent, JumpComponent, AccountsFacesComponent,
@@ -318,10 +320,31 @@ export class AccountsPage {
    * Choosing here counts as choosing by hand, so the summary stops guessing
    * which account to open on from then on.
    */
-  open(account: AccountRow): void {
+  /**
+   * A row tapped: its movements on Inicio - or, sideways, the account shown
+   * beside the list (58e), from where "Ver todos sus movimientos" goes on.
+   */
+  open(account: AccountRow, toHome = false): void {
+    if (!toHome && this.layout.cols()) {
+      this.selectedId.set(account.id);
+      return;
+    }
     this.filter.selectAccount(account.id);
     void this.router.navigateByUrl('/movements');
   }
+
+  /** Sideways: the account shown beside the list, and the row lit for it. */
+  readonly layout = inject(LayoutService);
+  readonly selectedId = signal<number | null>(null);
+  readonly selected = computed(() => {
+    const id = this.selectedId();
+    if (id === null) return null;
+    for (const entry of this.grouped() ?? []) {
+      const found = entry.balances.find(b => b.account.id === id);
+      if (found) return found;
+    }
+    return null;
+  });
   /**
    * The images, from the one service that holds them.
    *

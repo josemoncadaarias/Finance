@@ -46,6 +46,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 import { map } from 'rxjs';
 import type { Block, Value } from '../../core/report/blocks';
 import { ViewPrefsService } from '../../core/ui/view-prefs.service';
+import { LayoutService } from '../../core/ui/layout.service';
 import { inOrder } from '../../core/ui/view-order';
 import type { ReportData } from '../../core/report/report-data';
 import { saveFile } from '../../core/files/save-file';
@@ -150,6 +151,11 @@ export class ReportPage {
 
   readonly blocks = signal<Block[]>([]);
   private readonly view = inject(ViewPrefsService);
+  /** Sideways the report is a board (58d): every section open, two columns. */
+  readonly layout = inject(LayoutService);
+  private readonly openWhenWide = effect(() => {
+    if (this.layout.wide()) untracked(() => this.open.set(new Set(this.blocks().map(block => block.id))));
+  });
   readonly data = signal<ReportData | null>(null);
   readonly working = signal(true);
 
@@ -236,8 +242,9 @@ export class ReportPage {
         const hidden = this.view.reportHidden();
         this.blocks.set(inOrder(blocks.filter(block => block.id === 'headline' || !hidden.has(block.id)), this.view.reportOrder()));
       }
-      // Another period is another question, and it starts closed.
-      this.open.set(new Set());
+      // Another period is another question, and it starts closed - except
+      // sideways, where there is room to read it all at once (58d).
+      this.open.set(this.layout.wide() ? new Set(this.blocks().map(block => block.id)) : new Set());
     } finally {
       if (mine === this.generation) this.working.set(false);
     }
