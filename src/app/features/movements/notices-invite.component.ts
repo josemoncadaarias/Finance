@@ -9,7 +9,10 @@
  * itself (the listener, `NotificationCatcher`). "Ahora no" puts it away for
  * good on this device; Más → Notificaciones del teléfono stays the way in.
  * Not shown while "Primeros pasos" is on Inicio (it carries the same step),
- * nor with the sample data.
+ * nor with the sample data, nor once any bank was ever read on this app - a
+ * message proposed, or a source tied to an account (Jose, 2026-11-19: it
+ * showed on a phone already ringing "Movimiento detectado" from SMS, where
+ * the notification access was off; it is only for whom never used it).
  */
 
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -64,6 +67,8 @@ export class NoticesInviteComponent {
   /** Accounts on record, and the day of the first. */
   private readonly accounts = signal<{ n: number; first: string | null }>({ n: 0, first: null });
   private readonly away = signal(readAway());
+  /** Some bank's message was ever read here, or a source tied to an account. */
+  private readonly usedBanks = signal(true);
 
   /** "Primeros pasos" is on Inicio, carrying the same step. */
   private readonly stepsShowing = computed(() => {
@@ -75,7 +80,7 @@ export class NoticesInviteComponent {
   readonly shown = computed(() => {
     const phone = this.phone();
     return phone.supported && !phone.enabled && !this.away() && !this.demo.active()
-      && this.accounts().n > 0 && !this.stepsShowing();
+      && this.accounts().n > 0 && !this.stepsShowing() && !this.usedBanks();
   });
 
   constructor() {
@@ -95,8 +100,14 @@ export class NoticesInviteComponent {
       const row = await this.database.driver.queryOne<{ n: number; first: string | null }>(
         'SELECT COUNT(*) AS n, MIN(created_at) AS first FROM accounts');
       this.accounts.set({ n: row?.n ?? 0, first: row?.first ?? null });
+      const used = await this.database.driver.queryOne<{ n: number }>(
+        `SELECT (SELECT COUNT(*) FROM movement_proposals WHERE source = 'notification')
+              + (SELECT COUNT(*) FROM settings WHERE key = 'notices.sourceAccounts'
+                   AND value NOT IN ('{}', '', 'null')) AS n`);
+      this.usedBanks.set((used?.n ?? 0) > 0);
     } catch {
       this.accounts.set({ n: 0, first: null });
+      this.usedBanks.set(true);
     }
     await this.readPhone();
   }
