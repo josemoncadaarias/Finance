@@ -261,8 +261,9 @@ sideways" under "How to work". Drawn first as mockups `58a`-`58l`.
 **Bolsa de valores, first part (2026-11-12)**: a broker's statement read
 into purchases, sales and dividends, positions with their value, charts, and
 today's prices through a Google Sheet of the person's own - see "Bolsa de
-valores: the stock market module". Its Google half is written and NOT yet
-run on a phone; it needs the Sheets API enabled in Google Cloud by Jose.
+valores: the stock market module". Its Google half ran on Jose's phone on
+2026-11-19 (Sheets API and the `drive.file` scope set in Google Cloud):
+12 of his 13 tickers came back with today's price.
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -7954,7 +7955,7 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   - 32 tests in `stocks.test.mjs`; checked in a browser on the sample data
     (hero, detail, prices sheet, history by month and by ticker, search,
     the "+", the form, the currency sheet, Más). Not seen on the phone.
-- **Third round, from the phone (2026-11-18)**:
+- **Third round, from the phone (2026-11-18; merged as #330)**:
   - **The history's groups look like Inicio's** (`.ui-group`, a head row
     per month, day, ticker or kind of asset, with its badge - the ticker's
     own circle by ticker -, what it holds in words, "3 compras · 2
@@ -7983,6 +7984,17 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
     other image was chosen from the gallery). The photo's notice now offers
     "Reportar un fallo" with what the phone read (`noteRead`), so the next
     misread is replayed instead of guessed.
+- **Google's prices, first run on the phone (2026-11-19)**: Jose had the
+  Sheets API already enabled and added `.../auth/drive.file` under Data
+  Access of project 76504816542; Google asked the permission once and 12 of
+  his 13 tickers came back. Two fixes from it: the price chip and line were
+  dated by the OLDEST price on show, so one ticker left with the
+  statement's price made the whole card say "Precios del 12 de nov" -
+  now, with any price of today, the chip says today and counts the
+  positions without one (`pricesChip`, `pricesLine`); and a class of shares
+  ("BRKB", "BRK.B") is also asked as "NYSE:BRK.B", "NASDAQ:BRK.B" and
+  "BRK-B" (`candidatesFor`), since Google Finance often knows it only by
+  its market (assumed from public examples; to see on the phone).
 - **Not built yet** (to offer Jose, in this order): seeing one broker at a
   time when there are several (today all are one book; a ticker held at two
   brokers is one position); the assistant's questions about it; a returns
@@ -8242,11 +8254,9 @@ budget family (2/16, 1, 7), then the rest.
       Nequi...) to turn each layout into a test.
 - [ ] With version 1178 (or later) installed, change month on the Reporte
       and say whether any flicker is left (fixed 2026-11-05, #297).
-- [ ] Bolsa de valores (2026-11-12): enable "Google Sheets API" in Google
-      Cloud project 76504816542 and add the `drive.file` scope to the consent
-      screen (one step at a time, with screenshots); then on the phone press
-      "Traer los precios de hoy" and say what it shows - the Google half was
-      never run.
+- [ ] Bolsa de valores: after the update of 2026-11-19, press "Actualizar
+      los precios" again and say whether BRKB gets its price and the chip
+      says "Precios de hoy" (Google Cloud setup done the same day).
 - [ ] Bolsa de valores, second round (2026-11-12): try on the phone the
       open-positions file, a photo of one position ("+" → Foto o captura de
       una posición), "Borrar todos los movimientos de bolsa" and the new

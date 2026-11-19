@@ -289,8 +289,9 @@ test('value day by day begins the first day a price was kept', () => {
 test('the ways Google Finance may write a ticker', () => {
   assert.deepEqual(candidatesFor('NUBE', 'stock', 'USD'), ['NUBE']);
   assert.deepEqual(candidatesFor('TECX.UK', 'etf', 'USD'), ['LON:TECX', 'TECX']);
-  assert.deepEqual(candidatesFor('RIOB', 'stock', 'USD'), ['RIOB', 'RIO.B'], 'a class of shares written run together');
-  assert.deepEqual(candidatesFor('RIO.B', 'stock', 'USD'), ['RIO.B', 'RIO-B']);
+  assert.deepEqual(candidatesFor('RIOB', 'stock', 'USD'), ['RIOB', 'RIO.B', 'NYSE:RIO.B', 'NASDAQ:RIO.B', 'RIO-B'], 'a class of shares written run together');
+  assert.deepEqual(candidatesFor('RIO.B', 'stock', 'USD'), ['RIO.B', 'NYSE:RIO.B', 'NASDAQ:RIO.B', 'RIO-B']);
+  assert.deepEqual(candidatesFor('NUB', 'stock', 'USD'), ['NUB'], 'a ticker of three letters ending in B is no class of shares');
   assert.deepEqual(candidatesFor('MON', 'crypto', 'USD'), ['MONUSD', 'MON']);
 });
 
