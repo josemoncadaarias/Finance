@@ -30,6 +30,7 @@ import { StocksService, type BrokerChoice, type StockImport } from '../../core/s
 import { StockAlertsService } from '../../core/stocks/stock-alerts.service';
 import { ALERT_CHOICES } from '../../core/stocks/alerts';
 import { ratiosOf } from '../../core/stocks/company';
+import { monthlyReturnsOf } from '../../core/stocks/returns';
 import {
   bookOf, formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
 } from '../../core/stocks/positions';
@@ -781,6 +782,28 @@ export class StocksPage {
     }
     return { text: this.signed(trade.amountMinor, trade.currency), tone: trade.amountMinor > 0 ? 'g' : trade.amountMinor < 0 ? 'r' : null, note: null };
   }
+
+  /**
+   * The last twelve months of the returns line, newest first, each with its
+   * bar against the largest move (2026-11-19). Follows the broker on view and
+   * the ticker chosen for the chart.
+   */
+  readonly monthReturns = computed(() => {
+    const months = monthlyReturnsOf(this.stocks.trades(), this.stocks.history(), this.stocks.quotes(),
+      { currency: this.currency(), symbol: this.returnsSymbol(), today: isoDay(new Date()) as IsoDate });
+    const shown = months.slice(-12).reverse();
+    const most = Math.max(1, ...shown.map(m => Math.abs(m.gainMinor)));
+    const label = (month: string) => {
+      const [y, m] = month.split('-').map(Number);
+      const name = new Date(y, m - 1, 1).toLocaleDateString(this.i18n.dateLocale(), { month: 'short' }).replace('.', '');
+      return y === new Date().getFullYear() ? name : `${name} ${String(y).slice(2)}`;
+    };
+    const rows = shown.map(m => ({ ...m, label: label(m.month), width: Math.max(2, Math.abs(m.gainMinor) / most * 100) }));
+    const whole = rows.filter(row => !row.partial);
+    const best = whole.length > 1 ? whole.reduce((a, b) => (b.gainMinor > a.gainMinor ? b : a)) : null;
+    const worst = whole.length > 1 ? whole.reduce((a, b) => (b.gainMinor < a.gainMinor ? b : a)) : null;
+    return { rows, best, worst, estimated: rows.some(row => row.estimated) };
+  });
 
   /** The purchases still open: every one counts, not one per company. */
   readonly openLots = computed(() => this.held().reduce((sum, one) => sum + one.position.lots.length, 0));

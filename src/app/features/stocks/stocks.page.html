@@ -187,6 +187,31 @@
                              [currency]="currency()" [symbol]="returnsSymbol()"></app-returns-chart>
         </section>
 
+        <!-- Month by month, the same line's change (2026-11-19). Follows the ticker chosen above. -->
+        @if (monthReturns(); as months) {
+          @if (months.rows.length > 1) {
+            <section class="ui-card chart" data-tour="stocks-months">
+              <h3>{{ (returnsSymbol() ? 'stocks.months.titleOf' : 'stocks.months.title') | t:{ symbol: returnsSymbol() ?? '' } }}</h3>
+              <p class="about">{{ 'stocks.months.about' | t }}</p>
+              <div class="gains months">
+                @for (row of months.rows; track row.month) {
+                  <div class="gain-row month-row">
+                    <span class="name">{{ row.label }}</span>
+                    <span class="track"><i [class.up]="row.gainMinor >= 0" [class.down]="row.gainMinor < 0" [style.width.%]="row.width"></i></span>
+                    <span class="value" [class.ui-g]="row.gainMinor >= 0" [class.ui-r]="row.gainMinor < 0">
+                      {{ signed(row.gainMinor) }}@if (row.pct !== null) { <small>{{ pct(row.pct) }}</small> }
+                    </span>
+                  </div>
+                }
+              </div>
+              @if (months.best; as best) {
+                <p class="about">{{ 'stocks.months.best' | t:{ best: best.label, bestAmount: signed(best.gainMinor), worst: months.worst!.label, worstAmount: signed(months.worst!.gainMinor) } }}</p>
+              }
+              @if (months.estimated) { <p class="about">{{ 'stocks.months.estimated' | t }}</p> }
+            </section>
+          }
+        }
+
         @if (donut().length > 0) {
           <section class="ui-card chart">
             <h3>{{ 'stocks.chart.spread' | t }}</h3>
