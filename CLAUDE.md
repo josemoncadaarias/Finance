@@ -503,7 +503,10 @@ could not prove.
   source as before. Inicio: `app-notices-invite` (57g) when the phone can read
   notifications, the access is not given, there is an account, no sample data
   and no "Primeros pasos" on show; "Ahora no" puts it away
-  (`finance.noticesInvite.away`). "Primeros pasos"' notices step is now the
+  (`finance.noticesInvite.away`). **Only for whom never used bank messages** (Jose, 2026-11-19:
+  it showed on his phone, which rings "Movimiento detectado" from SMS while
+  the notification access was off): hidden once any message was proposed or
+  any source tied to an account (`usedBanks`). "Primeros pasos"' notices step is now the
   access itself and opens Android's screen. Words: notifications tour 1-3
   `since: 6`, home `since: 22`; the privacy policy says it (`site/`, live once
   Netlify deploys). Checked: the rule on 16 invented messages with the JDK
