@@ -27,6 +27,8 @@ import { foldText } from '../../core/text/fold-text';
 import { JumpComponent } from '../../shared/ui/jump.component';
 import { StatementFlowService } from '../../core/statements/statement-flow.service';
 import { StocksService, type BrokerChoice, type StockImport } from '../../core/stocks/stocks.service';
+import { StockAlertsService } from '../../core/stocks/stock-alerts.service';
+import { ALERT_CHOICES } from '../../core/stocks/alerts';
 import {
   bookOf, formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
 } from '../../core/stocks/positions';
@@ -252,6 +254,28 @@ export class StocksPage {
     keep(DETAIL_KEY, this.detailOpen() ? '1' : '0');
   }
   readonly pricesSheet = signal(false);
+
+  // ---- Strong moves (Jose, 2026-11-19) -------------------------------------------------
+
+  private readonly stockAlerts = inject(StockAlertsService);
+  readonly alertChoices = ALERT_CHOICES;
+
+  async toggleAlerts(): Promise<void> {
+    const now = this.stocks.alerts();
+    if (!now.on) {
+      if (!(await this.allowed())) return;
+      if (!(await this.stockAlerts.allow())) {
+        this.toast.say(this.i18n.t('stocks.alerts.denied'), 6000);
+        return;
+      }
+    }
+    await this.stocks.setAlerts({ ...now, on: !now.on });
+    if (!now.on) this.toast.say(this.i18n.t('stocks.alerts.on', { pct: now.pct }), 5000);
+  }
+
+  async alertAt(pct: number): Promise<void> {
+    await this.stocks.setAlerts({ ...this.stocks.alerts(), pct });
+  }
 
   // ---- Each broker apart (Jose, 2026-11-19) -----------------------------------------
 

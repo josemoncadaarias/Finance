@@ -123,6 +123,8 @@ const TOUR_LIST = {
       { target: 'stocks-faces', title: 'tour.stocks.4.title', text: 'tour.stocks.4.text', since: 2 },
       // 2026-11-19: each broker apart.
       { target: 'stocks-broker', title: 'tour.stocks.5.title', text: 'tour.stocks.5.text', since: 3 },
+      // 2026-11-19: alerts for strong moves, in the prices' sheet (opened from the status line).
+      { sel: 'app-stocks .ui-hero .status', title: 'tour.stocks.6.title', text: 'tour.stocks.6.text', since: 4 },
     ],
   },
   reminders: {

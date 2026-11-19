@@ -21,6 +21,7 @@ import { nameOf, textOf, type ReadingWatch } from '../statements/statements.serv
 import { bookOf, totalsOf, valueOf, type Quote, type Trade } from './positions';
 import { readBroker, type BrokerReading, type BrokerRow } from './read-broker';
 import { candidatesFor, inCurrency, quotesFrom, toE6 } from './quotes';
+import { alertSettingsOf, ALERTS_OFF, type AlertSettings } from './alerts';
 import { SheetsError, askSheet, createSheet } from './sheets-client';
 import { StocksRepository, type Instrument, type PriceRow, type TradeInput } from './stocks.repository';
 
@@ -30,6 +31,8 @@ const SHEET_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const SHEET_ID = 'stocks.sheet';
 const PRICES_AT = 'stocks.pricesAt';
 const AUTO = 'stocks.auto';
+/** The strong-move alerts, as `AlertSettings` (2026-11-19). In `settings`, so it travels in the backup. */
+const ALERTS = 'stocks.alerts';
 
 /** Google delays prices about twenty minutes: asking more often brings nothing new. */
 const FRESH_MS = 20 * 60 * 1000;
@@ -108,6 +111,8 @@ export class StocksService {
   readonly pricesAt = signal<string | null>(null);
   /** The person turned automatic prices on. */
   readonly auto = signal(false);
+  /** Ring when a position held moves past a threshold today. */
+  readonly alerts = signal<AlertSettings>(ALERTS_OFF);
   /** Tickers held that Google did not answer for, the last time it was asked. */
   readonly missing = signal<string[]>([]);
   /** What went wrong, as Google said it, for "Reportar un fallo". */
@@ -122,12 +127,15 @@ export class StocksService {
   readonly held = computed(() => this.valued().filter(one => one.position.quantityE8 > 0));
   /** What is held at every broker: prices are asked for all of it, whatever is on view. */
   /** One total per currency of every broker together: what the assistant answers with. */
-  readonly totalsEverywhere = computed(() => {
-    const book = bookOf(this.allTrades());
+  private readonly bookEverywhere = computed(() => bookOf(this.allTrades()));
+  /** Every position of every broker, at its price. */
+  readonly valuedEverywhere = computed(() => {
     const quotes = this.quotes();
-    return totalsOf(book, book.positions.map(position => valueOf(position, quotes.get(position.symbol) ?? null)));
+    return this.bookEverywhere().positions.map(position => valueOf(position, quotes.get(position.symbol) ?? null));
   });
-  readonly heldEverywhere = computed(() => bookOf(this.allTrades()).positions.filter(position => position.quantityE8 > 0));
+  readonly heldValuedEverywhere = computed(() => this.valuedEverywhere().filter(one => one.position.quantityE8 > 0));
+  readonly totalsEverywhere = computed(() => totalsOf(this.bookEverywhere(), this.valuedEverywhere()));
+  readonly heldEverywhere = computed(() => this.bookEverywhere().positions.filter(position => position.quantityE8 > 0));
 
   chooseBroker(choice: BrokerChoice): void {
     this.broker.set(choice);
@@ -171,6 +179,7 @@ export class StocksService {
         new RatesRepository(this.database.driver).allInForce('COP', today),
         repository.setting(PRICES_AT), repository.setting(AUTO),
       ]);
+      const alerts = alertSettingsOf(await repository.setting(ALERTS));
       if (mine !== this.generation) return;
       const pesos = new Map<string, number>([['COP', 1]]);
       for (const [code, rate] of rates) pesos.set(code, rate.rate_scaled / RATE_SCALE);
@@ -181,6 +190,7 @@ export class StocksService {
       this.pesosPer.set(pesos);
       this.pricesAt.set(at);
       this.auto.set(auto === '1');
+      this.alerts.set(alerts);
       this.loaded.set(true);
     } catch (failure) {
       noteError(failure);
@@ -354,6 +364,11 @@ export class StocksService {
       const kind = failure instanceof SheetsError ? failure.kind : 'server';
       this.pricesState.set(kind === 'network' ? (navigator.onLine ? 'failed' : 'offline') : kind === 'disabled' ? 'disabled' : 'failed');
     }
+  }
+
+  async setAlerts(settings: AlertSettings): Promise<void> {
+    this.alerts.set(settings);
+    await this.repository().setSetting(ALERTS, JSON.stringify(settings));
   }
 
   /** Stops asking Google by itself. The prices kept stay; the sheet stays in the person's Drive. */
