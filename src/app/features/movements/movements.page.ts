@@ -10,7 +10,6 @@
 
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { FirstStepsComponent } from './first-steps.component';
-import { NoticesInviteComponent } from './notices-invite.component';
 import { SafeTodayComponent } from './safe-today.component';
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, ElementRef, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
@@ -70,7 +69,7 @@ function readSummaryOpen(): boolean {
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
-  imports: [AskButtonComponent, EmptyStateComponent, SafeTodayComponent, FirstStepsComponent, NoticesInviteComponent, 
+  imports: [AskButtonComponent, EmptyStateComponent, SafeTodayComponent, FirstStepsComponent, 
     AmountsEyeComponent,
     CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
     TranslatePipe, ScopeSheetsComponent, AttentionHomeComponent,
