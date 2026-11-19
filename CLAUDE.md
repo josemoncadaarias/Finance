@@ -386,7 +386,7 @@ could not prove.
   itself: the manifest fixes no orientation). Not built from the mockups:
   the assistant's answer as a big card beside the chat (58i) and the "+"
   in two columns (58l) - the "+" is a centred sheet 36rem wide.
-- **Sideways, second round from the phone** (Jose, 2026-11-19, three
+- **Sideways, second round from the phone** (#339; Jose, 2026-11-19, three
   screenshots: Android's buttons covered what the screen said, the form on
   the right "se ve horrible", an account's page on Productos y rendimientos
   cut on the left, the rail too wide). What changed:
