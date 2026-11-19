@@ -8060,7 +8060,14 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   verified: that the phone delivers the alarm to a closed app (Xiaomi may
   hold it) and that GOOGLEFINANCE works its cells out when written through
   the API with nobody looking. The Java compiled with `javac` (only
-  Android's classes missing). Never with the sample data. Stocks tour step `since: 4`. Checked in a browser (the switch
+  Android's classes missing). Never with the sample data. With the alerts
+  on, the sheet also offers "Que el celular no frene las revisiones": the
+  same switch as "Avisarme siempre al instante" (`ListenerGuard`, read and
+  set through `BankNotifications`), which keeps the process alive so the
+  alarm is not held back - one setting for the banks and the stocks (Jose
+  asked, 2026-11-19, why stocks needed background work when the banks
+  already had it: banks PUSH notices the listener hears; prices must be
+  PULLED, so something has to wake up and ask). Stocks tour step `since: 4`. Checked in a browser (the switch
   and the threshold); the notice itself only on the phone.
 - **A company's own figures, from the SEC (2026-11-19)**: a position's page
   shows "La empresa en su último año" - sales and profit with their growth,

@@ -859,6 +859,14 @@
               }
             </div>
           </div>
+          @if (keptAlive() !== null) {
+            <div class="ui-row">
+              <app-badge shape="ci" [size]="36" builtin="flash-outline" fixed="#6378ff"></app-badge>
+              <span class="ui-tx"><b class="wrap">{{ 'stocks.alerts.alive' | t }}</b><small class="wrap">{{ 'stocks.alerts.alive.hint' | t }}</small></span>
+              <button type="button" class="ui-switch" [class.on]="keptAlive()" role="switch"
+                      [attr.aria-checked]="keptAlive()" (click)="toggleKeptAlive()"></button>
+            </div>
+          }
         }
       </div>
       @if (stocks.alerts().on) { <p class="hint">{{ 'stocks.alerts.howItWorks' | t }}</p> }
