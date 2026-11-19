@@ -123,6 +123,8 @@ export class StocksService {
   /** A company's filing being read: 'working', or 'failed' when it could not be. */
   readonly companyState = signal<Map<string, 'working' | 'failed'>>(new Map());
   private secTickers: SecTicker[] | null = null;
+  /** The person's own spreadsheet, once made: what the background check reads. */
+  readonly sheetId = signal<string | null>(null);
   /** Ring when a position held moves past a threshold today. */
   readonly alerts = signal<AlertSettings>(ALERTS_OFF);
   /** Tickers held that Google did not answer for, the last time it was asked. */
@@ -192,6 +194,7 @@ export class StocksService {
         repository.setting(PRICES_AT), repository.setting(AUTO),
       ]);
       const alerts = alertSettingsOf(await repository.setting(ALERTS));
+      const sheet = await repository.setting(SHEET_ID);
       if (mine !== this.generation) return;
       const pesos = new Map<string, number>([['COP', 1]]);
       for (const [code, rate] of rates) pesos.set(code, rate.rate_scaled / RATE_SCALE);
@@ -203,6 +206,7 @@ export class StocksService {
       this.pricesAt.set(at);
       this.auto.set(auto === '1');
       this.alerts.set(alerts);
+      this.sheetId.set(sheet);
       this.loaded.set(true);
     } catch (failure) {
       noteError(failure);

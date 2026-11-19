@@ -78,6 +78,12 @@ export class ShortcutsService {
     try {
       const { id } = await Native.take();
       if ((SHORTCUTS as readonly string[]).includes(id)) this.asked.set(id as ShortcutId);
+      // A strong move's notice, rung with the app closed (2026-11-19): "stock:SOLR".
+      else if (id.startsWith('stock:')) {
+        const symbol = id.slice('stock:'.length);
+        const go = () => void this.router.navigate(['/stocks'], symbol ? { queryParams: { symbol } } : {});
+        if (this.database.status() === 'ready') go(); else setTimeout(go, 1500);
+      }
     } catch {
       // Opened from its icon, as usual.
     }

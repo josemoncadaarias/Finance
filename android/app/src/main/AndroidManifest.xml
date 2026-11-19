@@ -77,6 +77,20 @@
             </intent-filter>
         </receiver>
 
+        <!--
+            Strong moves of the shares held, with the app closed (2026-11-19):
+            about every half hour while a market may be open, set again
+            after the phone starts and after each update.
+        -->
+        <receiver
+            android:name=".StockWatch"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- "Movimiento detectado" (rule 22): its "Descartar", answered without opening the app. -->
         <receiver
             android:name=".MovementAlertReceiver"
