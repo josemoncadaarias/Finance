@@ -30,6 +30,7 @@ import { StocksService, type BrokerChoice, type StockImport } from '../../core/s
 import { StockAlertsService } from '../../core/stocks/stock-alerts.service';
 import { ALERT_CHOICES } from '../../core/stocks/alerts';
 import { ratiosOf } from '../../core/stocks/company';
+import { BankNotifications } from '../../core/notifications/bank-notifications';
 import { monthlyReturnsOf } from '../../core/stocks/returns';
 import {
   bookOf, formatQuantity, monthsOf, sameDayPairs, spreadOf, worthByDay, worthOf, type Trade, type Valued,
@@ -273,6 +274,24 @@ export class StocksPage {
     }
     await this.stocks.setAlerts({ ...now, on: !now.on });
     if (!now.on) this.toast.say(this.i18n.t('stocks.alerts.on', { pct: now.pct }), 5000);
+  }
+
+  /**
+   * "Avisarme siempre al instante" of Notificaciones del teléfono, offered here
+   * too (Jose, 2026-11-19): it keeps Finance alive, so the phone does not hold
+   * back the half-hourly check of the prices either. One switch for both.
+   */
+  readonly keptAlive = signal<boolean | null>(null);
+  private readonly readKeptAlive = effect(() => {
+    if (!this.pricesSheet() || !this.stocks.canReadCompanies) return;
+    untracked(() => void BankNotifications.isEnabled().then(state => this.keptAlive.set(!!state.alwaysOn)).catch(() => this.keptAlive.set(null)));
+  });
+
+  async toggleKeptAlive(): Promise<void> {
+    const on = !this.keptAlive();
+    if (on) await this.stockAlerts.allow();
+    const { alwaysOn } = await BankNotifications.setAlwaysOn({ on });
+    this.keptAlive.set(alwaysOn);
   }
 
   async alertAt(pct: number): Promise<void> {
