@@ -633,6 +633,19 @@ export class StocksPage {
     // "?import=1" from another screen opens the file chooser's sheet at once.
     const asked = this.route.snapshot.queryParamMap.get('new');
     if (asked === 'trade') queueMicrotask(() => { void this.newTrade(); });
+    // "?symbol=NVDA" from the assistant opens that position once the trades are read.
+    const symbol = this.route.snapshot.queryParamMap.get('symbol');
+    if (symbol) {
+      const opened = effect(() => {
+        if (!this.stocks.loaded()) return;
+        untracked(() => {
+          // A position of another broker than the one on view: every broker is shown first.
+          if (!this.stocks.trades().some(trade => trade.symbol === symbol)) this.stocks.chooseBroker('all');
+          if (this.stocks.allTrades().some(trade => trade.symbol === symbol)) this.openSymbol.set(symbol);
+        });
+        opened.destroy();
+      });
+    }
   }
 
   private async loadAccounts(): Promise<void> {

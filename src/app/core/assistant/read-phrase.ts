@@ -82,6 +82,8 @@ export type Intent =
   | 'openGoal'
   /** "Muéstrame el tope de restaurantes": that cap's page. */
   | 'openCap'
+  /** "¿Cómo van mis acciones?", "¿cómo va NVDA?", "¿cuánto me dieron de dividendos?" (2026-11-19). */
+  | 'stocks'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -135,6 +137,8 @@ export interface PhraseContext {
   commonWord?: (word: string, side: 'income' | 'expense') => string | null;
   learned: Learned;
   today: string;
+  /** The tickers on record and their names, to know "NVDA" or "Nvidia" when said. */
+  tickers?: ReadonlyMap<string, string | null>;
 }
 
 export interface Reading {
@@ -172,11 +176,45 @@ export interface Reading {
   fromMemory: boolean;
   /** What a 'guide' question asks how to make: a topic, or 'any' when it did not say. */
   guide: GuideTopic | 'any' | null;
+  /** What a 'stocks' question asks: the whole portfolio, one ticker, or the dividends. */
+  stock: StockAsk | null;
+}
+
+export interface StockAsk {
+  ask: 'overview' | 'one' | 'dividends';
+  /** The ticker named, as kept ("NVDA", "VUAA.UK"). */
+  symbol: string | null;
 }
 
 /** Lower case, no accents, the way every comparison here is made. */
 export function fold(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+/**
+ * A ticker on record said in the sentence: written as kept ("NVDA",
+ * "VUAA.UK", "vuaa"), in capitals when it is a short or common word ("NU"
+ * is a ticker, "nu" may be a bank), or by the first word of its company's
+ * name ("Nvidia", "Berkshire"). Never a word of an account's name.
+ */
+export function tickerIn(text: string, ctx: PhraseContext): string | null {
+  const tickers = ctx.tickers;
+  if (!tickers || tickers.size === 0) return null;
+  const names = new Set([...ctx.accounts.map(a => a.name), ...ctx.products.map(p => p.name)].flatMap(n => fold(n).split(/[^a-z0-9]+/)));
+  const raw = text.split(/[^\p{L}\p{N}.]+/u).map(w => w.replace(/\.+$/, '')).filter(Boolean);
+  for (const [symbol, name] of tickers) {
+    const bare = symbol.replace(/\.[A-Z]{2}$/, '');
+    for (const word of raw) {
+      const upper = word.toUpperCase();
+      if (upper !== symbol && upper !== bare) continue;
+      const lower = fold(word);
+      // Written in capitals, or long enough not to be an ordinary word or a name.
+      if (word === upper || (bare.length >= 4 && !names.has(lower))) return symbol;
+    }
+    const first = name ? fold(name).split(/[^a-z0-9]+/).find(w => w.length >= 4) : undefined;
+    if (first && !names.has(first) && raw.some(word => fold(word) === first)) return symbol;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +376,12 @@ const SAVE_MORE = /\b(como|que)\b.*\b(puedo|podria|debo|hago|hacer|podemos|deber
  * how much ("muéstrame cuánto me han dado") is the yields' answer instead.
  */
 const OPEN_PRODUCTS = /\b(abre|abreme|abrir|abrirme|abrime|abrame|muestra|muestrame|mostrar|mostrarme|ensename|llevame|lleva|ir|vamos|ve|entra|entrar|quiero ver|ver|open|show me|go to|take me)\b.*\b(productos?|rendimientos?|bolsillos?|alcancias?|cdts?|products?|yields?|pockets?)\b/;
+/**
+ * The stock market (2026-11-19): words of shares, a portfolio, a broker,
+ * dividends. "Acciones" alone is enough: nothing else in the app is called so.
+ */
+const STOCKS = /\b(bolsa( de valores)?|acciones|portafolio|portfolio|stocks?|shares|etfs?|brokers?|brokeres|dividendos?|dividends?|inversiones en bolsa)\b/;
+const DIVIDENDS = /\b(dividendos?|dividends?)\b/;
 const HOW_MUCH = /\b(cuanto|cuanta|cuantos|how much)\b/;
 /** A verb of opening or going, then the screen of a category, a goal or a cap. */
 const OPEN_VERB = '\\b(abre|abreme|abrir|abrirme|abrime|abrame|muestra|muestrame|mostrar|mostrarme|ensename|llevame|lleva|ir|vamos|ve|entra|entrar|quiero ver|ver|open|show me|go to|take me)\\b';
@@ -785,7 +829,7 @@ let vocabulary: Vocabulary | null = null;
 function assistantWords(): Vocabulary {
   vocabulary ??= vocabularyOf([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
     TOP_SPENDING, RECURRING, FIXED_LEFT, PAID, INCOME_Q, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
-    OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
+    OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, STOCKS, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
     TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST, ...GUIDE_WORDS],
   [...Object.keys(UNITS), ...Object.keys(TIMES), ...FILLER, ...DAYS_ES, ...DAYS_EN, ...MONTHS, ...MONTHS_EN,
     'quincena', 'trimestre', 'semestre', 'semana', 'pasada', 'pasado', 'anterior', 'millones', 'millon', 'lucas', 'palos']);
@@ -838,6 +882,7 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
 
   let intent: Intent;
   let side: Side | null = null;
+  const stockSaid = tickerIn(text, ctx);
   // "¿Cómo registro un préstamo?": how to use the app. Never with a figure
   // ("¿puedo pagar 300 mil?") nor a question about one's money that only
   // starts with "cómo" ("¿cómo hago para saber cuánto debo?", "¿cómo hago
@@ -848,6 +893,7 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
   else if (has(folded, REMINDERS_LIST)) intent = 'reminders';
   else if (has(folded, REMIND)) intent = 'remind';
   else if (asksGuide !== null && asksGuide !== 'any') intent = 'guide';
+  else if (!amount && (has(folded, STOCKS) || stockSaid !== null) && !has(folded, REMIND)) intent = 'stocks';
   else if (!amount && has(folded, OPEN_PRODUCTS) && !has(folded, HOW_MUCH)) intent = 'openProducts';
   else if (!amount && has(folded, OPEN_GOAL) && !has(folded, HOW_MUCH)) intent = 'openGoal';
   else if (!amount && has(folded, OPEN_CAP) && !has(folded, HOW_MUCH)) intent = 'openCap';
@@ -1096,6 +1142,9 @@ function readAsTyped(text: string, ctx: PhraseContext): Reading {
     accountId, accountChoices, toAccountId, productId, fromProductId, toProductId,
     categoryId, categoryFrom, thing, shape, period, phraseKey, fromMemory,
     guide: intent === 'guide' ? asksGuide : null,
+    stock: intent === 'stocks'
+      ? { ask: has(folded, DIVIDENDS) ? 'dividends' : stockSaid !== null ? 'one' : 'overview', symbol: stockSaid }
+      : null,
   };
 }
 

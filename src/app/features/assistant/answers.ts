@@ -32,6 +32,7 @@ import { everyMonths, monthsBetween, nextInMonths, type NoteMatches, type NoteRo
 import { fold } from '../../core/assistant/read-phrase';
 import { stillToPay, type FixedPayment } from '../../core/assistant/recurring';
 import { GUIDE_TOPICS, type GuideTopic } from '../../core/assistant/guide';
+import type { Totals, Valued } from '../../core/stocks/positions';
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'plain';
 
@@ -1356,4 +1357,133 @@ function guideButtons(s: Speech, topic: GuideTopic, facts: GuideFacts): RichButt
     case 'notices': return [go(label, ['/notifications'])];
     case 'backup': return [go(label, ['/export'])];
   }
+}
+
+// ---------------------------------------------------------------------------
+// The stock market (2026-11-19): the portfolio, one ticker, the dividends.
+// Every broker together, whatever is on view in Bolsa de valores. Figures stay
+// in each position's own currency: a dollar is never said as pesos here.
+// ---------------------------------------------------------------------------
+
+export interface StocksPicture {
+  totals: readonly Totals[];
+  /** Every position ever held, sold ones included. */
+  positions: readonly Valued[];
+  names: ReadonlyMap<string, string | null>;
+  /** Net dividends of the period asked, by ticker. */
+  dividends: readonly { symbol: string; currency: string; netMinor: number }[];
+  dividendsLabel: string;
+}
+
+/** Money in a position's own currency. */
+export type MoneyIn = (minor: number, currency: string) => string;
+
+const stocksButton = (s: Speech, symbol?: string): RichButton => symbol
+  ? { label: s.t('ai.stocks.see', { symbol }), ghost: false, route: ['/stocks'], query: { symbol } }
+  : { label: s.t('ai.stocks.open'), ghost: false, route: ['/stocks'] };
+
+const pctOf = (value: number) => `${value >= 0 ? '+' : '−'}${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(Math.abs(value))} %`;
+const signedIn = (money: MoneyIn, minor: number, currency: string) => `${minor >= 0 ? '+' : '−'}${money(Math.abs(minor), currency)}`;
+
+export function stocksOverview(s: Speech, money: MoneyIn, pic: StocksPicture): Answer {
+  const held = pic.positions.filter(one => one.position.quantityE8 > 0);
+  if (held.length === 0) {
+    return { said: { key: 'ai.stocks.none', values: {} }, card: card([], [stocksButton(s)]), next: [] };
+  }
+  const blocks: RichBlock[] = [];
+  for (const total of pic.totals.filter(one => one.held > 0)) {
+    const c = total.currency;
+    if (pic.totals.length > 1) blocks.push({ lab: s.t('ai.stocks.in', { currency: c }) });
+    blocks.push({ line: { k: s.t('ai.stocks.value'), v: money(total.valueMinor, c) } });
+    blocks.push({ line: { k: s.t('ai.stocks.paid'), v: money(total.costMinor, c) } });
+    if (total.gainMinor !== null) {
+      blocks.push({ line: { k: s.t('ai.stocks.gain'), v: `${signedIn(money, total.gainMinor, c)}${total.gainPct !== null ? ` · ${pctOf(total.gainPct)}` : ''}`,
+        cls: total.gainMinor >= 0 ? 'ui-g' : 'ui-r' } });
+    }
+    if (total.dayMinor !== null) blocks.push({ line: { k: s.t('ai.stocks.today'), v: signedIn(money, total.dayMinor, c), cls: total.dayMinor >= 0 ? 'ui-g' : 'ui-r' } });
+    if (total.dividendsMinor !== 0) blocks.push({ line: { k: s.t('ai.stocks.dividends'), v: money(total.dividendsMinor, c) } });
+    if (total.realizedMinor !== 0) blocks.push({ line: { k: s.t('ai.stocks.realized'), v: signedIn(money, total.realizedMinor, c) } });
+    if (total.unquoted > 0) blocks.push({ note: s.t('ai.stocks.unquoted', { count: total.unquoted }) });
+  }
+  const priced = held.filter(one => one.gainPct !== null).sort((a, b) => b.gainPct! - a.gainPct!);
+  const row = (one: Valued): RichBlock => ({ row: {
+    icon: (one.gainPct ?? 0) >= 0 ? 'trending-up-outline' : 'trending-down-outline',
+    color: (one.gainPct ?? 0) >= 0 ? COLORS.grn : COLORS.red, round: true,
+    title: one.position.symbol, value: pctOf(one.gainPct ?? 0),
+    lines: [pic.names.get(one.position.symbol) ?? '', money(one.valueMinor, one.position.currency)].filter(Boolean),
+  } });
+  const up = priced.filter(one => (one.gainPct ?? 0) > 0).slice(0, 3);
+  const down = priced.filter(one => (one.gainPct ?? 0) < 0).reverse().slice(0, 2);
+  if (up.length > 0) { blocks.push({ lab: s.t('ai.stocks.up') }); up.forEach(one => blocks.push(row(one))); }
+  if (down.length > 0) { blocks.push({ lab: s.t('ai.stocks.down') }); down.forEach(one => blocks.push(row(one))); }
+  blocks.push({ note: s.t('ai.stocks.info') });
+
+  const main = pic.totals.find(one => one.held > 0)!;
+  const said: Said = main.gainMinor === null
+    ? { key: 'ai.stocks.answerNoPrice', values: { value: money(main.valueMinor, main.currency), count: held.length } }
+    : { key: main.gainMinor >= 0 ? 'ai.stocks.answerUp' : 'ai.stocks.answerDown',
+      values: { value: money(main.valueMinor, main.currency), gain: money(Math.abs(main.gainMinor), main.currency),
+        pct: pctOf(main.gainPct ?? 0).replace(/^[+−]/, ''), count: held.length } };
+  const top = up[0] ?? priced[0] ?? held[0];
+  return {
+    said, card: card(blocks, [stocksButton(s)]), next: ['ai.next.dividends'],
+    ask: top ? [s.t('ai.stocks.askOne', { symbol: top.position.symbol })] : [],
+  };
+}
+
+export function stockOne(s: Speech, money: MoneyIn, pic: StocksPicture, symbol: string, quantity: (e8: number) => string): Answer {
+  const one = pic.positions.find(v => v.position.symbol === symbol);
+  if (!one) return { said: { key: 'ai.stocks.unknown', values: { symbol } }, card: card([], [stocksButton(s)]), next: ['ai.next.stocks'] };
+  const p = one.position;
+  const c = p.currency;
+  const name = pic.names.get(symbol);
+  const blocks: RichBlock[] = [];
+  if (name) blocks.push({ lab: name });
+  if (p.quantityE8 === 0) {
+    blocks.push({ line: { k: s.t('ai.stocks.sold'), v: money(p.soldMinor, c) } });
+    blocks.push({ line: { k: s.t('ai.stocks.realized'), v: signedIn(money, p.realizedMinor, c), cls: p.realizedMinor >= 0 ? 'ui-g' : 'ui-r' } });
+    if (p.dividendsMinor + p.taxMinor !== 0) blocks.push({ line: { k: s.t('ai.stocks.dividends'), v: money(p.dividendsMinor + p.taxMinor, c) } });
+    return {
+      said: { key: 'ai.stocks.one.sold', values: { symbol, result: signedIn(money, p.realizedMinor, c) } },
+      card: card(blocks, [stocksButton(s, symbol)]), next: ['ai.next.stocks'],
+    };
+  }
+  blocks.push({ line: { k: s.t('ai.stocks.units'), v: quantity(p.quantityE8) } });
+  if (p.averageE6 !== null) blocks.push({ line: { k: s.t('ai.stocks.average'), v: money(Math.round(p.averageE6 / 10_000), c) } });
+  if (one.quote) blocks.push({ line: { k: s.t('ai.stocks.price', { date: s.date(one.quote.day) }), v: money(Math.round(one.quote.priceE6 / 10_000), c) } });
+  blocks.push({ line: { k: s.t('ai.stocks.paid'), v: money(p.costMinor, c) } });
+  blocks.push({ line: { k: s.t('ai.stocks.value'), v: money(one.valueMinor, c) } });
+  if (one.gainMinor !== null) {
+    blocks.push({ line: { k: s.t('ai.stocks.gain'), v: `${signedIn(money, one.gainMinor, c)}${one.gainPct !== null ? ` · ${pctOf(one.gainPct)}` : ''}`,
+      cls: one.gainMinor >= 0 ? 'ui-g' : 'ui-r' } });
+  }
+  if (one.dayMinor !== null) blocks.push({ line: { k: s.t('ai.stocks.today'), v: signedIn(money, one.dayMinor, c), cls: one.dayMinor >= 0 ? 'ui-g' : 'ui-r' } });
+  if (p.dividendsMinor + p.taxMinor !== 0) blocks.push({ line: { k: s.t('ai.stocks.dividends'), v: money(p.dividendsMinor + p.taxMinor, c) } });
+  if (!one.quote) blocks.push({ note: s.t('ai.stocks.noPrice') });
+  blocks.push({ note: s.t('ai.stocks.info') });
+  const said: Said = one.gainMinor === null
+    ? { key: 'ai.stocks.one.noPrice', values: { symbol, paid: money(p.costMinor, c) } }
+    : { key: one.gainMinor >= 0 ? 'ai.stocks.one.up' : 'ai.stocks.one.down',
+      values: { symbol, value: money(one.valueMinor, c), gain: money(Math.abs(one.gainMinor), c), pct: pctOf(one.gainPct ?? 0).replace(/^[+−]/, '') } };
+  return { said, card: card(blocks, [stocksButton(s, symbol)]), next: ['ai.next.stocks', 'ai.next.dividends'] };
+}
+
+export function stockDividends(s: Speech, money: MoneyIn, pic: StocksPicture): Answer {
+  const by = pic.dividends.filter(d => d.netMinor !== 0);
+  if (by.length === 0) {
+    return { said: { key: 'ai.stocks.div.none', values: { label: pic.dividendsLabel } }, card: card([], [stocksButton(s)]), next: ['ai.next.stocks'] };
+  }
+  const sums = new Map<string, number>();
+  for (const d of by) sums.set(d.currency, (sums.get(d.currency) ?? 0) + d.netMinor);
+  const blocks: RichBlock[] = [{ lab: s.t('ai.stocks.div.by', { label: pic.dividendsLabel }) }];
+  for (const d of [...by].sort((a, b) => b.netMinor - a.netMinor)) {
+    blocks.push({ line: { k: pic.names.get(d.symbol) ? `${d.symbol} · ${pic.names.get(d.symbol)}` : d.symbol, v: money(d.netMinor, d.currency) } });
+  }
+  for (const [currency, minor] of sums) blocks.push({ line: { k: s.t('ai.stocks.div.total'), v: money(minor, currency), cls: 'ui-g' } });
+  blocks.push({ note: s.t('ai.stocks.div.net') });
+  const total = [...sums].map(([currency, minor]) => money(minor, currency)).join(' + ');
+  return {
+    said: { key: 'ai.stocks.div.answer', values: { label: pic.dividendsLabel, total, count: by.length } },
+    card: card(blocks, [stocksButton(s)]), next: ['ai.next.stocks'],
+  };
 }

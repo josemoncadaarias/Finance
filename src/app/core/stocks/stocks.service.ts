@@ -121,6 +121,12 @@ export class StocksService {
   readonly totals = computed(() => totalsOf(this.book(), this.valued()));
   readonly held = computed(() => this.valued().filter(one => one.position.quantityE8 > 0));
   /** What is held at every broker: prices are asked for all of it, whatever is on view. */
+  /** One total per currency of every broker together: what the assistant answers with. */
+  readonly totalsEverywhere = computed(() => {
+    const book = bookOf(this.allTrades());
+    const quotes = this.quotes();
+    return totalsOf(book, book.positions.map(position => valueOf(position, quotes.get(position.symbol) ?? null)));
+  });
   readonly heldEverywhere = computed(() => bookOf(this.allTrades()).positions.filter(position => position.quantityE8 > 0));
 
   chooseBroker(choice: BrokerChoice): void {

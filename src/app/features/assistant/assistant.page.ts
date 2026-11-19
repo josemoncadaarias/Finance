@@ -62,6 +62,9 @@ import { PLAN } from '../../core/paywall/plan';
 import { HabitsService } from '../../core/compose/habits.service';
 import type { Frequent } from '../../core/compose/frequent';
 import { HabitRowComponent } from '../../shared/ui/habit-row.component';
+import { StocksService } from '../../core/stocks/stocks.service';
+import { bookOf, formatQuantity, valueOf } from '../../core/stocks/positions';
+import { formatMoney } from '../../core/database/money';
 
 interface Part { text: string; bold: boolean }
 interface Chip { label: string; act: () => void }
@@ -255,6 +258,10 @@ const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color
     { key: 'ai.example.debts', icon: 'card-outline', cls: 'ui-p' },
     { key: 'ai.example.payFirst', icon: 'flag-outline', cls: 'ui-p' },
     { key: 'ai.example.due', icon: 'calendar-outline', cls: 'ui-p' }] },
+  // Shown only once there is something in Bolsa de valores (2026-11-19).
+  { title: 'ai.group.stocks', sub: 'ai.group.stocks.sub', icon: 'stats-chart-outline', color: '#34c98b', rows: [
+    { key: 'ai.next.stocks', icon: 'stats-chart-outline', cls: 'ui-g' },
+    { key: 'ai.next.dividends', icon: 'gift-outline', cls: 'ui-g' }] },
   { title: 'ai.group.plans', sub: 'ai.group.plans.sub', icon: 'speedometer-outline', color: '#a78bfa', rows: [
     { key: 'ai.example.plans', icon: 'speedometer-outline', cls: 'ui-p' },
     { key: 'ai.example.reminders', icon: 'alarm-outline', cls: 'ui-y' },
@@ -291,6 +298,7 @@ export class AssistantPage {
   private readonly router = inject(Router);
   private readonly database = inject(DatabaseService);
   private readonly assistant = inject(AssistantService);
+  private readonly stocks = inject(StocksService);
   private readonly saveShare = inject(SaveShareService);
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
@@ -347,6 +355,7 @@ export class AssistantPage {
         icon: 'sparkles-outline', color: '#6378ff', rows: mine.map(f => ({ text: f.text, sub: f.sub, icon: f.icon, cls: 'ui-p' })) });
     }
     for (const g of WELCOME) {
+      if (g.title === 'ai.group.stocks' && this.stocks.allTrades().length === 0) continue;
       out.push({ id: g.title, title: this.i18n.t(g.title), sub: this.i18n.t(g.sub), icon: g.icon, color: g.color,
         rows: g.rows.map(r => ({ text: this.i18n.t(r.key), icon: r.icon, cls: r.cls })) });
     }
@@ -627,11 +636,50 @@ export class AssistantPage {
   // Answering
   // ---------------------------------------------------------------------------
 
+  /**
+   * The stock market's questions, every broker together, from what Bolsa de
+   * valores already worked out: nothing is worked out a second way.
+   */
+  private stocksAnswer(reading: Reading): A.Answer {
+    const trades = this.stocks.allTrades();
+    const book = bookOf(trades);
+    const quotes = this.stocks.quotes();
+    const positions = book.positions.map(position => valueOf(position, quotes.get(position.symbol) ?? null));
+    const names = new Map<string, string | null>();
+    for (const position of book.positions) names.set(position.symbol, this.stocks.instruments().get(position.symbol)?.name ?? null);
+    const period = reading.period ?? currentPeriod('year');
+    const from = period.from ?? '0000-01-01';
+    const to = period.to ?? '9999-12-31';
+    const dividends = new Map<string, { symbol: string; currency: string; netMinor: number }>();
+    for (const trade of trades) {
+      if ((trade.kind !== 'dividend' && trade.kind !== 'tax') || !trade.symbol || trade.day < from || trade.day > to) continue;
+      const key = `${trade.symbol}|${trade.currency}`;
+      const one = dividends.get(key) ?? { symbol: trade.symbol, currency: trade.currency, netMinor: 0 };
+      one.netMinor += trade.amountMinor;
+      dividends.set(key, one);
+    }
+    const picture: A.StocksPicture = {
+      totals: this.stocks.totalsEverywhere(), positions, names, dividends: [...dividends.values()],
+      dividendsLabel: periodLabel(period, this.i18n.dateLocale(), this.i18n.t('period.all')),
+    };
+    const money: A.MoneyIn = (minor, currency) => formatMoney(minor, currency);
+    const stock = reading.stock;
+    if (stock?.ask === 'dividends') return A.stockDividends(this.speech(), money, picture);
+    if (stock?.ask === 'one' && stock.symbol) {
+      return A.stockOne(this.speech(), money, picture, stock.symbol, e8 => formatQuantity(e8, this.i18n.dateLocale()));
+    }
+    return A.stocksOverview(this.speech(), money, picture);
+  }
+
   private async load(): Promise<ReturnType<AssistantService['context']>> {
     const ctx = await this.assistant.context();
     this.accounts = ctx.accountRows;
     this.categories = ctx.categoryRows;
     this.products = ctx.productRows;
+    // The tickers on record, to know "NVDA" or "Nvidia" when said (2026-11-19).
+    const tickers = new Map<string, string | null>();
+    for (const trade of this.stocks.allTrades()) if (trade.symbol) tickers.set(trade.symbol, this.stocks.instruments().get(trade.symbol)?.name ?? null);
+    ctx.tickers = tickers;
     return ctx;
   }
 
@@ -719,6 +767,7 @@ export class AssistantPage {
       case 'openProducts': return this.give(A.openProducts(this.speech(), this.accountNamed(reading), this.earning()));
       case 'openCategory': return this.give(A.openCategory(this.speech(),
         this.categories.find(c => c.id === reading.categoryId) ?? null, currentPeriod('month'), this.usedCategories()));
+      case 'stocks': return this.give(this.stocksAnswer(reading));
       case 'openGoal':
       case 'openCap': return this.openPlan(reading.intent === 'openGoal' ? 'goal' : 'cap', text);
       case 'help':
@@ -1274,7 +1323,7 @@ export class AssistantPage {
       intent: 'register', side: card.side, amountMinor: card.amountMinor, amountGuessed: false, amountText: null,
       onDate: card.onDate, dayWord: null, accountId, accountChoices: [], toAccountId: null, productId: null,
       fromProductId: null, toProductId: null, categoryId: card.category.id, categoryFrom: 'learned',
-      thing: card.note || null, shape: null, period: null, phraseKey: card.phraseKey ?? null, fromMemory: false, guide: null,
+      thing: card.note || null, shape: null, period: null, phraseKey: card.phraseKey ?? null, fromMemory: false, guide: null, stock: null,
     }, text);
   }
 

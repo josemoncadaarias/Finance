@@ -8009,7 +8009,27 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   "Todos" and its own share under each. Movements are split by the account
   chosen when each statement was imported, so a statement saved with "Sin
   cuenta" is a broker of its own. Stocks tour step `since: 3`.
-- **Not built yet** (to offer Jose, in this order): the assistant's questions about it; a returns
+- **The assistant answers about the stock market (2026-11-19)**: intent
+  `stocks` in `read-phrase.ts` (`STOCKS`: bolsa, acciones, portafolio,
+  bróker, dividendos, stocks, shares, ETF; or a ticker on record said -
+  `tickerIn`, from `PhraseContext.tickers`, filled by the assistant page
+  from `StocksService`: written as kept, in capitals when it is short, or by
+  the first word of 4+ letters of its company's name; never a word of an
+  account's name, so "¿cuánto tengo en nu?" stays the bank). `Reading.stock`
+  says what it asks: the whole portfolio (`stocksOverview`: worth today,
+  paid, gain and %, change today, dividends, realised, the three rising most
+  and two going down), one ticker (`stockOne`: units, average price, price
+  and its day, paid, worth, gain, change today, dividends, or what selling
+  gave once sold all) or the dividends of a period, this year when none is
+  said (`stockDividends`, net of withholding, by ticker). Every broker
+  together, whatever is on view; each figure in the position's own currency
+  (`StocksService.totalsEverywhere`), never as pesos. "Ver {symbol} en Bolsa
+  de valores" opens `/stocks?symbol=`, which opens that position (every
+  broker shown when it is another's). A welcome group "Tu bolsa de valores",
+  only while trades exist; assistant tour step `since: 14`. Questions count
+  as any question (20 free a month). Tests in `read-phrase.test.mjs`
+  (invented tickers). Not checked on the phone.
+- **Not built yet** (to offer Jose, in this order): a returns
   report by period (month, 6 months, year: it needs the app's own price
   history to grow, or prices typed); fundamentals from the SEC's EDGAR;
   screeners and price alerts (not possible in this shape, see below);

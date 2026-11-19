@@ -281,6 +281,8 @@ const TOUR_LIST = {
       { sel: 'app-assistant .compose-bar', title: 'tour.assistant.12.title', text: 'tour.assistant.12.text', since: 11 },
       { title: 'tour.assistant.13.title', text: 'tour.assistant.13.text', since: 12 },
       { title: 'tour.assistant.14.title', text: 'tour.assistant.14.text', since: 13 },
+      // 2026-11-19: the stock market's questions.
+      { title: 'tour.assistant.15.title', text: 'tour.assistant.15.text', since: 14 },
     ],
   },
   tax: {
