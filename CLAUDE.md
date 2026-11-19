@@ -674,7 +674,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1279 on 2026-11-19, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1280 on 2026-11-19, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -8073,12 +8073,21 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   (2026-11-19). The privacy policy names the SEC. The screen checked in a
   browser with a company saved by hand; the reading itself only on the
   phone.
-- **Not built yet** (to offer Jose, in this order): a returns
-  report by period (month, 6 months, year: it needs the app's own price
-  history to grow, or prices typed); fundamentals from the SEC's EDGAR;
-  screeners and price alerts (not possible in this shape, see below);
-  a statement
-  that is only a table of today's positions; CSV or Excel statements.
+- **The return of each month (2026-11-19)**: Gráficos has "Rendimiento de
+  cada mes" under the returns chart: the last twelve months, newest first,
+  each with its bar (green up, red down, against the largest move), the
+  gain or loss in money and its percent, and "Tu mejor mes fue... y el
+  peor..." over whole months. It is the returns line's change from the
+  close of each month to the next (`monthlyReturnsOf` in `returns.ts`, the
+  same arithmetic as the chart through a shared `prepare`; the months add up
+  to the line - tested in `stocks.test.mjs`), percent over what was held at
+  the month's start plus what was bought in it; dividends apart. Follows
+  the broker on view and the ticker chosen for the chart. Months drawn
+  between known prices are said to be estimates. Stocks tour step `since: 5`.
+  Checked in a browser on the sample data.
+- **Not built yet** (to offer Jose, in this order): the strong-move alerts
+  with the app closed (native background work); CSV or Excel statements;
+  a screener over the whole market (not possible free, see below).
 
 #### The analysis of 2026-10-22, as it was written
 

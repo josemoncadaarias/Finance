@@ -640,3 +640,25 @@ test('a position\'s detail on a computer: four columns, each label over its valu
   assert.equal(read.asset, 'stock');
   assert.equal(read.currency, 'USD');
 });
+
+import { monthlyReturnsOf } from '../../src/app/core/stocks/returns.ts';
+
+test('returns month by month add up to the whole line, and a purchase is never a month\'s gain', () => {
+  const history = trades([
+    { kind: 'buy', symbol: 'MUNDO', day: '2026-01-10', quantityE8: QUANTITY_SCALE, priceE6: 100 * PRICE_SCALE, amountMinor: -10_000 },
+    { kind: 'buy', symbol: 'MUNDO', day: '2026-02-10', quantityE8: QUANTITY_SCALE, priceE6: 110 * PRICE_SCALE, amountMinor: -11_000 },
+    { kind: 'dividend', symbol: 'MUNDO', day: '2026-02-20', amountMinor: 150 },
+    { kind: 'buy', symbol: 'MUNDO', day: '2026-03-10', quantityE8: QUANTITY_SCALE, priceE6: 90 * PRICE_SCALE, amountMinor: -9_000 },
+  ]);
+  const quotes = new Map([['MUNDO', quoteOf(120, null, '2026-04-10')]]);
+  const months = monthlyReturnsOf(history, [], quotes, { currency: 'USD', today: '2026-04-10' });
+  assert.deepEqual(months.map(m => m.month), ['2026-01', '2026-02', '2026-03', '2026-04']);
+  const whole = returnsOf(history, [], quotes, { currency: 'USD', range: 'MAX', today: '2026-04-10' });
+  assert.equal(months.reduce((sum, m) => sum + m.gainMinor, 0), whole.changeMinor, 'the months add up to the line');
+  assert.equal(months[1].dividendsMinor, 150);
+  assert.equal(months[3].partial, true);
+  assert.equal(months[0].partial, false);
+  // March: it fell to 90 on the 10th and climbed towards 120 by April 10: at March 31 it is drawn between them.
+  assert.equal(months[2].estimated, true);
+  assert.deepEqual(monthlyReturnsOf([], [], new Map(), { currency: 'USD', today: '2026-04-10' }), []);
+});

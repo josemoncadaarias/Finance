@@ -82,14 +82,21 @@ function order(a: Trade, b: Trade): number {
 
 interface Known { day: IsoDate; priceE6: number; }
 
-export function returnsOf(
+interface Prepared {
+  /** The trades in today's units, splits applied, in order. */
+  adjusted: Trade[];
+  known: Map<string, Known[]>;
+  priceOn: (name: string, day: IsoDate) => { priceE6: number; exact: boolean } | null;
+}
+
+/** The trades of one currency (and ticker), in today's units, and every price known of each ticker. */
+function prepare(
   trades: readonly Trade[],
   prices: readonly { symbol: string; day: IsoDate; price_e6: number }[],
   quotes: ReadonlyMap<string, Quote>,
-  options: { currency: string; symbol?: string | null; range: Range; today: IsoDate; samples?: number },
-): Returns | null {
-  const { currency, range, today } = options;
-  const symbol = options.symbol ?? null;
+  currency: string,
+  symbol: string | null,
+): Prepared | null {
   const sorted = trades
     .filter(trade => trade.currency === currency && trade.symbol !== null && (symbol === null || trade.symbol === symbol))
     .sort(order);
@@ -159,6 +166,21 @@ export function returnsOf(
     const part = (timeOf(day) - timeOf(list[low].day)) / span;
     return { priceE6: Math.round(list[low].priceE6 + (list[high].priceE6 - list[low].priceE6) * part), exact: false };
   };
+
+  return { adjusted, known, priceOn };
+}
+
+export function returnsOf(
+  trades: readonly Trade[],
+  prices: readonly { symbol: string; day: IsoDate; price_e6: number }[],
+  quotes: ReadonlyMap<string, Quote>,
+  options: { currency: string; symbol?: string | null; range: Range; today: IsoDate; samples?: number },
+): Returns | null {
+  const { currency, range, today } = options;
+  const symbol = options.symbol ?? null;
+  const prepared = prepare(trades, prices, quotes, currency, symbol);
+  if (!prepared) return null;
+  const { adjusted, known, priceOn } = prepared;
 
   const first = adjusted.find(trade => trade.kind === 'buy')!.day;
   const asked = rangeStart(range, today);
@@ -232,4 +254,85 @@ export function returnsOf(
     estimated,
     flat,
   };
+}
+
+/** One month of the investments: what prices did to them, apart from what was put in. */
+export interface MonthReturn {
+  /** "2026-10". */
+  month: string;
+  /** Gain or loss in the month: the line of `returnsOf`, from the close of the month before. */
+  gainMinor: number;
+  /** Over what was held at the month's start plus what was bought in it. */
+  pct: number | null;
+  dividendsMinor: number;
+  /** Some price of the month was drawn between two known ones. */
+  estimated: boolean;
+  /** Still running. */
+  partial: boolean;
+}
+
+/**
+ * Month by month, from the first purchase to today (2026-11-19, the
+ * returns report by period): each month's gain is the line's change from the
+ * close of the month before to the close of the month (or today). The same
+ * arithmetic as the chart, so the two never disagree.
+ */
+export function monthlyReturnsOf(
+  trades: readonly Trade[],
+  prices: readonly { symbol: string; day: IsoDate; price_e6: number }[],
+  quotes: ReadonlyMap<string, Quote>,
+  options: { currency: string; symbol?: string | null; today: IsoDate },
+): MonthReturn[] {
+  const { currency, today } = options;
+  const prepared = prepare(trades, prices, quotes, currency, options.symbol ?? null);
+  if (!prepared) return [];
+  const { adjusted, priceOn } = prepared;
+  const first = adjusted.find(trade => trade.kind === 'buy')!.day;
+  if (first > today) return [];
+
+  const stateOn = (day: IsoDate): { gain: number; value: number; estimated: boolean } => {
+    const book = bookOf(adjusted.filter(trade => trade.day <= day));
+    let gain = 0;
+    let value = 0;
+    let estimated = false;
+    for (const position of book.positions) {
+      gain += position.realizedMinor;
+      if (position.quantityE8 === 0) continue;
+      const price = priceOn(position.symbol, day);
+      const worth = price === null ? position.costMinor : worthOf(position.quantityE8, price.priceE6);
+      if (price === null || !price.exact) estimated = true;
+      gain += worth - position.costMinor;
+      value += worth;
+    }
+    return { gain, value, estimated };
+  };
+
+  const out: MonthReturn[] = [];
+  let [year, month] = first.split('-').map(Number);
+  // Before the first purchase nothing was held.
+  let before = { gain: 0, value: 0, estimated: false };
+  for (;;) {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    const start = `${key}-01` as IsoDate;
+    if (start > today) break;
+    const last = dayOf(Date.UTC(year, month, 1) - DAY);
+    const end = (last < today ? last : today) as IsoDate;
+    const now = stateOn(end);
+    const inMonth = adjusted.filter(trade => trade.day >= start && trade.day <= end);
+    const bought = inMonth.filter(trade => trade.kind === 'buy').reduce((sum, trade) => sum + Math.abs(trade.amountMinor), 0);
+    const base = before.value + bought;
+    const gainMinor = now.gain - before.gain;
+    out.push({
+      month: key,
+      gainMinor,
+      pct: base > 0 ? gainMinor / base * 100 : null,
+      dividendsMinor: inMonth.filter(trade => trade.kind === 'dividend' || trade.kind === 'tax').reduce((sum, trade) => sum + trade.amountMinor, 0),
+      estimated: now.estimated,
+      partial: end === today && last !== today,
+    });
+    before = now;
+    month += 1;
+    if (month > 12) { month = 1; year += 1; }
+  }
+  return out;
 }

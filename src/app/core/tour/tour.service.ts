@@ -125,6 +125,8 @@ const TOUR_LIST = {
       { target: 'stocks-broker', title: 'tour.stocks.5.title', text: 'tour.stocks.5.text', since: 3 },
       // 2026-11-19: alerts for strong moves, in the prices' sheet (opened from the status line).
       { sel: 'app-stocks .ui-hero .status', title: 'tour.stocks.6.title', text: 'tour.stocks.6.text', since: 4 },
+      // 2026-11-19: the return of each month, and a company's own figures.
+      { target: 'stocks-faces', title: 'tour.stocks.7.title', text: 'tour.stocks.7.text', since: 5 },
     ],
   },
   reminders: {
