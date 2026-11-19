@@ -70,7 +70,6 @@
         <div class="side-col">
           <ng-container *ngTemplateOutlet="figuresBlock"></ng-container>
           <app-first-steps></app-first-steps>
-          <app-notices-invite></app-notices-invite>
           @if (view.shown('home.chart') && view.shown('home.list')) { <ng-container *ngTemplateOutlet="chartBlock"></ng-container> }
         </div>
         <div class="list-slot">
@@ -88,8 +87,6 @@
           <ng-container *ngTemplateOutlet="figuresBlock"></ng-container>
           <!-- A new app's first steps, under the balance (44a). -->
           <app-first-steps></app-first-steps>
-          <!-- Reading the bank's notices, offered once the phone has an account (57g). -->
-          <app-notices-invite></app-notices-invite>
           </div>
         }
         @case ('faces') {

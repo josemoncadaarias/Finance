@@ -53,8 +53,9 @@ const TOUR_LIST = {
       { sel: 'app-movements .figures .glance', title: 'tour.home.fold.title', text: 'tour.home.fold.text', since: 21 },
       // 2026-10-29: a new app's first steps (44a).
       { sel: 'app-movements app-first-steps .ui-card', title: 'tour.home.steps.title', text: 'tour.home.steps.text', since: 16 },
-      // 2026-11-11: reading the bank's notices offered on Inicio (57g).
-      { target: 'notices-invite', title: 'tour.home.invite.title', text: 'tour.home.invite.text', since: 22 },
+      // 2026-11-11: reading the bank's notices offered on Inicio (57g); since
+      // 2026-11-19 a row of Pendientes, said on the card's folded line.
+      { sel: 'app-movements .figures .glance', title: 'tour.home.invite.title', text: 'tour.home.invite.text', since: 24 },
       // 2026-10-14: the eye that hides every amount.
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
       { sel: 'app-movements .figures .quick button.ui-round', title: 'tour.home.actions.title', text: 'tour.home.actions.text', since: 18 },

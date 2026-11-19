@@ -28,6 +28,7 @@ import { DueHomeComponent } from '../debts/due-home.component';
 import { LimitsHomeComponent } from '../plans/limits-home.component';
 import { RemindersHomeComponent } from '../reminders/reminders-home.component';
 import { RemindersService } from '../../core/reminders/reminders.service';
+import { NoticesInviteComponent } from './notices-invite.component';
 
 @Component({
   selector: 'app-attention-home',
@@ -35,7 +36,7 @@ import { RemindersService } from '../../core/reminders/reminders.service';
   // Hidden from "Personaliza tu vista", it still shows a payment already late
   // or a cap gone over (31f): those are never kept quiet.
   host: { '[hidden]': '(onlyUrgent() && !urgent()) || total() === 0', '[class.in-card]': 'inCard()' },
-  imports: [TranslatePipe, IonIcon, IonModal, DueHomeComponent, LimitsHomeComponent, RemindersHomeComponent],
+  imports: [TranslatePipe, IonIcon, IonModal, DueHomeComponent, LimitsHomeComponent, RemindersHomeComponent, NoticesInviteComponent],
   template: `
     @if (total() > 0) {
       <!-- One line (49a): what is pending, red only when something is late or passed. -->
@@ -55,6 +56,7 @@ import { RemindersService } from '../../core/reminders/reminders.service';
           <div class="grab"></div>
           <h2 class="center">{{ 'home.attention.sheet' | t }}</h2>
           <div class="rows" (click)="leave($event)">
+            <app-notices-invite></app-notices-invite>
             <app-due-home></app-due-home>
             <app-reminders-home></app-reminders-home>
             <app-limits-home></app-limits-home>
@@ -91,6 +93,9 @@ export class AttentionHomeComponent {
   readonly reminderCount = computed(() => this.reminders.soon().length);
   readonly remindersLate = computed(() => this.reminders.soon().some(o => o.late));
   private readonly due = viewChild(DueHomeComponent);
+  /** Reading the banks' messages: access lost, SMS permission gone, or never given. */
+  private readonly notices = viewChild(NoticesInviteComponent);
+  readonly noticeNeeds = computed(() => this.notices()?.needs() ?? []);
 
   private readonly i18n = inject(I18nService);
   readonly open = signal(false);
@@ -123,6 +128,9 @@ export class AttentionHomeComponent {
       ['home.attention.goalsLate', this.goalsLate()],
       ['home.attention.capsNear', this.capsNear()],
     ] as [Parameters<I18nService['t']>[0], number][]).filter(([, count]) => count > 0);
+    // What the banks' messages need goes first: while it is missing, money goes unseen.
+    const needs = this.noticeNeeds();
+    if (needs.length > 0) kinds.unshift([needs[0] === 'invite' ? 'home.attention.invite' : 'home.attention.banks', 1]);
     const named = kinds.slice(0, 2).map(([key, count]) => this.i18n.t(key, { count }));
     const rest = kinds.slice(2).reduce((sum, [, count]) => sum + count, 0);
     if (rest > 0) named.push(this.i18n.t('home.attention.more', { count: rest }));
@@ -133,8 +141,8 @@ export class AttentionHomeComponent {
     return (v.total?.state === 'passed') || v.passed.length > 0;
   });
   readonly goalsLate = computed(() => this.goals.late().length);
-  readonly total = computed(() => this.payments() + this.reminderCount() + this.caps() + this.goalsLate());
-  readonly urgent = computed(() => this.paymentsLate() || this.remindersLate() || this.capsPassed());
+  readonly total = computed(() => this.noticeNeeds().length + this.payments() + this.reminderCount() + this.caps() + this.goalsLate());
+  readonly urgent = computed(() => (this.notices()?.urgent() ?? false) || this.paymentsLate() || this.remindersLate() || this.capsPassed());
 
   constructor() {
     // The first time something is pending, the tour says what this line is (23g).

@@ -512,10 +512,19 @@ could not prove.
   source as before. Inicio: `app-notices-invite` (57g) when the phone can read
   notifications, the access is not given, there is an account, no sample data
   and no "Primeros pasos" on show; "Ahora no" puts it away
-  (`finance.noticesInvite.away`). **Only for whom never used bank messages** (Jose, 2026-11-19:
-  it showed on his phone, which rings "Movimiento detectado" from SMS while
-  the notification access was off): hidden once any message was proposed or
-  any source tied to an account (`usedBanks`). "Primeros pasos"' notices step is now the
+  (`finance.noticesInvite.away`). **Since 2026-11-19 it is a row of Pendientes, not a card** (Jose:
+  on his phone Android had taken the access away and the card was right, but
+  "muy intrusivo"; #340 had hidden it for anyone who used banks, which hid
+  exactly that case - undone). `app-notices-invite` now lives inside
+  `app-attention-home`'s sheet and is counted there: `lost` (a message was
+  ever proposed or a source tied to an account, and the access is off; red,
+  "Finance no está leyendo tus bancos" first on the card's folded line),
+  `sms` (an SMS sender is read and `READ_SMS` is gone; red; tapping asks it,
+  then opens the app's page), `invite` (nothing ever read; amber, an X puts
+  it away). Why Android took the access from his phone is not known
+  (assumed: an update or the phone's own cleaning). Home tour step reworded
+  and pointed at the folded line, `since: 24`. Checked in a browser on the
+  sample data with the phone's answers faked; not on the phone. "Primeros pasos"' notices step is now the
   access itself and opens Android's screen. Words: notifications tour 1-3
   `since: 6`, home `since: 22`; the privacy policy says it (`site/`, live once
   Netlify deploys). Checked: the rule on 16 invented messages with the JDK
