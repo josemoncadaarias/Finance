@@ -378,8 +378,8 @@ could not prove.
   card (or the red one of a cap passed, or the goals' total) on the left.
   **Más**: two columns.
   **Asistente**: the conversation 760px wide, centred. Portrait is
-  unchanged (compared in a browser at 412x915). Home tour step "Gira el
-  celular" `since: 23`. Checked in a browser at 915x412 on the sample data
+  unchanged (compared in a browser at 412x915). Home tour step "Pon el
+  celular en horizontal" `since: 24`. Checked in a browser at 915x412 on the sample data
   (each screen above, a form opened from Inicio and from Por revisar) and
   portrait at 412x915 (Inicio, Reporte, Cuentas, Deudas, the plan,
   Presupuestos unchanged); **not on the phone** (Android rotates the app by
@@ -421,6 +421,15 @@ could not prove.
     Bolsa, Por revisar, Más, the assistant, Categorías, Recordatorios, Renta,
     Monedas, Notificaciones, Finance Pro, Personaliza, Google; portrait at
     412x915 unchanged. Not on the phone.
+- **Sideways, third round** (Jose's partner, 2026-11-19, a screenshot of
+  Inicio: "se ve muy apeñuscado"). The balance card is folded sideways too,
+  as upright (`cardOpen` = `summaryOpen` only): its figure 23px beside the
+  eye and the "···" on one row, the pending line and "Hoy puedes gastar"
+  under it, a tap opening the rest; the header is one low row (16px name,
+  less padding). And "acostado" was the wrong word: the guide says "en
+  horizontal" ("Pon el celular en horizontal para ver más", `since: 24`, so
+  whoever read the old words sees it again). Checked in a browser at 760x350
+  (the partner's phone's size). Not on the phone.
 - **Three fixes from Jose's phone, 2026-11-10** (#312; branch
   `claude/receipt-detection-category-bugs-8dqf67`; to name as feedback a
   tester writes in the Play Store).
