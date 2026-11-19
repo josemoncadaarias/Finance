@@ -8029,6 +8029,26 @@ word. The analysis of 2026-10-22 is kept below it, as the record.
   only while trades exist; assistant tour step `since: 14`. Questions count
   as any question (20 free a month). Tests in `read-phrase.test.mjs`
   (invented tickers). Not checked on the phone.
+- **Alerts for strong moves (2026-11-19, Jose: "construyamos ya los
+  avisos")**: in the prices' sheet (the status line of the hero), "Avisos de
+  movimientos fuertes": a switch, off by default, and "Avisarme desde" 3, 5
+  or 10 % (`stocks.alerts` in `settings`, travels in the backup;
+  `AlertSettings`). Turning it on asks Finance Pro and the phone's notices.
+  `StockAlertsService` (started by the shell, Android only): when the app
+  opens or comes back and the last prices are over 20 minutes old, it asks
+  Google again (`refreshPrices`, only once automatic prices were turned on
+  by a first fetch), and on every new price it rings for each position held
+  whose price of today, fetched from Google, moved past the threshold
+  against yesterday's close (`alertsFor` in `core/stocks/alerts.ts`, pure,
+  `stock-alerts.test.mjs`): one notice "📈 SOLR subió 6,2 % hoy (+US$ X)"
+  or "3 de tus acciones se movieron mucho hoy" with a line each, on channel
+  `stock_moves` at high importance; a tap opens Bolsa de valores on that
+  position. Once a day per ticker and direction (`finance.stocks.alertsTold`,
+  today's keys only). Every broker, whatever is on view. **Nothing runs with
+  the app closed** (the sheet says so): a check in the background would need
+  native work (WorkManager calling Sheets) - not built. Never with the
+  sample data. Stocks tour step `since: 4`. Checked in a browser (the switch
+  and the threshold); the notice itself only on the phone.
 - **Not built yet** (to offer Jose, in this order): a returns
   report by period (month, 6 months, year: it needs the app's own price
   history to grow, or prices typed); fundamentals from the SEC's EDGAR;

@@ -22,6 +22,7 @@ import { NoticeInboxService } from './core/notices/notice-inbox.service';
 import { CardDueService } from './core/cards/card-due.service';
 import { RemindersService } from './core/reminders/reminders.service';
 import { MonthSummaryService } from './core/summary/month-summary.service';
+import { StockAlertsService } from './core/stocks/stock-alerts.service';
 import { ReviewEveningService } from './core/proposals/review-evening.service';
 import { ShortcutsService } from './core/shortcuts/shortcuts.service';
 import { MarqueeService } from './core/ui/marquee.service';
@@ -98,6 +99,8 @@ export class AppComponent {
 
   /** The month's summary on the 1st, and what still waits at 8 p.m. */
   private readonly monthSummary = inject(MonthSummaryService);
+  // Rings when a share held moves a lot today (2026-11-19).
+  private readonly stockAlerts = inject(StockAlertsService);
   private readonly reviewEvening = inject(ReviewEveningService);
 
   /** The shortcuts of the app's icon, handed to Android and answered. */
