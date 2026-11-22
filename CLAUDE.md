@@ -712,6 +712,15 @@ could not prove.
   `ion-datetime` of the app gains (the movement form's too) and every
   formatting of the app's own. `intl-cache.test.mjs` holds every answer to
   the engine's own, refusals included. Not yet felt on the phone.
+- **The note's X puts the cursor in the note** (Jose, 2026-11-22: clearing
+  the note to write another one left the cursor in the amount, the number
+  keyboard came up and the note had to be scrolled to again). The X answers
+  the press with its default prevented (so a note being written keeps its
+  focus), which also kept the focus wherever it was - the amount, on a new
+  movement. `clearNote` in `entry.component.ts` now focuses the note. The
+  amount's own X still keeps the amount's keyboard. Checked in a browser on
+  the sample data (amount focused, X of the note: the note has the cursor);
+  not on the phone.
 - **An async call inside an `effect` is tracked up to its first `await`**
   (2026-11-05, the Reporte's flicker when changing month, seen in Jose's
   screen recording). `effect(() => { ...; void this.build(); })` made every
