@@ -2099,6 +2099,11 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.noteSuggestions.set([]);
     this.noteQuery++;
     this.emptyTheField();
+    // Clearing the note is to write another one (Jose, 2026-11-22): the
+    // cursor goes into the note. With the press's default prevented, the
+    // focus stayed wherever it was - the amount, on a new movement - so the
+    // number keyboard came up and the note had to be scrolled to again.
+    this.noteField()?.nativeElement.focus();
   }
 
   /**
