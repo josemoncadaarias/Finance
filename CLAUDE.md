@@ -204,7 +204,18 @@ guess. What Google wants to see, and what to aim the next 14 days at:
   Store comment (she could not find where to enter a loan). The same Play Console page shows "Declare
   your trader status" - offered now, to be filed with Jose one step at a
   time.
-**Next**: the 14 days with real use and feedback, then apply again, one
+**Applied again on 2026-11-24** (11:01 AM), after the extra 14 days; Play
+says "We have your application for production access", answer by email in
+about 7 days. Step 4 ("What did you do differently this time?") named the
+battery card (#306) and the loan guide (#311) and said the feedback was
+answered in closed-test updates (Jose confirms they were sent). Keep the
+closed test running and the testers opted in until Google answers.
+**Trader status: left for later (Jose, 2026-11-24).** Launch first in
+Latin America without it; until it is filed the app is not offered in EU
+countries. File it once there is a virtual-office address and a phone line
+that are not Jose's own (Play shows name, address, phone and email
+publicly to EU users).
+**Next**: wait for Google's answer, then the first production release, one
 step at a time with Jose. Once approved: the first production release
 (Store bundle on `main`, promote that version to Production with its
 `<es-419>` note); the SMS and foreground-service declarations saved on
