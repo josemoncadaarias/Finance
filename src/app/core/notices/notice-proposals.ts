@@ -367,8 +367,12 @@ export function readNotices(
       saysItHappened(notice.text, notice.title), learned.book ?? null, saysWhichWay(notice.text, notice.title))) continue;
 
     const arrived = localDay(notice.postedAt);
-    // And what it says reads as a movement is never taken for an advert.
-    const learnedMovement = !!learned.book && verdictOf(learned.book, noticeSource(notice), notice.text) === 'movement';
+    // And what it says reads as a movement is never taken for an advert - only
+    // when the message names a direction of money itself: a shop's advert from
+    // a source full of saved purchases shares their words ("McDonald's") and
+    // must not slip past its own advert words (Jose, 2026-11-24).
+    const learnedMovement = !!learned.book && saysWhichWay(notice.text, notice.title)
+      && verdictOf(learned.book, noticeSource(notice), notice.text) === 'movement';
     let reading = readNotice(notice.text, notice.title, arrived, learnedMovement);
     // What the person taught for this source reads it first, and exactly.
     const molded = readWithMolds(noticeSource(notice), notice.text, molds);
