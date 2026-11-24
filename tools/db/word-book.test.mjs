@@ -96,3 +96,17 @@ test('end to end: what the book learned decides what is proposed', () => {
   ], new Set(), [], accounts, [], { molds: [], assigned: new Map(), quiet, book });
   assert.deepEqual(fresh.map(one => one.proposal.amount_minor), [-4079900]);
 });
+
+test('an advert sharing a saved purchase\'s words is still an advert (2026-11-24)', () => {
+  // Many purchases saved at one shop teach its name as a movement's word; its
+  // own advert, naming no direction, must not ride that past its advert words.
+  const saved = [1, 2, 3, 4, 5].map(i => ({ source: APP, move: true, text: PURCHASE(`Hamburguesas Faro por $ ${i}5.900`) }));
+  const book = buildWordBook(saved);
+  const at = Date.parse('2026-11-24T12:00:00');
+  const accounts = [{ id: 1, name: 'Billetera Sol', type: 'debit', currency_code: 'COP', archived: 0 }];
+  const { fresh } = readNotices([
+    { package: APP, app: 'Sol', title: 'Hamburguesas Faro con descuentazo', text: 'En la semana Hamburguesas Faro encuentra combo doble a $22.900, si eres Plus a: $18.900.', postedAt: at },
+    { package: APP, app: 'Sol', title: 'Sol', text: PURCHASE('Hamburguesas Faro por $ 22.900'), postedAt: at + 60_000 },
+  ], new Set(), [], accounts, [], { molds: [], assigned: new Map(), quiet: { notMolds: [], strict: [] }, book });
+  assert.deepEqual(fresh.map(one => one.proposal.amount_minor), [-2290000]);
+});

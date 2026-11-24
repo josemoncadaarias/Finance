@@ -365,7 +365,9 @@ final class MovementAlert {
         int direction = directionOf(folded);
         // What every answer of the person taught the app (Jose, 2026-10-29).
         String learned = happened(folded) ? null : verdict(quiet(context), source, text, direction != 0);
-        if (!"movement".equals(learned) && isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
+        // A learned "movement" overrides advert words only when the message names a
+        // direction itself; kept in step with notice-proposals.ts (2026-11-24).
+        if (!("movement".equals(learned) && direction != 0) && isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
         String taught = silenced(context, source, text, folded);
         if (taught != null) { note(context, source, at, taught, null); return; }
         if ("advert".equals(learned)) { note(context, source, at, "learned", null); return; }
