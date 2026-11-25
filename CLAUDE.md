@@ -599,6 +599,19 @@ could not prove.
   Tests in `read-notice.test.mjs` (invented shop); the Java checked with
   the JDK on the same texts. Only messages read after the update change;
   the one waiting is switched to Gasto by hand.
+- **A shop's advert no longer passes as a movement because its shop was
+  learned** (Jose, 2026-11-24, a screenshot: a fast-food chain's "...con
+  descuentazo - ... encuentra ... a $22.900, Si eres Pro a: $18.900" from the
+  Rappi app opened in Revisar movimiento). `readNotice` alone reads it as
+  nothing ("descuentazo", "encuentra" are advert words); it got through
+  because the word book, full of purchases saved at that shop through that
+  app, judged it a movement, and a learned movement skipped the advert words.
+  Now a learned movement overrides them only when the message names a
+  direction of money itself (`saysWhichWay` in `notice-proposals.ts`;
+  `direction != 0` in `MovementAlert.post`, kept in step). Test in
+  `word-book.test.mjs` (invented shop; fails on the code before). Assumed, not
+  read from his phone: that the book's verdict was the cause (his word book
+  was not in the session). Only messages read after the update change.
 - **A fixed payment saved another way still counts as paid** (Jose,
   2026-11-11, two screenshots: "Mercado OR", usually paid from Ualá, saved
   from another account with the note "Mercado OR mas impuesto 4x1000", still
@@ -745,6 +758,15 @@ could not prove.
   `ion-datetime` of the app gains (the movement form's too) and every
   formatting of the app's own. `intl-cache.test.mjs` holds every answer to
   the engine's own, refusals included. Not yet felt on the phone.
+- **The note's X puts the cursor in the note** (Jose, 2026-11-22: clearing
+  the note to write another one left the cursor in the amount, the number
+  keyboard came up and the note had to be scrolled to again). The X answers
+  the press with its default prevented (so a note being written keeps its
+  focus), which also kept the focus wherever it was - the amount, on a new
+  movement. `clearNote` in `entry.component.ts` now focuses the note. The
+  amount's own X still keeps the amount's keyboard. Checked in a browser on
+  the sample data (amount focused, X of the note: the note has the cursor);
+  not on the phone.
 - **An async call inside an `effect` is tracked up to its first `await`**
   (2026-11-05, the Reporte's flicker when changing month, seen in Jose's
   screen recording). `effect(() => { ...; void this.build(); })` made every
@@ -758,7 +780,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1288 on 2026-11-25, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1289 on 2026-11-25, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
