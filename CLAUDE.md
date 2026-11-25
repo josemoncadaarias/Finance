@@ -1753,6 +1753,18 @@ bytes, as Android does, so `rowFromDevice` needs nothing.
 `plugin-sql.test.mjs` ports the Swift reading and fails on the Android
 shape. The artifact was on `productionresultssa15`, not allowed: its pictures
 were not seen (the same empty screens as the second run, assumed).
+**Fourth run (2026-11-25)**: the sample data loaded, no `walk-error.txt`,
+and all 19 screens drew with their figures on the iPhone 17 simulator. One
+finding: iOS's "Finance Would Like to Send You Notifications" covered every
+screen. `LimitsService` asked for it the moment the sample data loaded (its
+cap over 100 % rang the phone's notice): reminders and the card's payment
+day already stay quiet on sample data, caps did not. Now caps neither ring
+nor ask while `DemoService.active`, and `load()` sets `active` at once,
+before `dataChanged`, so no service sees the sample as the person's own
+first (the flag used to be read back asynchronously). The same was true on
+Android. The "Finance" environment now allows
+`productionresultssa0`-`sa20.blob.core.windows.net`, so a session downloads
+a run's pictures whichever host GitHub picks.
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The
