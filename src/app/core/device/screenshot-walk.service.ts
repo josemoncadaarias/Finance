@@ -18,6 +18,8 @@ interface Walk {
 /** Written beside `index.html` ONLY by `.github/workflows/ios-simulator.yml`. */
 const WALK_FILE = 'screenshot-walk.json';
 const STEP_FILE = 'walk-step.txt';
+/** Why the sample data did not load, when it did not. */
+const ERROR_FILE = 'walk-error.txt';
 /** Time for a screen to draw before its picture is asked for. */
 const SETTLE_MS = 3000;
 const WAIT_MS = 60_000;
@@ -63,8 +65,10 @@ export class ScreenshotWalkService {
     if (walk.demo) {
       try {
         await this.demo.load(() => undefined);
-      } catch {
-        // Already holds accounts: the screens show what is there.
+      } catch (error) {
+        // Written for the workflow to print: on 2026-11-25 the sample data did
+        // not load on the simulator and nothing said why.
+        await write(ERROR_FILE, describe(error)).catch(() => undefined);
       }
     }
     for (const [i, shot] of walk.shots.entries()) {
@@ -86,6 +90,15 @@ export class ScreenshotWalkService {
         await pause(400);
       }
     }
+  }
+}
+
+function describe(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}\n${error.stack ?? ''}`;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
   }
 }
 

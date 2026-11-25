@@ -13,7 +13,15 @@
   <div class="ui-main">
     @if (loading()) {
       <div class="state"><ion-spinner></ion-spinner></div>
-    } @else if (!supported() || !enabled()) {
+    } @else if (!supported()) {
+      <!-- An iPhone or a browser: no app may read another app's notifications
+           there. Said plainly, never Android's permission (DEVICE.readsNotifications). -->
+      <div class="empty">
+        <app-badge shape="ci" [size]="80" builtin="notifications" fixed="#f6b93b"></app-badge>
+        <h2>{{ 'notifications.androidOnly' | t }}</h2>
+        <p>{{ 'notifications.androidOnly.hint' | t }}</p>
+      </div>
+    } @else if (!enabled()) {
       <!-- What Android is about to ask, said before it asks (7i, 7j). -->
       <div class="permission">
         <app-badge shape="ci" [size]="72" builtin="notifications" fixed="#f6b93b"></app-badge>
