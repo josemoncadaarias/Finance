@@ -5,9 +5,10 @@
  * Each image is turned upright (a phone photo carries its turn in EXIF) and
  * shrunk to at most `LONGEST` pixels on its long side - plenty for printed
  * text, and a few hundred KB over the bridge instead of several MB - then read
- * by the phone's own text recognition (`OcrPlugin`, Google Play services, on
- * the device). Android only: elsewhere `canReadImages` is false and the
- * screens offer PDF alone.
+ * by the phone's own text recognition, on the device: `OcrPlugin.java`
+ * (Google Play services) on Android, `OcrPlugin.swift` (Apple's Vision) on an
+ * iPhone. In a browser `canReadImages` is false and the screens offer PDF
+ * alone.
  */
 
 import { registerPlugin } from '@capacitor/core';

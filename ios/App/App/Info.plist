@@ -20,6 +20,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Finance escucha lo que dices al asistente para escribirlo. No guarda el audio.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Finance convierte en texto lo que le dices al asistente, para registrar un movimiento o responder una pregunta.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Finance usa la cámara para leer la foto de un recibo o de un extracto. La foto no sale de tu celular.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1297 on 2026-11-25, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1298 on 2026-11-25, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1774,6 +1774,33 @@ it before the flag said "sample". Assumed, not proved by the log: one of
 them scheduled from the half-built sample. Now `DemoService.load` sets
 `active` BEFORE writing and keeps `read()` from turning it off until the
 write ends (`loading`); a failed load sets it back.
+
+**Step 3 begun (2026-11-25, Jose: "Continúa")**: three Swift plugins in
+`ios/App/App/`, each answering under its Java twin's name so the TypeScript
+does not change, registered by `FinanceBridgeViewController` (the
+`SceneDelegate`'s root, `registerPluginInstance`) and added to the Xcode
+project by hand (`project.pbxproj`, ids `F1AA00...`). `OcrPlugin.swift`:
+Apple's Vision (`VNRecognizeTextRequest`, accurate, no language correction,
+es and en), the same `OcrPage` back (Vision's bottom-left box turned to
+top-left pixels). `SpeechPlugin.swift`: Apple's Speech framework - it asks for
+speech recognition and the microphone the first time, listens itself (iOS
+has no "speak now" screen), on device when the phone has the model, and
+stops after 1.6 s of silence, 7 s with nothing said or 20 s; a refusal
+rejects with 'denied', which the assistant says as `ai.voice.denied` (turn it
+on in Settings). `ShortcutsPlugin.swift`: the icon's quick actions
+(`UIApplicationShortcutItem`, SF Symbols), the one tapped kept by the
+`SceneDelegate` (at launch and while running) until `take`. `Info.plist`
+carries the microphone, speech and camera reasons (the camera: a receipt's
+photo through the file input). `DEVICE` now says yes on iOS to
+`readsImages`, `nativeVoice` and `iconShortcuts`; `device.test.mjs` fails on
+an iOS "yes" whose plugin is missing, unregistered or out of the build.
+Checked: the tests and the web build; the Swift is compiled by the "iOS
+simulator" workflow, which cannot try a photo, the microphone or a long press
+on the icon - those wait for a real iPhone. The privacy policy (`site/`)
+still describes Android's voice and ML Kit only: to add Apple's Speech and
+Vision on the day iOS is published. Still Android only: the widget, the
+background stock watch, Google sign-in (needs an iOS OAuth client), and the
+store (App Store products in RevenueCat).
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The

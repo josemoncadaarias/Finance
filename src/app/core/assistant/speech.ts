@@ -3,7 +3,9 @@
  *
  * On Android it is `SpeechPlugin` (RecognizerIntent: the phone listens and
  * shows its own "Habla ahora", the app keeps no audio and asks for no
- * microphone permission). In a browser it is the browser's own recognition
+ * microphone permission). On an iPhone it is `SpeechPlugin.swift`: Apple's
+ * Speech framework, which asks for the microphone the first time, listens until
+ * a short silence and rejects with 'denied' when refused. In a browser it is the browser's own recognition
  * where there is one. Where neither exists the button says so.
  */
 
@@ -40,7 +42,7 @@ export async function canListen(): Promise<boolean> {
       return false;
     }
   }
-  // A phone without its own dictation plugin (an iPhone, for now) offers no microphone.
+  // A phone without its own dictation plugin offers no microphone.
   if (DEVICE.native) return false;
   return browserRecognition() !== null;
 }
