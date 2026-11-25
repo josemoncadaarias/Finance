@@ -80,7 +80,8 @@ test('without the rewrite, the browser plugin silently skipped migration 030', (
 
 test('a comment marker inside a quoted string is not a comment', () => {
   assert.equal(sqlForPlugin("INSERT INTO t VALUES ('a -- b'); -- gone\n"), "INSERT INTO t VALUES ('a -- b');\n");
-  assert.equal(sqlForPlugin("SELECT 1\nFROM t;\n"), 'SELECT 1 \nFROM t;\n');
+  // One statement, one line (the iPhone trims lines and glues them: see device-sql.test.mjs).
+  assert.equal(sqlForPlugin("SELECT 1\n  FROM t;\nSELECT 2;\n"), 'SELECT 1 FROM t;\nSELECT 2;\n');
 });
 
 // ---------------------------------------------------------------------------

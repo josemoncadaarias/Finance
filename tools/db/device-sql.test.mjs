@@ -138,3 +138,57 @@ test('a statement never spans a split point', () => {
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// The iPhone. Found by the first simulator run (2026-11-25): migration 023
+// failed with `near "account_id": syntax error`. The iOS plugin
+// (CapacitorSQLite.swift `execute`, UtilsSQLCipher.swift `execute`) trims
+// every line - spaces included - and joins them with "\n"; then, for a string
+// holding "DELETE FROM", it removes every "\n" and splits on ";" to look at
+// each DELETE (left as it is: this app has no `sql_deleted` column). A port
+// of both, run on what the driver really sends: `sqlForPlugin`'s output.
+
+import { sqlForPlugin } from '../../src/app/core/database/plugin-sql.ts';
+
+/** A faithful port of the iOS plugin's handling of an `execute` string. */
+function iosExecuteString(statements) {
+  let stmts = statements;
+  if (stmts.includes('\n')) {
+    stmts = stmts.split('\n').filter(line => line.length > 0).map(line => line.trim()).join('\n');
+  }
+  if (/DELETE FROM/i.test(stmts)) {
+    const parts = stmts.split('\n').join('').split(';');
+    parts.pop();
+    stmts = parts.join(';');
+  }
+  return stmts;
+}
+
+test('every migration runs on an iPhone as the iOS plugin hands it to SQLite', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec('PRAGMA foreign_keys = ON;');
+  for (const file of files) {
+    const sent = iosExecuteString(sqlForPlugin(readFileSync(join(MIGRATIONS, file), 'utf8')));
+    try {
+      db.exec(sent);
+    } catch (error) {
+      assert.fail(`${file} fails on an iPhone: ${error.message}\n  ${sent.slice(0, 300)}`);
+    }
+  }
+});
+
+test('every migration runs on Android as the driver really sends it', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec('PRAGMA foreign_keys = ON;');
+  for (const file of files) {
+    const statements = getStatementsArray(sqlForPlugin(readFileSync(join(MIGRATIONS, file), 'utf8')));
+    for (const statement of statements) {
+      if (statement.trim().length === 0) continue;
+      try {
+        db.exec(statement);
+      } catch (error) {
+        assert.fail(`${file} fails on Android: ${error.message}\n  ${statement.slice(0, 300)}`);
+      }
+    }
+  }
+});
