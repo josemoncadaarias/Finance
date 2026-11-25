@@ -8,7 +8,8 @@
  */
 
 import { inject, Injectable } from '@angular/core';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { CapacitorHttp } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 import { DatabaseService } from '../database/database.service';
 import { todayIso } from '../yields/days';
@@ -28,7 +29,7 @@ export class InflationService {
 
   /** Asks for newer months if one may have been published. Never throws. */
   async refreshIfDue(known: readonly InflationMonth[]): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.native) return;
     const today = todayIso();
     const last = known.at(-1)?.month ?? '';
     // The DANE publishes a month early in the next one: nothing newer can

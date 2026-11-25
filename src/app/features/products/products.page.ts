@@ -27,7 +27,7 @@ import { TourService } from '../../core/tour/tour.service';
 import { DateFieldComponent } from '../../shared/ui/date-field.component';
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { Keyboard } from '@capacitor/keyboard';
 import { IonContent, IonIcon, IonSpinner, IonModal, IonDatetime } from '@ionic/angular';
 
@@ -1014,7 +1014,7 @@ export class ProductsPage {
   private keyboardClosed: { remove: () => Promise<void> } | null = null;
 
   private listenForKeyboard(): void {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.native) return;
     void Keyboard.addListener('keyboardDidHide', () => {
       if (!this.searching()) return;
       (document.activeElement as HTMLElement | null)?.blur();

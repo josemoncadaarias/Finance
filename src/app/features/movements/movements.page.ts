@@ -16,7 +16,7 @@ import { Component, ElementRef, computed, inject, signal, effect, untracked, vie
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { Keyboard } from '@capacitor/keyboard';
 import { IonContent, IonHeader, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -328,7 +328,7 @@ export class MovementsPage {
   private keyboardClosed: { remove: () => Promise<void> } | null = null;
 
   private listenForKeyboard(): void {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.native) return;
     void Keyboard.addListener('keyboardDidHide', () => {
       if (!this.searching()) return;
       (document.activeElement as HTMLElement | null)?.blur();

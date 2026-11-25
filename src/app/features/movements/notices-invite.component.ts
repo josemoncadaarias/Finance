@@ -20,7 +20,7 @@
 
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -129,7 +129,7 @@ export class NoticesInviteComponent {
       void untracked(() => this.load());
     });
     // Coming back from Android's screen: the row goes once access is given.
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void App.addListener('appStateChange', ({ isActive }) => { if (isActive) void this.readPhone(); });
     }
   }

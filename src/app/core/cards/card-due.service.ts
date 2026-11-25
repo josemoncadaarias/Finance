@@ -12,7 +12,7 @@
  */
 import { Injectable, effect, inject, untracked } from '@angular/core';
 import { Router } from '@angular/router';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { LocalNotifications, type ActionPerformed } from '@capacitor/local-notifications';
 
 import { DatabaseService } from '../database/database.service';
@@ -43,7 +43,7 @@ export class CardDueService {
   private again = false;
 
   constructor() {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.localNotifications) return;
     // Registered first thing, so a tap that opened the app is not missed.
     void LocalNotifications.addListener('localNotificationActionPerformed', action => this.tapped(action));
     effect(() => {

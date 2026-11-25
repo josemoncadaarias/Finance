@@ -1,5 +1,6 @@
 import { Injectable, effect, inject, untracked } from '@angular/core';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { App } from '@capacitor/app';
 
 import { DatabaseService } from '../database/database.service';
@@ -33,7 +34,7 @@ export class WidgetService {
   private handed = '';
 
   constructor() {
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+    if (!DEVICE.homeWidget) return;
 
     effect(() => {
       const version = this.database.dataVersion();

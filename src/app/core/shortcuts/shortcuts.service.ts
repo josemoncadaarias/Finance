@@ -1,6 +1,7 @@
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { App } from '@capacitor/app';
 
 import { DatabaseService } from '../database/database.service';
@@ -40,7 +41,7 @@ export class ShortcutsService {
   private readonly asked = signal<ShortcutId | null>(null);
 
   constructor() {
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+    if (!DEVICE.iconShortcuts) return;
 
     effect(() => {
       this.i18n.language();

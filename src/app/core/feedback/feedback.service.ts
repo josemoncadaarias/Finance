@@ -7,7 +7,7 @@
  */
 
 import { Injectable, signal } from '@angular/core';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { App } from '@capacitor/app';
 
 import { lastPages } from '../statements/image-text';
@@ -30,7 +30,7 @@ export class FeedbackService {
   private version: string | null = null;
 
   constructor() {
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void App.getInfo().then(info => (this.version = info.version)).catch(() => undefined);
     }
   }

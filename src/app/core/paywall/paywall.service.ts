@@ -10,7 +10,7 @@
  * on record (rule 21, 1).
  */
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 import { environment } from '../../../environments/environment';
 import { DatabaseService } from '../database/database.service';
@@ -76,7 +76,7 @@ export class PaywallService {
   readonly lapsed = signal<string | null>(readEntitled().lapsed ?? null);
 
   /** Whether a store is there to buy from: the app on Android with its key. */
-  readonly storeAvailable = Capacitor.getPlatform() === 'android' && !!environment.revenueCatGoogleKey;
+  readonly storeAvailable = DEVICE.storePurchases && !!environment.revenueCatGoogleKey;
 
   /** Whether the app charges here: only where Finance Pro can be bought. */
   readonly charging = signal(CHARGING && this.storeAvailable);

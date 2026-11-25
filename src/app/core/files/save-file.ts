@@ -20,7 +20,7 @@
  * `clearOldFiles` also removes what earlier versions left at the cache's top.
  */
 
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
@@ -34,7 +34,7 @@ import type { OnProgress } from '../database/export/progress';
 const CHUNK_BYTES = 3 * 512 * 1024;
 
 export async function saveFile(blob: Blob, name: string, onProgress?: OnProgress): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!DEVICE.native) {
     download(blob, name);
     return true;
   }
@@ -78,7 +78,7 @@ const OURS = /\.(json|csv|xlsx)$/i;
  * Called before each new file and once when the app opens; never throws.
  */
 export async function clearOldFiles(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!DEVICE.native) return;
   try {
     await Filesystem.rmdir({ path: FOLDER, directory: Directory.Cache, recursive: true });
   } catch {

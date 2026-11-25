@@ -23,7 +23,8 @@ import { readBroker, type BrokerReading, type BrokerRow } from './read-broker';
 import { candidatesFor, inCurrency, quotesFrom, toE6 } from './quotes';
 import { alertSettingsOf, ALERTS_OFF, type AlertSettings } from './alerts';
 import { cikFor, companyOf, companyStale, type SecTicker } from './company';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { CapacitorHttp } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { SheetsError, askSheet, createSheet } from './sheets-client';
 import { StocksRepository, type Instrument, type PriceRow, type TradeInput } from './stocks.repository';
 
@@ -383,7 +384,7 @@ export class StocksService {
   }
 
   /** Reading the SEC needs the phone: a browser is refused (the SEC sends no CORS header). */
-  readonly canReadCompanies = Capacitor.isNativePlatform();
+  readonly canReadCompanies = DEVICE.native;
 
   /**
    * A company's last annual filing, read from the SEC when the position's

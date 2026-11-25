@@ -246,6 +246,10 @@ name as tester feedback; goes in the next closed-testing release).
 Calendars and fields answer at once: formatters kept, not made on every
 tap (2026-11-13, #325, "How to work").
 
+**iOS, step 1 (2026-11-25)**: every "can this phone do X?" is answered by
+one table, `DEVICE` (`core/device/`), ready for an iPhone to hide what it
+lacks - see "iOS: possible, deliberately not done". Nothing changes on Android.
+
 **A widget on the phone's home screen (2026-11-25)**: "Hoy puedes gastar"
 with Gasto, Ingreso and the assistant, option A of mockups `59a`-`59f`
 (after Lukas's post on going native) - see "The home-screen widget" under
@@ -780,7 +784,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1289 on 2026-11-25, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1294 on 2026-11-25, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1665,6 +1669,27 @@ atajo: Instalar el atajo de {remitente}"). Native code per platform
 (Java now, Swift then) behind the same plugin names, so the TypeScript
 does not change.
 
+**Step 1 is BUILT (2026-11-25, Jose: "dale, arranca con el paso 1").**
+`core/device/capabilities.ts` (pure, `capabilitiesOf(platform)`) is the
+table, `core/device/device.ts` reads the platform once as `DEVICE`:
+`native`, `localNotifications`, `readsNotifications`, `readsSms`,
+`readsImages`, `nativeVoice`, `iconShortcuts`, `homeWidget`,
+`backgroundStockWatch`, `googleSignIn`, `storePurchases`. Android says yes to
+all, a browser to none, iOS is a phone that rings its own notices and says no
+to every Java-only piece until its Swift half exists (and `googleSignIn`
+until an iOS OAuth client exists, `storePurchases` until the App Store's
+products are in RevenueCat). The 40 `Capacitor.getPlatform()` /
+`isNativePlatform()` checks in 29 files now ask `DEVICE`, each by what it
+really needs (a phone, its own notices, photos...); on Android and in a
+browser every answer is the same as before. The assistant's guide reads
+`photos` and `notices` instead of `android`. `device.test.mjs` holds each
+platform's answers and fails on any file outside `core/device` that asks
+Capacitor for the platform itself - **a new Android-only feature adds a line
+to the table, never a platform check of its own**. `BankNotifications` already
+answered "not supported" on iOS (`ios: nothing`). Checked: the tests, the
+build, Más and Inicio in a browser; not on a phone (nothing changes there by
+construction). Next, at Jose's word: step 2, `ios/` and the simulator workflow.
+
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The
 eventual goal, when it happens, is the App Store. **So: write nothing that
@@ -1728,7 +1753,10 @@ for a Mac).
 covers the Drive scope), and a new App Intent feeding the inbox the
 notices' plugin reads. `BankNotificationsPlugin`, `NotificationCatcher`,
 `NotificationStore`, `SmsInbox`, `SmsReceiver`, `MovementAlert*`,
-`ListenerGuard` and `ListenerKeeper` have no iOS counterpart: their plugin
+`ListenerGuard` and `ListenerKeeper` have no iOS counterpart. Added since
+that list was written: `SpendWidget`/`WidgetPlugin` (a WidgetKit widget in
+Swift) and `StockWatch`/`StockWatchPlugin` (no promise on iOS: the system
+decides when an app wakes): their plugin
 answers "not available" there, and the App Intent's inbox takes their
 place. Every other plugin in `package.json` (sqlite, filesystem, share,
 local notifications, haptics, keyboard, status bar, app, RevenueCat) has an

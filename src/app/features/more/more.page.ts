@@ -28,7 +28,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
 import { FirstStepsService } from '../../core/ui/first-steps.service';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -212,7 +212,7 @@ export class MorePage {
       const { apps } = await BankNotifications.apps();
       this.markedApps.set(apps.filter(app => app.watched && !app.hidden).length);
     }).catch(() => this.notificationsSupported.set(false));
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void App.getInfo().then(info => this.version.set(info.version)).catch(() => undefined);
     }
   }

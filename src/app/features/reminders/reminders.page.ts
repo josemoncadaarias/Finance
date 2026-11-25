@@ -28,7 +28,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import { addDays, dayIn, monthOfDay, nextOccurrence, shiftMonth, type Occurrence, type Reminder, type Repeat } from '../../core/reminders/reminders';
 import { AssistantService } from '../../core/assistant/assistant.service';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import type { FixedPayment } from '../../core/assistant/recurring';
 import { merchantKeyOf } from '../../core/proposals/merchant';
 import { fromIsoDay, isoDay } from '../../core/filters/period';
@@ -352,7 +352,7 @@ export class RemindersPage {
   readonly thisMonth = monthOfDay(isoDay(new Date()));
 
   /** Only a phone can ring. */
-  readonly native = Capacitor.isNativePlatform();
+  readonly native = DEVICE.localNotifications;
   readonly testing = signal(false);
   readonly tested = signal<{ result: 'sent' | 'off' | 'channelOff' | 'failed'; detail?: string } | null>(null);
 

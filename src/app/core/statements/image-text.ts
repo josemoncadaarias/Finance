@@ -10,7 +10,8 @@
  * screens offer PDF alone.
  */
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 import { itemsOfPages, type OcrPage } from './ocr-items';
 import { StatementUnreadable, stopIfCancelled, type ReadingProgress } from './pdf-text';
@@ -26,7 +27,7 @@ const LONGEST = 2400;
 
 /** Whether this device can read a statement from an image. */
 export function canReadImages(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+  return DEVICE.readsImages;
 }
 
 /** What a statement's file picker accepts: PDF, and images where they can be read. */

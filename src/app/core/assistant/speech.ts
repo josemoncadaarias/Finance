@@ -7,7 +7,8 @@
  * where there is one. Where neither exists the button says so.
  */
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 interface SpeechPlugin {
   available(): Promise<{ available: boolean }>;
@@ -32,19 +33,21 @@ function browserRecognition(): (new () => BrowserRecognition) | null {
 }
 
 export async function canListen(): Promise<boolean> {
-  if (Capacitor.isNativePlatform()) {
+  if (DEVICE.nativeVoice) {
     try {
       return (await Native.available()).available;
     } catch {
       return false;
     }
   }
+  // A phone without its own dictation plugin (an iPhone, for now) offers no microphone.
+  if (DEVICE.native) return false;
   return browserRecognition() !== null;
 }
 
 /** What was said, or '' when nothing was. Rejects only when the phone cannot listen at all. */
 export async function listen(language: string, prompt: string): Promise<string> {
-  if (Capacitor.isNativePlatform()) return (await Native.listen({ language, prompt })).text ?? '';
+  if (DEVICE.nativeVoice) return (await Native.listen({ language, prompt })).text ?? '';
   const Recognition = browserRecognition();
   if (!Recognition) throw new Error('unavailable');
   return new Promise<string>(resolve => {

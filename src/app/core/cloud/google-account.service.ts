@@ -16,7 +16,8 @@
  */
 
 import { Injectable, signal } from '@angular/core';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 
 import { environment } from '../../../environments/environment';
@@ -111,12 +112,12 @@ export class GoogleAccountService {
    * real one. The screen says which of the two reasons applies rather than
    * blaming a missing client id for both.
    */
-  readonly available = Capacitor.isNativePlatform()
+  readonly available = DEVICE.googleSignIn
     && (environment.googleWebClientId ?? '') !== '';
 
   /** Why it is not offered, for a screen that would rather explain than hide. */
   readonly unavailableBecause: 'browser' | 'unconfigured' | null =
-    !Capacitor.isNativePlatform() ? 'browser'
+    !DEVICE.googleSignIn ? 'browser'
       : (environment.googleWebClientId ?? '') === '' ? 'unconfigured'
         : null;
 

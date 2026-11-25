@@ -12,7 +12,7 @@
  */
 
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
 import { DatabaseService } from '../database/database.service';
@@ -289,7 +289,7 @@ export class LimitsService {
   }
 
   private async askPermission(): Promise<boolean> {
-    if (!Capacitor.isNativePlatform()) return false;
+    if (!DEVICE.localNotifications) return false;
     try {
       const now = await LocalNotifications.checkPermissions();
       if (now.display === 'granted') return true;
