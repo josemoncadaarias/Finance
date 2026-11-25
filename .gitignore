@@ -51,8 +51,7 @@ libpeerconnection.log
 testem.log
 typings
 
-# Capacitor generated native projects
-/ios
+# The iOS project is kept (ios/.gitignore leaves out what it generates).
 
 # Generated for review, regenerable from the database.
 sugerencias-categorias.csv
