@@ -11,7 +11,7 @@
  */
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { LocalNotifications, type ActionPerformed } from '@capacitor/local-notifications';
 
 import { DatabaseService } from '../database/database.service';
@@ -52,7 +52,7 @@ export class MonthSummaryService {
   readonly pending = signal<string | null>(null);
 
   constructor() {
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.localNotifications) {
       void LocalNotifications.addListener('localNotificationActionPerformed', action => this.tapped(action));
     }
     effect(() => {
@@ -106,7 +106,7 @@ export class MonthSummaryService {
           'SELECT COUNT(*) AS n FROM transactions WHERE occurred_on BETWEEN ? AND ?', [whole.from, whole.to]);
         this.pending.set((row?.n ?? 0) > 0 ? last : null);
       }
-      if (Capacitor.isNativePlatform()) await this.schedule(now);
+      if (DEVICE.localNotifications) await this.schedule(now);
     } catch {
       // Más simply shows no summary waiting.
     }

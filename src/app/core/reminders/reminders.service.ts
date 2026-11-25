@@ -12,7 +12,7 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { LocalNotifications, type ActionPerformed } from '@capacitor/local-notifications';
 
 import { DatabaseService } from '../database/database.service';
@@ -72,7 +72,7 @@ export class RemindersService {
   private again = false;
 
   constructor() {
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.localNotifications) {
       // Registered first thing, so a tap that opened the app is not missed.
       void LocalNotifications.addListener('localNotificationActionPerformed', action => void this.tapped(action));
       // Back from Android's settings, or after a while away: what is allowed
@@ -211,7 +211,7 @@ export class RemindersService {
       if (settled.length > 0) list = await this.repo.all();
     }
     this.all.set(list);
-    if (Capacitor.isNativePlatform()) await this.ring(list);
+    if (DEVICE.localNotifications) await this.ring(list);
   }
 
   private async ring(list: readonly Reminder[]): Promise<void> {
@@ -287,7 +287,7 @@ export class RemindersService {
 
   /** "Permitir avisos": Android's question while it still asks, its settings after. */
   async allowNotices(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.localNotifications) return;
     const now = (await LocalNotifications.checkPermissions()).display;
     if (now !== 'denied' && (await LocalNotifications.requestPermissions()).display === 'granted') {
       this.write(ASKED_KEY, '1');
@@ -299,7 +299,7 @@ export class RemindersService {
 
   /** "Sonar a la hora exacta": Android's "Alarmas y recordatorios" for Finance. */
   async allowExact(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.localNotifications) return;
     try { await LocalNotifications.changeExactNotificationSetting(); } catch { /* nothing to open */ }
     void this.refresh();
   }
@@ -310,7 +310,7 @@ export class RemindersService {
    * screen can say what the phone did with it. Each answer names what to fix.
    */
   async testNotice(): Promise<{ result: 'sent' | 'off' | 'channelOff' | 'failed'; detail?: string }> {
-    if (!Capacitor.isNativePlatform()) return { result: 'failed', detail: 'web' };
+    if (!DEVICE.localNotifications) return { result: 'failed', detail: 'web' };
     try {
       if (!(await this.allowed()) && (await LocalNotifications.requestPermissions()).display !== 'granted') return { result: 'off' };
       await this.setUp();

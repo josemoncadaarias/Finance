@@ -20,7 +20,7 @@ import {
   type OnDestroy, type OnInit,
 } from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { Keyboard } from '@capacitor/keyboard';
 import { IonIcon, IonDatetime, IonModal, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -528,7 +528,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.noteSuggestions.set([]);
     const field = this.noteBox()?.nativeElement.querySelector('textarea');
     field?.blur();
-    if (Capacitor.isNativePlatform()) void Keyboard.hide().catch(() => undefined);
+    if (DEVICE.native) void Keyboard.hide().catch(() => undefined);
   }
 
   /**
@@ -1610,7 +1610,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.autofocusAmount.set(!this.isEditing() && !this.request().loan && !this.request().many);
     // The phone's keyboard closing is the end of writing a note, however it
     // was closed - the back button included, which does not blur the field.
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void Keyboard.addListener('keyboardDidHide', () => {
         if (this.writingNote()) this.finishNote();
       }).then(handle => { this.keyboardClosed = handle; });

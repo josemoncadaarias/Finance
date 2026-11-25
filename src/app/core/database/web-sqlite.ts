@@ -24,7 +24,7 @@
  * nothing on the phone.
  */
 
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 /** How long to wait for the store to open before giving up. */
 const STORE_TIMEOUT_MS = 15_000;
@@ -44,7 +44,7 @@ let ready: Promise<void> | null = null;
  * than each mounting their own element.
  */
 export function prepareWebSqlite(): Promise<void> {
-  if (Capacitor.getPlatform() !== 'web') {
+  if (DEVICE.native) {
     return Promise.resolve();
   }
   ready ??= mountJeepSqlite();

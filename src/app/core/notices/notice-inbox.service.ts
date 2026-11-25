@@ -16,7 +16,7 @@
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 import { DatabaseService } from '../database/database.service';
 import { DemoService } from '../demo/demo.service';
@@ -65,7 +65,7 @@ export class NoticeInboxService {
         else setTimeout(() => void this.read(), 2500);
       });
     });
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void this.lookForAsked();
       void App.addListener('appStateChange', ({ isActive }) => {
         if (!isActive) return;

@@ -15,7 +15,7 @@
 
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 import { DatabaseService } from '../database/database.service';
 import { DemoService } from '../demo/demo.service';
@@ -229,7 +229,7 @@ export class CloudBackupService {
     // is an attempt and never a guarantee - which is what the mark below is
     // for. Coming back is the other half: a copy that did not finish last
     // time gets made now.
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void App.addListener('appStateChange', ({ isActive }) => {
         this.active = isActive;
         if (!isActive) this.saveIfBehind();

@@ -18,7 +18,7 @@ import { Component, DestroyRef, computed, effect, inject, signal, viewChild } fr
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 
@@ -253,7 +253,7 @@ export class NotificationsPage {
   readonly alertsAllowed = signal(true);
 
   private async readAlerts(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.localNotifications) return;
     try {
       this.alertsAllowed.set((await LocalNotifications.checkPermissions()).display === 'granted');
     } catch {
@@ -263,7 +263,7 @@ export class NotificationsPage {
 
   /** Asks Android to let the app post its own notices. */
   async askAlerts(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.localNotifications) return;
     try {
       const now = await LocalNotifications.checkPermissions();
       const answer = now.display === 'granted' ? now : await LocalNotifications.requestPermissions();

@@ -49,7 +49,7 @@ import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
 import { GUIDE_TOPICS, topicIn } from '../../core/assistant/guide';
 import { LoansRepository } from '../../core/loans/loans.repository';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import type { OpenCategory, RichBlock, RichButton, RichCard, Speech } from './answers';
 import type { FixedPayment } from '../../core/assistant/recurring';
 import { FilterService } from '../../core/filters/filter.service';
@@ -796,7 +796,7 @@ export class AssistantPage {
       loans = (await new LoansRepository(this.database.driver).all())
         .filter(l => !l.account.archived).map(l => ({ id: l.account.id, name: l.account.name }));
     } catch { /* No loans read: the button goes to Deudas y tarjetas. */ }
-    return { cards, loans, android: Capacitor.getPlatform() === 'android' };
+    return { cards, loans, photos: DEVICE.readsImages, notices: DEVICE.readsNotifications };
   }
 
   /** The account a sentence named, with its name. */

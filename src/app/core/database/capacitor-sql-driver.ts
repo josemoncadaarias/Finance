@@ -14,7 +14,7 @@
  */
 
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from '@capacitor-community/sqlite';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 
 import { BaseSqlDriver, SqlError, type SqlRunResult } from './sql-driver';
 import { paramForDevice, rowFromDevice, sqlForPlugin } from './plugin-sql';
@@ -39,7 +39,7 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
   static async open(databaseName: string = DATABASE_NAME): Promise<CapacitorSqlDriver> {
     const connection = new SQLiteConnection(CapacitorSQLite);
-    const isWeb = Capacitor.getPlatform() === 'web';
+    const isWeb = !DEVICE.native;
 
     if (isWeb) {
       await connection.initWebStore();

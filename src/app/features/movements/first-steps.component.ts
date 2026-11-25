@@ -11,7 +11,7 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { DEVICE } from '../../core/device/device';
 import { IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -171,7 +171,7 @@ export class FirstStepsComponent {
       void untracked(() => this.load());
     });
     // Back from Android's screen that allows reading notifications: ticked.
-    if (Capacitor.isNativePlatform()) {
+    if (DEVICE.native) {
       void App.addListener('appStateChange', ({ isActive }) => {
         if (isActive && this.database.status() === 'ready' && !this.prefs.hidden()) void this.load();
       });

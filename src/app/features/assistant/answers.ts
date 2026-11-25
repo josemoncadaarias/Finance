@@ -1268,8 +1268,10 @@ export function affordBig(s: Speech, amountMinor: number, thing: string | null, 
 export interface GuideFacts {
   cards: readonly { id: number; name: string }[];
   loans: readonly { id: number; name: string }[];
-  /** Photos of receipts and bank notices are read only on an Android phone. */
-  android: boolean;
+  /** Whether this phone reads photos (receipts, statements) - `DEVICE.readsImages`. */
+  photos: boolean;
+  /** Whether this phone reads other apps' notifications - `DEVICE.readsNotifications`. */
+  notices: boolean;
 }
 
 /** Each topic: how many steps it has, whether a note follows them, and the topics to offer next. */
@@ -1312,7 +1314,7 @@ export function guide(s: Speech, topic: GuideTopic | 'any', facts: GuideFacts): 
     blocks.push({ step: { n, color: STEP_COLORS[(n - 1) % STEP_COLORS.length], title: s.t(key(String(n))), lines: [] } });
   }
   if (shape.note) blocks.push({ note: s.t(key('note')) });
-  const phoneOnly = (topic === 'receipt' || topic === 'notices') && !facts.android;
+  const phoneOnly = (topic === 'receipt' && !facts.photos) || (topic === 'notices' && !facts.notices);
   if (phoneOnly) blocks.push({ note: s.t('ai.guide.androidOnly') });
   return {
     said: { key: key('said'), values: {} },

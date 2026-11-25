@@ -12,7 +12,8 @@
 import { Injectable, effect, inject, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { DEVICE } from '../device/device';
 import { LocalNotifications, type ActionPerformed } from '@capacitor/local-notifications';
 
 import { formatMoney } from '../database/money';
@@ -49,7 +50,7 @@ export class StockAlertsService {
   private readonly google = inject(GoogleAccountService);
 
   constructor() {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!DEVICE.localNotifications) return;
     void LocalNotifications.addListener('localNotificationActionPerformed', action => this.tapped(action));
     void App.addListener('resume', () => void this.askPrices());
     // Once the trades are read on opening, ask for prices; every time new prices come, look.
@@ -97,7 +98,7 @@ export class StockAlertsService {
 
   /** Turning the alerts on asks the phone for its notices, once. */
   async allow(): Promise<boolean> {
-    if (!Capacitor.isNativePlatform()) return true;
+    if (!DEVICE.localNotifications) return true;
     const now = (await LocalNotifications.checkPermissions()).display;
     if (now === 'granted') return true;
     return (await LocalNotifications.requestPermissions()).display === 'granted';
