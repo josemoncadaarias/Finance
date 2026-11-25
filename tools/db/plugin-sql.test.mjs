@@ -112,3 +112,23 @@ test('an icon survives the trip to the device plugin and back', () => {
   const row = rowFromDevice({ data: [...bound.data] });
   assert.deepEqual(row.data, image);
 });
+
+// What the iOS plugin does with an object among the values (CapacitorSQLite.run):
+// its keys sorted the way Swift's `.localizedStandard` sorts them (numbers by
+// their value), each value an integer byte, or "Error in reading buffer".
+function iosBytes(value) {
+  const keys = Object.keys(value).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  return keys.map(key => {
+    if (!Number.isInteger(value[key])) throw new Error('Error in reading buffer');
+    return value[key];
+  });
+}
+
+test('bytes go to the iOS plugin as the object it reads, in their order', () => {
+  const image = Uint8Array.from({ length: 300 }, (_, i) => (i * 7) % 256);
+  const bound = paramForDevice(image, 'ios');
+  assert.deepEqual(iosBytes(JSON.parse(JSON.stringify(bound))), [...image]);
+  // The Android shape is what failed on the iPhone simulator.
+  assert.throws(() => iosBytes(paramForDevice(image, 'android')), /Error in reading buffer/);
+  for (const plain of [null, 42, 1.5, 'texto', '']) assert.equal(paramForDevice(plain, 'ios'), plain);
+});

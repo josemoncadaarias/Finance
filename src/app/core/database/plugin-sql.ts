@@ -50,9 +50,22 @@ export function sqlForPlugin(sql: string): string {
  * image - crosses the bridge as exactly such an object, so the first restore of
  * a backup on Jose's phone stopped at the first icon (2026-09-12). The browser
  * plugin takes the `Uint8Array` as it is.
+ *
+ * iOS wants another shape (`CapacitorSQLite.run` in the plugin's Swift): an
+ * object whose keys are the byte positions and whose values are the bytes, read
+ * in the keys' natural order - which is what a `Uint8Array` becomes on the
+ * bridge. Handed the Android shape, its `type: 'Buffer'` is no byte and it fails
+ * with "Error in reading buffer": the sample data, which carries pictures of
+ * its own, did not load on the iPhone simulator (2026-11-25).
  */
-export function paramForDevice(value: unknown): unknown {
-  return value instanceof Uint8Array ? { type: 'Buffer', data: Array.from(value) } : value;
+export function paramForDevice(value: unknown, platform: 'android' | 'ios' = 'android'): unknown {
+  if (!(value instanceof Uint8Array)) return value;
+  if (platform === 'ios') {
+    const bytes: Record<string, number> = {};
+    value.forEach((byte, index) => { bytes[String(index)] = byte; });
+    return bytes;
+  }
+  return { type: 'Buffer', data: Array.from(value) };
 }
 
 /**
