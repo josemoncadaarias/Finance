@@ -1765,6 +1765,15 @@ first (the flag used to be read back asynchronously). The same was true on
 Android. The "Finance" environment now allows
 `productionresultssa0`-`sa20.blob.core.windows.net`, so a session downloads
 a run's pictures whichever host GitHub picks.
+**Fifth run (2026-11-25)**: the same dialog on every screen - caps were not
+the only cause. On iOS the plugin's `schedule()` asks for the permission by
+itself when it was never asked (`ensureAuthorization` in
+`LocalNotificationsPlugin.swift`), and the sample is written in one
+transaction while services (a card's payment day, the reminders) may read
+it before the flag said "sample". Assumed, not proved by the log: one of
+them scheduled from the half-built sample. Now `DemoService.load` sets
+`active` BEFORE writing and keeps `read()` from turning it off until the
+write ends (`loading`); a failed load sets it back.
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The
