@@ -4,4 +4,11 @@
     <string name="title_activity_main">Finance</string>
     <string name="package_name">com.jadexlabs.finance</string>
     <string name="custom_url_scheme">com.jadexlabs.finance</string>
+    <!-- The home-screen widget (59a). Its own words come from the app once opened;
+         these are what it says before that, and in the phone's widget list. -->
+    <string name="widget_title">Hoy puedes gastar</string>
+    <string name="widget_open">Abre Finance para ver cuánto puedes gastar hoy</string>
+    <string name="widget_expense">Gasto</string>
+    <string name="widget_income">Ingreso</string>
+    <string name="widget_description">Lo que puedes gastar hoy, con botones para registrar un gasto o un ingreso</string>
 </resources>

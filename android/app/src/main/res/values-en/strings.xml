@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="widget_title">You can spend today</string>
+    <string name="widget_open">Open Finance to see how much you can spend today</string>
+    <string name="widget_expense">Expense</string>
+    <string name="widget_income">Income</string>
+    <string name="widget_description">What you can spend today, with buttons to record an expense or an income</string>
+</resources>

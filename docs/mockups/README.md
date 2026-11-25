@@ -287,3 +287,13 @@ Pendientes, el saldo con su barra y cifras, y "Puedes gastar hoy" ocupan casi la
 - `57g` Inicio invita a permitir leer los avisos cuando falta ese permiso.
 - Descartados por Jose, por simplicidad: preguntar antes de leer (57b) y un ajuste para elegir (57f).
 | `58a`–`58l` | **The phone held sideways, a proposal for Jose's word** (2026-11-18, after a video of Lukas turning his phone; nothing built). Drawn at 915 × 412 with a note under each screen. The floating bar becomes a rail on the left (height is what is short sideways), and each screen spreads into columns: Inicio (balance and attention, the donut, the movements), a movement opening beside the list in the same form, typing the amount with the keyboard up, the Reporte as a dashboard, Cuentas with the account tapped on the right, Deudas with its plan, an account's products with interest by month, Por revisar answered row by row beside the list, the assistant with its answer in large, Bolsa de valores with the return chart large, Más in four columns, the "+" in two columns |
+
+## 59 - Un widget en la pantalla de inicio del celular (2026-11-25, opción A construida el mismo día)
+
+Un cuadrito de Finance entre los íconos del celular: dice "Hoy puedes gastar" sin abrir la app, y sus botones abren el formulario de siempre. Nada se guarda desde el widget.
+
+- `59a` Opción A (recomendada): mediano, la cifra y tres botones (Gasto, Ingreso, el asistente) y el ojo.
+- `59b` Opción B: pequeño, la cifra y un botón de gasto.
+- `59c` Opción C: grande, además el próximo pago y los dos últimos movimientos.
+- `59d` con los montos ocultos. `59e` cuando el mes ya no alcanza, en rojo.
+- `59f` cómo se pone: la lista de widgets de Android.

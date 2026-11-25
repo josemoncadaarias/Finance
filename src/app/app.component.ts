@@ -24,6 +24,7 @@ import { RemindersService } from './core/reminders/reminders.service';
 import { MonthSummaryService } from './core/summary/month-summary.service';
 import { StockAlertsService } from './core/stocks/stock-alerts.service';
 import { ReviewEveningService } from './core/proposals/review-evening.service';
+import { WidgetService } from './core/widget/widget.service';
 import { ShortcutsService } from './core/shortcuts/shortcuts.service';
 import { MarqueeService } from './core/ui/marquee.service';
 import { TabBarComponent } from './shared/ui/tab-bar.component';
@@ -105,6 +106,8 @@ export class AppComponent {
 
   /** The shortcuts of the app's icon, handed to Android and answered. */
   private readonly shortcuts = inject(ShortcutsService);
+  /** "Hoy puedes gastar" on the phone's home screen (59a). */
+  private readonly widget = inject(WidgetService);
   /** The phone held sideways: the rail on the left and screens in columns (58). */
   private readonly layout = inject(LayoutService);
 

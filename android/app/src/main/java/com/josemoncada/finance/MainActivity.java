@@ -40,6 +40,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         registerPlugin(ShortcutsPlugin.class);
         registerPlugin(OcrPlugin.class);
         registerPlugin(StockWatchPlugin.class);
+        registerPlugin(WidgetPlugin.class);
         super.onCreate(savedInstanceState);
         followFontSize();
         remember(getIntent());
