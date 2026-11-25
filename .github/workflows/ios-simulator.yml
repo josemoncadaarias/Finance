@@ -1,0 +1,159 @@
+# Builds the iOS app for the iPhone SIMULATOR on a Mac of GitHub's, runs it
+# there with the sample data, and keeps a picture of every screen - Actions
+# tab, "iOS simulator", "Run workflow". iOS, step 2 (CLAUDE.md, "iOS").
+#
+# No Apple account, no certificate, no Mac of Jose's: the simulator runs an
+# unsigned build, so nothing here needs a secret. It cannot install on a real
+# iPhone; that needs the Apple Developer Program (step 5).
+#
+# Only when asked: macOS minutes count ten times against the free 2,000 of a
+# private repository, so one run of ~20 minutes spends ~200 of them.
+#
+# How the pictures are taken: the workflow writes `www/screenshot-walk.json`
+# (only here; no other build has it). On an iPhone the app reads it
+# (`core/device/screenshot-walk.service.ts`), loads the sample data and goes
+# through each screen, writing `walk-step.txt` in its Documents folder once a
+# screen has drawn; this job takes the picture and leaves `shot-N.done` for it
+# to move on.
+
+name: iOS simulator
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    # Capacitor 8's iOS project needs a recent Xcode (its template uses scenes).
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Xcode in use
+        run: xcodebuild -version
+
+      - name: Install the web app's packages
+        run: npm ci
+
+      - name: Build the web app
+        run: npx ng build
+
+      - name: Screens to photograph
+        run: |
+          cat > www/screenshot-walk.json <<'JSON'
+          {
+            "demo": true,
+            "shots": [
+              { "name": "01-inicio", "route": "/" },
+              { "name": "02-cuentas", "route": "/accounts" },
+              { "name": "03-rendimientos", "route": "/products" },
+              { "name": "04-deudas", "route": "/debts" },
+              { "name": "05-plan-deudas", "route": "/debts/plan" },
+              { "name": "06-reporte", "route": "/report" },
+              { "name": "07-presupuestos", "route": "/plans" },
+              { "name": "08-recordatorios", "route": "/reminders" },
+              { "name": "09-por-revisar", "route": "/review" },
+              { "name": "10-bolsa", "route": "/stocks" },
+              { "name": "11-asistente", "route": "/assistant" },
+              { "name": "12-categorias", "route": "/categories" },
+              { "name": "13-monedas", "route": "/currencies" },
+              { "name": "14-notificaciones", "route": "/notifications" },
+              { "name": "15-importar-exportar", "route": "/export" },
+              { "name": "16-google", "route": "/account" },
+              { "name": "17-renta", "route": "/tax" },
+              { "name": "18-finance-pro", "route": "/pro" },
+              { "name": "19-mas", "route": "/more" }
+            ]
+          }
+          JSON
+
+      - name: Copy the web app and the plugins into the iOS project
+        run: npx cap sync ios
+
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tail -n 80
+
+      - name: Start an iPhone
+        id: phone
+        run: |
+          # The newest iPhone this Xcode brings, whatever its name this year.
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("^iPhone [0-9]+$|^iPhone [0-9]+ Pro$"))] | last | .udid')
+          if [ -z "$UDID" ] || [ "$UDID" = "null" ]; then
+            UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | test("iPhone"))] | last | .udid')
+          fi
+          echo "Simulator: $UDID"
+          xcrun simctl list devices | grep "$UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          # Spanish, as the app speaks by default, and a fixed status bar.
+          xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array es-CO
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Install and open the app
+        run: |
+          UDID=${{ steps.phone.outputs.udid }}
+          APP=$(find ios/DerivedData/Build/Products -name "App.app" -type d | head -n 1)
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.jadexlabs.finance
+
+      - name: Photograph every screen
+        run: |
+          UDID=${{ steps.phone.outputs.udid }}
+          DOCS="$(xcrun simctl get_app_container "$UDID" com.jadexlabs.finance data)/Documents"
+          mkdir -p shots
+          xcrun simctl io "$UDID" screenshot shots/00-al-abrir.png
+          seen=""
+          for _ in $(seq 1 600); do
+            step=$(cat "$DOCS/walk-step.txt" 2>/dev/null || true)
+            if [ "$step" = "end" ]; then echo "Done"; break; fi
+            if [ -n "$step" ] && [ "$step" != "$seen" ]; then
+              n=${step%%|*}; name=${step#*|}
+              xcrun simctl io "$UDID" screenshot "shots/$name.png"
+              echo "Took $name"
+              touch "$DOCS/shot-$n.done"
+              seen=$step
+            fi
+            sleep 1
+          done
+          # Whatever happened, the last thing on screen.
+          xcrun simctl io "$UDID" screenshot shots/99-al-final.png
+          ls -la shots
+
+      - name: What the app said (if a screen failed)
+        if: always()
+        run: |
+          UDID=${{ steps.phone.outputs.udid }}
+          xcrun simctl spawn "$UDID" log show --last 15m --style compact \
+            --predicate 'process == "App"' 2>/dev/null | tail -n 200 > shots/app-log.txt || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screenshots
+          path: shots
+          retention-days: 7

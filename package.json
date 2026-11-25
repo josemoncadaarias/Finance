@@ -12,7 +12,8 @@
     "lint": "ng lint",
     "db:build": "node tools/db/build-migrations.mjs",
     "db:test": "node tools/db/run-tests.mjs",
-    "android": "ng build && npx cap sync android"
+    "android": "ng build && npx cap sync android",
+    "ios": "ng build && npx cap sync ios"
   },
   "private": true,
   "dependencies": {
@@ -28,6 +29,7 @@
     "@capacitor/core": "8.5.1",
     "@capacitor/filesystem": "^8.1.3",
     "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "~8.5.1",
     "@capacitor/keyboard": "8.0.5",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.1",

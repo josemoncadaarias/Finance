@@ -246,7 +246,9 @@ name as tester feedback; goes in the next closed-testing release).
 Calendars and fields answer at once: formatters kept, not made on every
 tap (2026-11-13, #325, "How to work").
 
-**iOS, step 1 (2026-11-25)**: every "can this phone do X?" is answered by
+**iOS, steps 1 and 2 (2026-11-25)**: the iOS project and a workflow that
+builds it for the iPhone simulator and photographs every screen (Actions →
+"iOS simulator"); and every "can this phone do X?" is answered by
 one table, `DEVICE` (`core/device/`), ready for an iPhone to hide what it
 lacks - see "iOS: possible, deliberately not done". Nothing changes on Android.
 
@@ -1688,7 +1690,30 @@ Capacitor for the platform itself - **a new Android-only feature adds a line
 to the table, never a platform check of its own**. `BankNotifications` already
 answered "not supported" on iOS (`ios: nothing`). Checked: the tests, the
 build, Más and Inicio in a browser; not on a phone (nothing changes there by
-construction). Next, at Jose's word: step 2, `ios/` and the simulator workflow.
+construction).
+
+**Step 2 is BUILT (2026-11-25, Jose: "continúa con el siguiente paso")**:
+`ios/` is in the repository (`npx cap add ios --packagemanager CocoaPods`,
+`@capacitor/ios` ~8.5.1 to match `@capacitor/core` 8.5.1; the root
+`.gitignore` no longer drops `/ios`, `ios/.gitignore` leaves out Pods, the
+copied web app and the generated config); bundle id `com.jadexlabs.finance`,
+iOS 15 minimum, its icon and splash from `assets/` (`npx capacitor-assets
+generate --ios`); `npm run ios` builds and syncs. CocoaPods, not Swift
+Package Manager: every plugin ships a podspec, not every one a
+Package.swift. `.github/workflows/ios-simulator.yml` ("iOS simulator",
+only when run by hand, `macos-26`): builds the web app, writes
+`www/screenshot-walk.json` (the only build that has it), `cap sync ios`
+(pod install), builds unsigned for the simulator, boots the newest iPhone,
+installs and opens the app, and keeps a picture of each screen as the
+artifact `ios-screenshots` (7 days) with the app's log. The app side is
+`core/device/screenshot-walk.service.ts`, started by the shell, iOS only:
+with the walk file it loads the sample data, turns guides off and goes
+through each route, writing `walk-step.txt` in its Documents once a screen
+has drawn and waiting for the workflow's `shot-N.done`; without the file it
+asks once and does nothing. Not a URL scheme: `simctl openurl` may show
+"¿Abrir en Finance?" (assumed). **Not yet known when written**: whether
+the first run compiles (every plugin's iOS side, Xcode 26's choice of
+runner) - the run's log says, and what fails is fixed there.
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The

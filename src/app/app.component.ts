@@ -37,6 +37,7 @@ import { OpeningNoticeComponent } from './shared/ui/opening-notice.component';
 import { LimitAlertComponent } from './features/plans/limit-alert.component';
 import { ProSheetComponent } from './shared/pro/pro-sheet.component';
 import { FeedbackSheetComponent } from './shared/feedback/feedback-sheet.component';
+import { ScreenshotWalkService } from './core/device/screenshot-walk.service';
 import { HabitOptionsComponent } from './shared/ui/habit-options.component';
 import { TourOverlayComponent } from './shared/tour/tour-overlay.component';
 
@@ -110,6 +111,8 @@ export class AppComponent {
   private readonly widget = inject(WidgetService);
   /** The phone held sideways: the rail on the left and screens in columns (58). */
   private readonly layout = inject(LayoutService);
+  /** Only the iOS simulator's screenshot run: every screen, one after another. */
+  private readonly screenshotWalk = inject(ScreenshotWalkService);
 
   /**
    * A sheet never outlives the screen it was opened on (Jose, 2026-09-28:
