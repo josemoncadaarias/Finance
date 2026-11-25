@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1296 on 2026-11-25, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1297 on 2026-11-25, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1741,6 +1741,18 @@ included; (2) the sample data did not load, so every screen was empty, and
 the app's log said nothing - the walk now writes the error to
 `walk-error.txt` in Documents, and the workflow prints it and keeps it with
 the pictures. Its cause is still to find on the next run.
+**Third run (2026-11-25)**: `walk-error.txt` said `SqlError: Run: failed
+(message: "Error in reading buffer")`. The plugin's iOS `run`
+(`CapacitorSQLite.swift`) takes bytes as an object of position -> byte, read
+in the keys' natural order - what a `Uint8Array` becomes on the bridge -
+while `paramForDevice` sent Android's `{type: 'Buffer', data}`, whose string
+`type` is no byte; the sample data carries pictures of its own. Now
+`paramForDevice(value, platform)` sends iOS that object (the driver passes
+`DEVICE.platform`); Android is unchanged. iOS returns a BLOB as an array of
+bytes, as Android does, so `rowFromDevice` needs nothing.
+`plugin-sql.test.mjs` ports the Swift reading and fails on the Android
+shape. The artifact was on `productionresultssa15`, not allowed: its pictures
+were not seen (the same empty screens as the second run, assumed).
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The

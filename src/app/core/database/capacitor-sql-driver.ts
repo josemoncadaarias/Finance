@@ -104,7 +104,8 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
   /** The values in the shape this platform's plugin binds. */
   private valuesFor(params: readonly unknown[]): unknown[] {
-    return this.isWeb ? [...params] : params.map(paramForDevice);
+    const platform = DEVICE.platform === 'ios' ? 'ios' : 'android';
+    return this.isWeb ? [...params] : params.map(value => paramForDevice(value, platform));
   }
 
   async close(): Promise<void> {
