@@ -75,9 +75,9 @@ const TABLE: Record<Platform, Omit<Capabilities, 'platform'>> = {
     localNotifications: true,
     readsNotifications: false, // never: Apple allows no app to.
     readsSms: false, // never directly; a Shortcuts automation instead.
-    readsImages: false, // Apple Vision, once its plugin is written.
-    nativeVoice: false, // Apple's Speech framework, once its plugin is written.
-    iconShortcuts: false, // Home-screen quick actions, once written.
+    readsImages: true, // Apple Vision (OcrPlugin.swift).
+    nativeVoice: true, // Apple's Speech framework (SpeechPlugin.swift).
+    iconShortcuts: true, // Home-screen quick actions (ShortcutsPlugin.swift).
     homeWidget: false, // A WidgetKit widget, once written.
     backgroundStockWatch: false, // iOS decides when an app wakes: not promised.
     googleSignIn: false, // Needs an iOS OAuth client in Google Cloud.

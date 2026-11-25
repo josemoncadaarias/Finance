@@ -24,11 +24,12 @@ export type ShortcutId = (typeof SHORTCUTS)[number];
  * The shortcuts of the app's icon (Jose, 2026-10-22): a long press on Finance
  * offers a new spending, a new income, the assistant and Por revisar.
  *
- * Handed to Android on every opening and every change of language, so their
+ * Handed to the phone on every opening and every change of language, so their
  * words are the app's, not the phone's. The one tapped is taken once, as the
  * app opens or comes back, and acted on as soon as the data is ready: the
  * movement form opens as the "+" opens it, and nothing is saved by itself.
- * Android only; elsewhere nothing happens.
+ * Android and iPhone (quick actions, `ShortcutsPlugin.swift`); in a browser
+ * nothing happens.
  */
 @Injectable({ providedIn: 'root' })
 export class ShortcutsService {

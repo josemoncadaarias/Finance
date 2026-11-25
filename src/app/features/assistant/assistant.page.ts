@@ -625,8 +625,10 @@ export class AssistantPage {
     try {
       const said = await listen(this.i18n.language() === 'en' ? 'en-US' : 'es-CO', this.i18n.t('ai.voice.prompt'));
       if (said.trim()) await this.send(said);
-    } catch {
-      this.toast.say(this.i18n.t('ai.voice.none'), 3500);
+    } catch (error) {
+      // An iPhone asks for the microphone itself; a "no" is not a phone without dictation.
+      const denied = error instanceof Error && error.message === 'denied';
+      this.toast.say(this.i18n.t(denied ? 'ai.voice.denied' : 'ai.voice.none'), denied ? 6000 : 3500);
     } finally {
       this.listening.set(false);
     }
