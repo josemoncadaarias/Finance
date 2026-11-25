@@ -16,6 +16,7 @@ import { DEVICE } from '../device/device';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
 import { DatabaseService } from '../database/database.service';
+import { DemoService } from '../demo/demo.service';
 import type { AccountRow, CategoryRow } from '../database/types';
 import { I18nService } from '../i18n/i18n.service';
 import { formatMoney } from '../database/money';
@@ -74,6 +75,7 @@ function saveTold(told: Set<string>, month: string): void {
 @Injectable({ providedIn: 'root' })
 export class LimitsService {
   private readonly database = inject(DatabaseService);
+  private readonly demo = inject(DemoService);
   private readonly i18n = inject(I18nService);
 
   readonly limits = signal<LimitTerms[]>([]);
@@ -184,7 +186,7 @@ export class LimitsService {
   async save(id: number | null, input: LimitInput): Promise<number> {
     this.quiet = true;
     const saved = id === null ? await this.repo.create(input) : (await this.repo.update(id, input), id);
-    if (this.notices().phone) void this.askPermission();
+    if (this.notices().phone && !this.demo.active()) void this.askPermission();
     this.database.dataChanged();
     return saved;
   }
@@ -259,7 +261,9 @@ export class LimitsService {
       if (total) this.alert.set({ kind: 'total', month: view });
       else if (passed.length) this.alert.set({ kind: 'limit', view: passed[0] });
     }
-    if (!notices.phone) return;
+    // Invented figures never ring the phone, nor ask to (as reminders and the
+    // card's payment day): loading the sample data asked on an iPhone.
+    if (!notices.phone || this.demo.active()) return;
     const notes: { title: string; body: string }[] = [];
     if (total && view.total) {
       notes.push({

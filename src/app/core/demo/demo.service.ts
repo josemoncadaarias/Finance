@@ -88,6 +88,10 @@ export class DemoService {
         'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
         [FLAG, '1', new Date().toISOString()]);
     });
+    // Known at once, before anything reads the new data: a service that
+    // stays quiet on sample data must not see it as a person's own first.
+    this.active.set(true);
+    this.empty.set(false);
     this.database.dataChanged();
   }
 
