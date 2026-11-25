@@ -45,6 +45,8 @@ export class DemoService {
   readonly active = signal(false);
   /** No account at all: a fresh install, or one just erased. Null until read. */
   readonly empty = signal<boolean | null>(null);
+  /** While the sample is being written: a read then would find no flag yet. */
+  private loading = false;
 
   constructor() {
     effect(() => {
@@ -55,6 +57,7 @@ export class DemoService {
   }
 
   private async read(): Promise<void> {
+    if (this.loading) return;
     try {
       const db = this.database.driver;
       const flag = await db.queryOne<{ value: string }>('SELECT value FROM settings WHERE key = ?', [FLAG]);
@@ -78,6 +81,30 @@ export class DemoService {
     if ((accounts?.n ?? 0) > 0) throw new Error('The app already holds accounts of its own.');
     // Loaded only when asked for: nobody with data of their own carries it.
     const { buildShowcase } = await import('./showcase');
+    // Marked from the start, not once written: a service that reads the data
+    // while it is being built (a card's payment day, the reminders) must
+    // already see it as the sample and stay quiet. On an iPhone scheduling a
+    // notice asks the phone's permission by itself, and the sample used to
+    // raise that question over every screen.
+    this.active.set(true);
+    this.loading = true;
+    try {
+      await this.build(db, buildShowcase, onProgress);
+    } catch (error) {
+      this.active.set(false);
+      throw error;
+    } finally {
+      this.loading = false;
+    }
+    this.empty.set(false);
+    this.database.dataChanged();
+  }
+
+  private async build(
+    db: DatabaseService['driver'],
+    buildShowcase: typeof import('./showcase').buildShowcase,
+    onProgress: (fraction: number) => void,
+  ): Promise<void> {
     await db.transaction(async () => {
       await buildShowcase(db, todayIso(), async fraction => {
         onProgress(fraction);
@@ -88,11 +115,6 @@ export class DemoService {
         'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
         [FLAG, '1', new Date().toISOString()]);
     });
-    // Known at once, before anything reads the new data: a service that
-    // stays quiet on sample data must not see it as a person's own first.
-    this.active.set(true);
-    this.empty.set(false);
-    this.database.dataChanged();
   }
 
   /**
