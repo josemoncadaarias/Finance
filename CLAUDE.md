@@ -246,6 +246,11 @@ name as tester feedback; goes in the next closed-testing release).
 Calendars and fields answer at once: formatters kept, not made on every
 tap (2026-11-13, #325, "How to work").
 
+**A widget on the phone's home screen (2026-11-25)**: "Hoy puedes gastar"
+with Gasto, Ingreso and the assistant, option A of mockups `59a`-`59f`
+(after Lukas's post on going native) - see "The home-screen widget" under
+"How to work". Not seen on the phone.
+
 The movement form says each end's new balance, its ends use their space,
 the cover line is short, and a notice tapped over a form in progress opens
 (2026-11-18, #328, "How to work"; to go in the next closed-testing release
@@ -320,6 +325,34 @@ could not prove.
   "Pending from Jose" list. A future session on any machine knows only what
   is written here and in the commits. Done in the same PR as the change, or
   in a PR right after it - never left for "later".
+- **The home-screen widget** (Jose, 2026-11-25, mockups `59a`-`59f`,
+  option A chosen: "La opción A, constrúyela"). A 4 x 2 Android widget
+  (`SpendWidget.java`, layout `res/layout/widget_spend.xml`, info
+  `res/xml/widget_spend_info.xml`, its own `ic_widget_*` and `widget_*`
+  drawables): "Hoy puedes gastar" and the figure a day, "De $ X libres hasta
+  el {día}", the eye, and Gasto, Ingreso and the assistant's sparkles. It is
+  Inicio's "Puedes gastar hoy" with EVERY account (`spendRoom`, never a
+  second arithmetic): `WidgetService` (`core/widget/`, started by the shell,
+  Android only) hands the widget, through `WidgetPlugin.update`, what is LEFT
+  for the month, the month's last day and every word in the app's language
+  (`widgetStateOf`, pure, `widget-state.test.mjs`), on every data change, new
+  day, language, savings share, "Ocultar montos al abrir" and return to the
+  app. The widget divides what is left by the days left itself
+  (`SpendWidget.perDayOf`/`daysLeft`, the same rule as `perDayOf`, held to it
+  by the test), redrawn about every half hour (`updatePeriodMillis`), so a
+  day passing with the app closed is right; past the month's end it says to
+  open the app instead of guessing. Over the month: the missing amount in
+  red; no income or no account: what to do, with no figure. The eye flips
+  the figure on the widget only; the app sets it back to its own choice on
+  its next update (starts hidden with "Ocultar montos al abrir"). The buttons
+  open the app with the icon's shortcut ids (`expense`, `income`,
+  `assistant`), answered by `ShortcutsService`: the one movement form, or the
+  assistant; nothing is ever saved from the widget (rule 22); a tap on the
+  figure opens the app. Before the app is opened once it says so
+  (`res/values*/strings.xml`, `widget_*`). Home tour step `since: 25`.
+  Checked: the tests and the web build; the Java compiled with `javac` (only
+  Android's classes and `R` missing) - **the Store bundle is its first real
+  compile, and nothing of it was seen on a phone.**
 - **Inicio's top is one balance card that folds** (#309; Jose, 2026-11-09,
   mockups `56a`-`56i`, option A; asked to answer as feedback written by a
   tester in the Play Store). Pendientes and "Puedes gastar hoy" are no longer
@@ -725,7 +758,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1281 on 2026-11-19, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1288 on 2026-11-25, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -8424,6 +8457,10 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Bolsa de valores: a free, licensed source of daily price history,
       so the return chart follows the market between purchases - to look
       for together.
+- [ ] The home-screen widget (2026-11-25): add it (hold an empty space on
+      the home screen → Widgets → Finance) and say whether the figure matches
+      Inicio's "Puedes gastar hoy" with all accounts, whether Gasto, Ingreso
+      and the sparkles open what they should, and how it looks on the Xiaomi.
 - [ ] The app held sideways (2026-11-18, second round 2026-11-19): say whether Android's buttons still cover anything, how the form reads in two halves, and whether the narrower rail reads well.
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
@@ -8439,4 +8476,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06), `57*` (banks found by themselves, built 2026-11-11). `58*` (the phone held sideways: a rail instead of the floating bar, every screen in columns, what is tapped opening beside its list; drawn 2026-11-18 after a video of Lukas, waiting for Jose's word). `59*` (a widget on the phone's home screen: "Hoy puedes gastar" with Gasto, Ingreso and the assistant, in three sizes; drawn 2026-11-25 after Lukas's post on going native, waiting for Jose's word). The stock market module (2026-11-12) was built without mockups, at Jose's word
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06), `57*` (banks found by themselves, built 2026-11-11). `58*` (the phone held sideways: a rail instead of the floating bar, every screen in columns, what is tapped opening beside its list; drawn 2026-11-18 after a video of Lukas, waiting for Jose's word). `59*` (a widget on the phone's home screen: "Hoy puedes gastar" with Gasto, Ingreso and the assistant, in three sizes; drawn 2026-11-25 after Lukas's post on going native; option A built the same day). The stock market module (2026-11-12) was built without mockups, at Jose's word

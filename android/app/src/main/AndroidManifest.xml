@@ -91,6 +91,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- "Hoy puedes gastar" on the home screen (59a); its eye flips here. -->
+        <receiver
+            android:name=".SpendWidget"
+            android:label="@string/widget_title"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_spend_info" />
+        </receiver>
+
         <!-- "Movimiento detectado" (rule 22): its "Descartar", answered without opening the app. -->
         <receiver
             android:name=".MovementAlertReceiver"

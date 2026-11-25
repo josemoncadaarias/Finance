@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's own card: navy with the Zafiro accent from the top left. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="315" android:startColor="#FF33407A" android:centerColor="#FF1A2443" android:endColor="#FF111B2F" android:type="linear" />
+    <corners android:radius="26dp" />
+    <stroke android:width="1dp" android:color="#596378FF" />
+</shape>
