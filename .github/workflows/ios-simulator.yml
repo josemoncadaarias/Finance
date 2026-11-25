@@ -142,6 +142,12 @@ jobs:
           done
           # Whatever happened, the last thing on screen.
           xcrun simctl io "$UDID" screenshot shots/99-al-final.png
+          # Why the sample data did not load, if it did not (written by the app).
+          if [ -f "$DOCS/walk-error.txt" ]; then
+            cp "$DOCS/walk-error.txt" shots/
+            echo "::warning::The sample data did not load"
+            cat shots/walk-error.txt
+          fi
           ls -la shots
 
       - name: What the app said (if a screen failed)

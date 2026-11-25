@@ -1729,7 +1729,18 @@ phones already migrated are untouched; only future migrations take the new
 shape, held by the same tests. To download the run's pictures a session
 needs `productionresultssa1.blob.core.windows.net` (added to the "Finance"
 environment's allowed hosts on 2026-11-25; GitHub may use another
-`productionresultssaN` host for another run).
+`productionresultssaN` host for another run; `productionresultssa10` was
+added the same day for the second run).
+**Second run (2026-11-25)**: every one of the 19 screens drew on the
+iPhone 17 simulator (iOS 26): the layout, the floating bar and the title
+bars clear of the Dynamic Island, nothing cut. Two findings: (1)
+Notificaciones del teléfono asked for Android's permission on an iPhone -
+it now says "Solo disponible en Android" with its hint (the keys existed and
+were never shown) whenever `BankNotifications.isSupported` says no, browser
+included; (2) the sample data did not load, so every screen was empty, and
+the app's log said nothing - the walk now writes the error to
+`walk-error.txt` in Documents, and the workflow prints it and keeps it with
+the pictures. Its cause is still to find on the next run.
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The
