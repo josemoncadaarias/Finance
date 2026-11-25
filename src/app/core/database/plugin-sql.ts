@@ -13,18 +13,31 @@
  *     `FROM yield_rates r` followed by `JOIN ...` becomes `rJOIN`.
  *   * On a device the string is split on ";\n" instead.
  *
- * So the SQL goes out with its comments removed, and every line that does not
- * end a statement is followed by a space before its newline. With its
- * newlines removed it still reads the same; split on ";\n" it still splits
- * into the same statements.
+ * So the SQL goes out with its comments removed and EACH STATEMENT ON ONE
+ * LINE: the lines of a statement joined by a space, a newline only after the
+ * semicolon that ends it. Split on ";\n" it splits into the same statements;
+ * with its newlines removed it still reads the same.
+ *
+ *   * On an iPhone (found by the simulator run, 2026-11-25) the plugin trims
+ *     every line, spaces included, and then - for a string holding "DELETE
+ *     FROM" - removes the newlines too. A space left at the end of a line was
+ *     trimmed away first, so `UPDATE transactions` and `SET account_id = ...`
+ *     became `transactionsSET` and migration 023 failed. With no line break
+ *     inside a statement there is nothing to glue.
  */
 export function sqlForPlugin(sql: string): string {
   const out: string[] = [];
+  let statement: string[] = [];
   for (const rawLine of sql.split(/\r?\n/)) {
-    const line = withoutComment(rawLine).trimEnd();
-    if (line.trim().length === 0) continue;
-    out.push(line.endsWith(';') ? `${line}\n` : `${line} \n`);
+    const line = withoutComment(rawLine).trim();
+    if (line.length === 0) continue;
+    statement.push(line);
+    if (line.endsWith(';')) {
+      out.push(`${statement.join(' ')}\n`);
+      statement = [];
+    }
   }
+  if (statement.length > 0) out.push(`${statement.join(' ')}\n`);
   return out.join('');
 }
 

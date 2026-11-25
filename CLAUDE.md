@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1294 on 2026-11-25, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1296 on 2026-11-25, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1714,6 +1714,22 @@ asks once and does nothing. Not a URL scheme: `simctl openurl` may show
 "¿Abrir en Finance?" (assumed). **Not yet known when written**: whether
 the first run compiles (every plugin's iOS side, Xcode 26's choice of
 runner) - the run's log says, and what fails is fixed there.
+**First run (2026-11-25)**: compiled with Xcode on `macos-26`, pod install
+and every plugin fine, the app opened in the simulator with its own layout
+- and said "No se pudieron abrir tus datos": migration 023 failed with `near
+"account_id": syntax error`. Cause, read from the plugin's Swift
+(`CapacitorSQLite.execute`, `UtilsSQLCipher.execute`): iOS trims every line,
+spaces included, and for a string holding "DELETE FROM" removes the
+newlines, so `sqlForPlugin`'s trailing space was lost and `UPDATE
+transactions` + `SET` became `transactionsSET`. `sqlForPlugin` now sends each
+statement on ONE line; `device-sql.test.mjs` ports the iOS handling and runs
+every migration through it (it fails on the code before with that exact
+error) and runs Android's splitter on what the driver really sends. Android
+phones already migrated are untouched; only future migrations take the new
+shape, held by the same tests. To download the run's pictures a session
+needs `productionresultssa1.blob.core.windows.net` (added to the "Finance"
+environment's allowed hosts on 2026-11-25; GitHub may use another
+`productionresultssaN` host for another run).
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The
