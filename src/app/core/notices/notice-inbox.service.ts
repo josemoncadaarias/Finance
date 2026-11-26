@@ -159,7 +159,8 @@ export class NoticeInboxService {
     try {
       // Real messages never land among the sample's invented accounts: they
       // wait on the phone until it is erased.
-      const { supported } = await BankNotifications.isSupported();
+      // An iPhone reads no notifications, but its Shortcuts hand messages over.
+      const supported = DEVICE.shortcutMessages || (await BankNotifications.isSupported()).supported;
       if (!supported) return 0;
       // Nor is a bank found while the sample is loaded (`findLimit` 0).
       if (this.demo.active()) {

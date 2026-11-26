@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1298 on 2026-11-25, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1303 on 2026-11-26, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1801,6 +1801,34 @@ still describes Android's voice and ML Kit only: to add Apple's Speech and
 Vision on the day iOS is published. Still Android only: the widget, the
 background stock watch, Google sign-in (needs an iOS OAuth client), and the
 store (App Store products in RevenueCat).
+
+**Step 4 begun: the Shortcuts door (2026-11-26, Jose: "continuar con lo de
+iPhone")**. Two App Intents in the app target (`FinanceIntents.swift`, iOS
+16+, listed by `FinanceShortcuts`, an `AppShortcutsProvider`; titles in
+Spanish): "Registrar un mensaje del banco en Finance" (Mensaje, Remitente -
+for a "Mensaje" automation on a bank's sender) and "Registrar un pago con
+Apple Pay en Finance" (Comercio, Valor, Tarjeta - for a "Transacción"
+automation, iOS 17). Each only keeps the raw words in `MessageInbox`
+(`MessageInbox.swift`, UserDefaults, a month, at most 300) in Android's
+`CaughtNotification` shape - an SMS under the package `sms` with its sender
+(the same source as Android's inbox), a payment under `applepay` with the
+card as sender, said as "Compraste en {shop} por {amount} con tu tarjeta
+{card} con Apple Pay." (`PaymentWords`, ported and read by `readNotice` in
+`apple-pay-words.test.mjs`) - and rings "Movimiento detectado" / "Gasto
+detectado" when Finance's notices are allowed; nothing is saved (rule 22).
+`MessageInboxPlugin` hands them over: on iOS `BankNotifications` is the
+browser's `nothing` with `caught`/`forgetCaught`/`forgetEverything` taken from
+it, and `NoticeInboxService.pass` runs when `DEVICE.shortcutMessages` (iOS
+only) - so molds, accounts learned, the word book and Por revisar work as on
+Android. Notificaciones del teléfono on an iPhone shows the steps to make both
+automations, "Abrir la app Atajos" (`shortcuts://`) and "Ver Movimientos por
+revisar" (`ui.notifications.iphone.*`). Not done: a tap on the notice opens
+the app but not the movement itself; the assistant's guide still calls the
+bank notices Android only; the sources' list ("Tus bancos") stays empty on
+iOS (the account is asked in Revisar movimiento). Checked: the tests (1303)
+and the web build; the Swift is compiled by the "iOS simulator" workflow.
+Running the intents needs a real iPhone (Shortcuts cannot be driven in the
+simulator by the workflow).
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The

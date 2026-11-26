@@ -239,6 +239,26 @@ const nothing: BankNotificationsPlugin = {
   alertLog: async () => ({ log: [], allowed: true }),
 };
 
+/**
+ * An iPhone reads no notifications, but the person's Shortcuts automations hand
+ * the app a bank's SMS or an Apple Pay payment (`MessageInbox.swift`). Those
+ * come back through `caught`, in Android's shape, and everything else answers
+ * as a browser does.
+ */
+interface MessageInboxPlugin {
+  caught(): Promise<{ caught: CaughtNotification[] }>;
+  forget(): Promise<void>;
+}
+
+const MessageInbox = registerPlugin<MessageInboxPlugin>('MessageInbox');
+
+const iphone: BankNotificationsPlugin = {
+  ...nothing,
+  caught: () => MessageInbox.caught(),
+  forgetCaught: () => MessageInbox.forget(),
+  forgetEverything: () => MessageInbox.forget(),
+};
+
 export const BankNotifications = registerPlugin<BankNotificationsPlugin>(
-  'BankNotifications', { web: nothing, ios: nothing },
+  'BankNotifications', { web: nothing, ios: iphone },
 );

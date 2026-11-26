@@ -12,5 +12,6 @@ class FinanceBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(OcrPlugin())
         bridge?.registerPluginInstance(SpeechPlugin())
         bridge?.registerPluginInstance(ShortcutsPlugin())
+        bridge?.registerPluginInstance(MessageInboxPlugin())
     }
 }

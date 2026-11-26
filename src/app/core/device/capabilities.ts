@@ -32,6 +32,12 @@ export interface Capabilities {
   readonly readsNotifications: boolean;
   /** Reading the SMS inbox by sender (`READ_SMS`). iOS has no such access. */
   readonly readsSms: boolean;
+  /**
+   * Bank SMS and Apple Pay payments handed over by the person's own Shortcuts
+   * automations (`FinanceIntents.swift`, `MessageInbox`): the iPhone's door
+   * into Por revisar, since it lets no app read others' notifications.
+   */
+  readonly shortcutMessages: boolean;
   /** Reading the text of a photo or screenshot on the phone (receipts, statements, a position). */
   readonly readsImages: boolean;
   /** The phone's own dictation for the assistant (a browser asks its own API, see `speech.ts`). */
@@ -62,6 +68,7 @@ const TABLE: Record<Platform, Omit<Capabilities, 'platform'>> = {
     localNotifications: true,
     readsNotifications: true,
     readsSms: true,
+    shortcutMessages: false,
     readsImages: true,
     nativeVoice: true,
     iconShortcuts: true,
@@ -75,6 +82,7 @@ const TABLE: Record<Platform, Omit<Capabilities, 'platform'>> = {
     localNotifications: true,
     readsNotifications: false, // never: Apple allows no app to.
     readsSms: false, // never directly; a Shortcuts automation instead.
+    shortcutMessages: true, // FinanceIntents.swift + MessageInboxPlugin.swift.
     readsImages: true, // Apple Vision (OcrPlugin.swift).
     nativeVoice: true, // Apple's Speech framework (SpeechPlugin.swift).
     iconShortcuts: true, // Home-screen quick actions (ShortcutsPlugin.swift).
@@ -88,6 +96,7 @@ const TABLE: Record<Platform, Omit<Capabilities, 'platform'>> = {
     localNotifications: false,
     readsNotifications: false,
     readsSms: false,
+    shortcutMessages: false,
     readsImages: false,
     nativeVoice: false,
     iconShortcuts: false,
