@@ -18,6 +18,7 @@
 		F1AA000400000000000000B1 /* MessageInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000400000000000000A1 /* MessageInbox.swift */; };
 		F1AA000500000000000000B1 /* MessageInboxPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000500000000000000A1 /* MessageInboxPlugin.swift */; };
 		F1AA000600000000000000B1 /* FinanceIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000600000000000000A1 /* FinanceIntents.swift */; };
+		F1AA000700000000000000B1 /* NotificationTaps.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000700000000000000A1 /* NotificationTaps.swift */; };
 		F1AA000000000000000000B1 /* FinanceBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000000000000000000A1 /* FinanceBridgeViewController.swift */; };
 		F1AA000100000000000000B1 /* OcrPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000100000000000000A1 /* OcrPlugin.swift */; };
 		F1AA000200000000000000B1 /* SpeechPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA000200000000000000A1 /* SpeechPlugin.swift */; };
@@ -39,6 +40,7 @@
 		F1AA000400000000000000A1 /* MessageInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInbox.swift; sourceTree = "<group>"; };
 		F1AA000500000000000000A1 /* MessageInboxPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInboxPlugin.swift; sourceTree = "<group>"; };
 		F1AA000600000000000000A1 /* FinanceIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceIntents.swift; sourceTree = "<group>"; };
+		F1AA000700000000000000A1 /* NotificationTaps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationTaps.swift; sourceTree = "<group>"; };
 		F1AA000000000000000000A1 /* FinanceBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceBridgeViewController.swift; sourceTree = "<group>"; };
 		F1AA000100000000000000A1 /* OcrPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrPlugin.swift; sourceTree = "<group>"; };
 		F1AA000200000000000000A1 /* SpeechPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPlugin.swift; sourceTree = "<group>"; };
@@ -93,6 +95,7 @@
 				F1AA000400000000000000A1 /* MessageInbox.swift */,
 				F1AA000500000000000000A1 /* MessageInboxPlugin.swift */,
 				F1AA000600000000000000A1 /* FinanceIntents.swift */,
+				F1AA000700000000000000A1 /* NotificationTaps.swift */,
 				F1AA000000000000000000A1 /* FinanceBridgeViewController.swift */,
 				F1AA000100000000000000A1 /* OcrPlugin.swift */,
 				F1AA000200000000000000A1 /* SpeechPlugin.swift */,
@@ -238,6 +241,7 @@
 				F1AA000400000000000000B1 /* MessageInbox.swift in Sources */,
 				F1AA000500000000000000B1 /* MessageInboxPlugin.swift in Sources */,
 				F1AA000600000000000000B1 /* FinanceIntents.swift in Sources */,
+				F1AA000700000000000000B1 /* NotificationTaps.swift in Sources */,
 				F1AA000000000000000000B1 /* FinanceBridgeViewController.swift in Sources */,
 				F1AA000100000000000000B1 /* OcrPlugin.swift in Sources */,
 				F1AA000200000000000000B1 /* SpeechPlugin.swift in Sources */,

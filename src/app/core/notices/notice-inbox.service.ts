@@ -22,7 +22,7 @@ import { DatabaseService } from '../database/database.service';
 import { DemoService } from '../demo/demo.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
-import { BankNotifications } from '../notifications/bank-notifications';
+import { BankNotifications, MessageInbox } from '../notifications/bank-notifications';
 import { PaywallService } from '../paywall/paywall.service';
 import { PLAN } from '../paywall/plan';
 import { quietForPhone, sourceNames } from './molds';
@@ -72,6 +72,11 @@ export class NoticeInboxService {
         void this.lookForAsked();
         if (this.database.status() === 'ready') void this.read();
       });
+    }
+    // An iPhone hears the tap itself (NotificationTaps.swift), which may come
+    // just after the app came back: it says so, and the message opens then.
+    if (DEVICE.shortcutMessages) {
+      void MessageInbox.addListener('asked', () => void this.lookForAsked());
     }
   }
 

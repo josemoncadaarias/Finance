@@ -13,5 +13,7 @@ class FinanceBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(SpeechPlugin())
         bridge?.registerPluginInstance(ShortcutsPlugin())
         bridge?.registerPluginInstance(MessageInboxPlugin())
+        // After the bridge made Capacitor's router the notices' delegate.
+        NotificationTaps.shared.standInFront()
     }
 }

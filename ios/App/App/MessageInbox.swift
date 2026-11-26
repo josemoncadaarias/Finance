@@ -23,9 +23,18 @@ enum MessageInbox {
     private static let keepDays: Double = 31
     private static let keepAtMost = 300
 
-    static func keep(package: String, app: String, sender: String?, text: String) {
+    /// Where a notice of ours carries what it opens (`NotificationTaps`).
+    static let openKey = "financeOpen"
+    /// What the last tapped notice asked to open, until the app takes it.
+    static var asked: String?
+
+    /// Keeps the message; hands back what a tap on its notice opens: the
+    /// message as `{source, text, at}`, the shape Android's notice hands over,
+    /// so Por revisar finds it by its exact words and moment.
+    @discardableResult
+    static func keep(package: String, app: String, sender: String?, text: String) -> String? {
         let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !words.isEmpty else { return }
+        guard !words.isEmpty else { return nil }
         let now = Date().timeIntervalSince1970 * 1000
         var all = read().filter { now - (($0["postedAt"] as? Double) ?? 0) < keepDays * 86_400_000 }
         var one: [String: Any] = ["package": package, "app": app, "title": sender ?? app, "text": words, "postedAt": now]
@@ -33,6 +42,9 @@ enum MessageInbox {
         all.append(one)
         if all.count > keepAtMost { all.removeFirst(all.count - keepAtMost) }
         UserDefaults.standard.set(all, forKey: key)
+        let open: [String: Any] = ["source": package, "text": words, "at": now]
+        guard let data = try? JSONSerialization.data(withJSONObject: open) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     static func read() -> [[String: Any]] {
@@ -44,10 +56,11 @@ enum MessageInbox {
     }
 
     /// "Movimiento detectado" on the phone, as on Android: nothing saved, a
-    /// tap opens the app, which reads the message into Por revisar. Only when
+    /// tap opens the app, which reads the message into Por revisar and opens
+    /// it there (`NotificationTaps`). Only when
     /// the person has allowed Finance's notices; otherwise the message still
     /// waits for the next opening.
-    static func ring(title: String, body: String) {
+    static func ring(title: String, body: String, open: String?) {
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
@@ -56,6 +69,7 @@ enum MessageInbox {
             content.body = body
             content.sound = .default
             content.threadIdentifier = "movements"
+            if let open = open { content.userInfo = [openKey: open] }
             let request = UNNotificationRequest(identifier: "movement-\(Date().timeIntervalSince1970)", content: content, trigger: nil)
             center.add(request)
         }

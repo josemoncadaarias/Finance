@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1305 on 2026-11-26, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1306 on 2026-11-26, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1832,10 +1832,20 @@ drawing, no Apple artwork), "Abrir la app Atajos" (`shortcuts://`) on the
 first, then "¡Listo!" with a tip. Words `ui.iphone.*`; the action's title and
 blanks are the iPhone's own Spanish, held to `FinanceIntents.swift` by
 `iphone-steps.test.mjs`. Checked in a browser with the iPhone forced (both
-guides, every step). Not done: a tap on the notice opens
-the app but not the movement itself; the assistant's guide still calls the
+guides, every step). **A tap on the notice opens that movement** (2026-11-26,
+Jose: "continúa con lo que creas sea mejor"): `keep` hands back the message as
+`{source, text, at}` - the shape Android's notice hands over - which `ring`
+puts in the notice's `userInfo`; `NotificationTaps.swift` stands in front of
+Capacitor's notification router (set as the centre's delegate after the
+bridge, `standInFront`), notes what a tapped notice of ours asked to open and
+passes every notice on unchanged (reminders, a card's payment day);
+`MessageInboxPlugin.takeOpen` hands it to `NoticeInboxService` as Android's
+`takeOpen` does, and an "asked" event (kept until heard) covers a tap that
+lands after the app came back. Por revisar then opens it by its exact words
+and moment. Not tried on a device: needs a real iPhone. Not done: the
+assistant's guide still calls the
 bank notices Android only; the sources' list ("Tus bancos") stays empty on
-iOS (the account is asked in Revisar movimiento). Checked: the tests (1305)
+iOS (the account is asked in Revisar movimiento). Checked: the tests (1306)
 and the web build; the Swift is compiled by the "iOS simulator" workflow.
 Running the intents needs a real iPhone (Shortcuts cannot be driven in the
 simulator by the workflow).
