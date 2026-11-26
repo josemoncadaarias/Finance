@@ -1,0 +1,158 @@
+# Builds the iOS app for a REAL iPhone (Release, arm64) and, once Apple's keys
+# are in the repository's secrets, signs it and uploads it to App Store
+# Connect, where TestFlight hands it to the phone. Actions tab, "iOS
+# TestFlight", "Run workflow". iOS, step 5 (CLAUDE.md, "iOS").
+#
+# Without the keys (today: no Apple Developer Program yet) it still builds the
+# device app unsigned, which proves the Release build compiles for a phone -
+# the simulator workflow only proves a Debug build for the simulator. Nothing
+# is uploaded then, and the run says so.
+#
+# The four secrets, made once by Jose (docs/09-iphone-testflight.md):
+#   APPLE_TEAM_ID            the team's 10-character id (developer.apple.com, Membership)
+#   APPSTORE_API_KEY_ID      an App Store Connect API key's id (Users and Access, Integrations)
+#   APPSTORE_API_ISSUER_ID   that page's Issuer ID
+#   APPSTORE_API_KEY_P8      the .p8 file of that key, base64 (base64 -i AuthKey_XXXX.p8)
+# With them Xcode makes the distribution certificate and the profile by
+# itself (automatic signing, -allowProvisioningUpdates); no certificate is
+# kept here. The key needs the "Admin" role for that.
+#
+# The build number is the run number, so every upload is higher than the one
+# before (App Store Connect refuses a number it has seen).
+#
+# Only when asked: macOS minutes count ten times.
+
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  device:
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+      BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Xcode in use
+        run: xcodebuild -version
+
+      - name: Are Apple's keys here?
+        id: keys
+        run: |
+          if [ -n "$TEAM_ID" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER_ID" ] && [ -n "$KEY_P8" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Apple's keys are set: the app will be signed and uploaded."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Apple's keys are not in the secrets yet: building the iPhone app unsigned, nothing is uploaded."
+          fi
+
+      - name: Install the web app's packages
+        run: npm ci
+
+      - name: Build the web app
+        run: npx ng build
+
+      - name: Copy the web app and the plugins into the iOS project
+        run: npx cap sync ios
+
+      - name: Build for an iPhone, unsigned (no keys yet)
+        if: steps.keys.outputs.signed != 'true'
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Finance.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            archive | tail -n 80
+          test -d build/Finance.xcarchive/Products/Applications/App.app
+          echo "The iPhone app builds. Add Apple's keys to sign and upload it."
+
+      - name: The App Store Connect key
+        if: steps.keys.outputs.signed == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$KEY_P8" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8"
+          # A key pasted as its text rather than base64 also works.
+          if ! grep -q "BEGIN PRIVATE KEY" "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8"; then
+            printf '%s\n' "$KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8"
+          fi
+          grep -q "BEGIN PRIVATE KEY" "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
+            || { echo "::error::APPSTORE_API_KEY_P8 is not a .p8 key"; exit 1; }
+
+      - name: Archive, signed
+        if: steps.keys.outputs.signed == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Finance.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            archive | tail -n 80
+
+      - name: Upload to App Store Connect (TestFlight)
+        if: steps.keys.outputs.signed == 'true'
+        run: |
+          set -o pipefail
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath build/Finance.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" | tail -n 80
+          echo "::notice::Build $BUILD_NUMBER uploaded. App Store Connect processes it (10-30 min), then TestFlight offers it."
+
+      - name: Forget the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"

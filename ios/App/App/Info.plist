@@ -3,7 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
+	<string>es</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleDisplayName</key>
         <string>Finance</string>
 	<key>CFBundleExecutable</key>
@@ -26,6 +31,8 @@
 	<string>Finance convierte en texto lo que le dices al asistente, para registrar un movimiento o responder una pregunta.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Finance usa la cámara para leer la foto de un recibo o de un extracto. La foto no sale de tu celular.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -53,7 +60,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
