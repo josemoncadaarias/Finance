@@ -25,6 +25,7 @@ import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BadgeComponent } from '../../shared/ui/badge.component';
+import { IphoneBanksComponent } from './iphone-banks.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
@@ -85,7 +86,7 @@ function lateBy(note: AlertNote): number {
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [AskButtonComponent, NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, AccountPickerComponent, AccountEditorComponent, IonContent, IonIcon, IonSpinner, IonModal],
+  imports: [AskButtonComponent, NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, AccountPickerComponent, AccountEditorComponent, IphoneBanksComponent, IonContent, IonIcon, IonSpinner, IonModal],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
 })
@@ -917,15 +918,6 @@ export class NotificationsPage {
     const one = this.sources().find(source => source.key === key);
     if (one) this.openSource.set(one);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { source: null }, queryParamsHandling: 'merge', replaceUrl: true });
-  }
-
-  /** Apple's Shortcuts app, where the automations are made (an iPhone only). */
-  openShortcuts(): void {
-    window.location.href = 'shortcuts://';
-  }
-
-  goReview(): void {
-    void this.router.navigateByUrl('/review');
   }
 
   /** The spinner only the first time; after that the list is replaced in place. */
