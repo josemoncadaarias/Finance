@@ -227,3 +227,18 @@
 .source-page .found-since { display: flex; gap: 6px; align-items: flex-start; margin: 4px 6px 10px; font-size: 13px; line-height: 1.4; color: var(--app-mu);
   ion-icon { flex: none; font-size: 16px; margin-top: 1px; color: var(--ion-color-primary); } }
 .source-page .stop-line { margin: 6px 6px 0; text-align: center; }
+
+/* An iPhone: how to make the Shortcuts automations. */
+.iphone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  .empty { padding-bottom: 4px; }
+  .how {
+    padding: 14px 16px;
+    h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 16px; }
+    .steps { white-space: pre-line; margin: 0; line-height: 1.5; font-size: 14px; }
+    .limit { margin: 10px 0 0; font-size: 13px; color: var(--app-text-2, var(--ion-color-medium)); }
+  }
+  .ui-btn { width: 100%; }
+}

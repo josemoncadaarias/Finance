@@ -174,6 +174,8 @@ export class NotificationsPage {
   readonly loading = signal(true);
   /** False in a browser and on iOS, which is an ordinary state. */
   readonly supported = signal(false);
+  /** An iPhone: its banks come through the person's Shortcuts, not notices. */
+  readonly iphone = DEVICE.shortcutMessages;
   readonly enabled = signal(false);
   /** When Android last handed a notification over, connected or dropped the listener. */
   readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0, updatedAt: 0, error: '', errorAt: 0, bound: false, catchUp: '', rebindAt: 0 });
@@ -915,6 +917,15 @@ export class NotificationsPage {
     const one = this.sources().find(source => source.key === key);
     if (one) this.openSource.set(one);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { source: null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  /** Apple's Shortcuts app, where the automations are made (an iPhone only). */
+  openShortcuts(): void {
+    window.location.href = 'shortcuts://';
+  }
+
+  goReview(): void {
+    void this.router.navigateByUrl('/review');
   }
 
   /** The spinner only the first time; after that the list is replaced in place. */

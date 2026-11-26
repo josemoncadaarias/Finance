@@ -13,6 +13,28 @@
   <div class="ui-main">
     @if (loading()) {
       <div class="state"><ion-spinner></ion-spinner></div>
+    } @else if (!supported() && iphone) {
+      <!-- An iPhone reads no notifications; the person's own Shortcuts
+           automations hand Finance a bank's SMS or an Apple Pay payment
+           (FinanceIntents.swift). The steps to make them, one per door. -->
+      <div class="iphone">
+        <div class="empty">
+          <app-badge shape="ci" [size]="72" builtin="notifications" fixed="#f6b93b"></app-badge>
+          <h2>{{ 'ui.notifications.iphone.title' | t }}</h2>
+          <p>{{ 'ui.notifications.iphone.lead' | t }}</p>
+        </div>
+        <div class="ui-card how">
+          <h3><ion-icon name="chatbubble-outline"></ion-icon>{{ 'ui.notifications.iphone.sms' | t }}</h3>
+          <p class="steps">{{ 'ui.notifications.iphone.sms.steps' | t }}</p>
+        </div>
+        <div class="ui-card how">
+          <h3><ion-icon name="card-outline"></ion-icon>{{ 'ui.notifications.iphone.pay' | t }}</h3>
+          <p class="steps">{{ 'ui.notifications.iphone.pay.steps' | t }}</p>
+          <p class="limit">{{ 'ui.notifications.iphone.pay.limit' | t }}</p>
+        </div>
+        <button type="button" class="ui-btn primary" (click)="openShortcuts()">{{ 'ui.notifications.iphone.open' | t }}</button>
+        <button type="button" class="ui-btn" (click)="goReview()">{{ 'ui.notifications.iphone.review' | t }}</button>
+      </div>
     } @else if (!supported()) {
       <!-- An iPhone or a browser: no app may read another app's notifications
            there. Said plainly, never Android's permission (DEVICE.readsNotifications). -->
