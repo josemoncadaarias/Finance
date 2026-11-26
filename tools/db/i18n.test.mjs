@@ -34,7 +34,7 @@ test('no phrase is left empty or accidentally identical', () => {
   // are the ones that are meant to be the same word in both.
   const sameOnPurpose = new Set([
     'ui.notifications.chip.app', 'ui.notifications.chip.sms',
-    'summary.moved', 'entry.transfer', 'ui.tax.uvt', 'ui.iphone.sk.wifi',
+    'summary.moved', 'entry.transfer', 'ui.tax.uvt', 'ui.iphone.sk.wifi', 'ui.iphone.bank.applePay',
     // A reminder's notice title is its own name and amount, in no language.
     'reminder.notice.title', 'reminder.notice.titleAmount',
     // "no" is spelled the same in Spanish and English.

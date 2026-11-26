@@ -17,18 +17,18 @@ import { Router } from '@angular/router';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
+import type { AccountRow } from '../../core/database/types';
+import { SEVERAL_ACCOUNTS } from '../../core/notices/notice-proposals';
+import { PACKAGE, sourcesOf, type Door, type IphoneSource } from '../../core/notices/iphone-sources';
+import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { TranslationKey } from '../../core/i18n/translations';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BankNotifications } from '../../core/notifications/bank-notifications';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 
-/** The two doors an iPhone has into Por revisar. */
-export type Door = 'sms' | 'pay';
-
-/** The package each door's messages are kept under (`MessageInbox.swift`). */
-const PACKAGE: Record<Door, string> = { sms: 'sms', pay: 'applepay' };
 
 /**
  * The action as the Shortcuts app shows it: its title and its summary with
@@ -54,7 +54,7 @@ export const STEPS = 4;
 @Component({
   selector: 'app-iphone-banks',
   standalone: true,
-  imports: [IonIcon, IonModal, IonContent, TranslatePipe, BadgeComponent],
+  imports: [IonIcon, IonModal, IonContent, TranslatePipe, BadgeComponent, AccountPickerComponent],
   templateUrl: './iphone-banks.component.html',
   styleUrls: ['./iphone-banks.component.scss'],
 })
@@ -74,20 +74,57 @@ export class IphoneBanksComponent implements OnInit {
   readonly shown = computed(() => ACTION[this.guide() ?? 'sms']);
   readonly dots = Array.from({ length: STEPS }, (_, i) => i + 1);
 
+  /** Every sender and card handed over, newest first ("Tus bancos"). */
+  readonly sources = signal<IphoneSource[]>([]);
+  readonly accounts = signal<AccountRow[]>([]);
+  /** The source whose account is being chosen. */
+  readonly picking = signal<IphoneSource | null>(null);
+  readonly several = SEVERAL_ACCOUNTS;
+
   async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+
+  private async load(): Promise<void> {
+    let caught: { package: string; sender?: string; postedAt: number }[] = [];
     try {
-      const { caught } = await BankNotifications.caught();
-      const last: Record<Door, number> = { sms: 0, pay: 0 };
-      for (const door of ['sms', 'pay'] as Door[]) {
-        for (const one of caught) if (one.package === PACKAGE[door]) last[door] = Math.max(last[door], one.postedAt);
-      }
-      this.last.set(last);
+      caught = (await BankNotifications.caught()).caught;
     } catch {
       // Nothing handed over yet: both doors say "Sin configurar".
     }
-    if (this.database.status() === 'ready') {
-      this.waiting.set(await new ProposalsRepository(this.database.driver).pendingCount());
+    const last: Record<Door, number> = { sms: 0, pay: 0 };
+    for (const door of ['sms', 'pay'] as Door[]) {
+      for (const one of caught) if (one.package === PACKAGE[door]) last[door] = Math.max(last[door], one.postedAt);
     }
+    this.last.set(last);
+    if (this.database.status() !== 'ready') return;
+    const db = this.database.driver;
+    const proposals = new ProposalsRepository(db);
+    const [waiting, said, answers, accounts] = await Promise.all([
+      proposals.pendingCount(), proposals.sourceAccounts(), proposals.noticeAnswers(), new AccountsRepository(db).list()]);
+    this.waiting.set(waiting);
+    this.accounts.set(accounts);
+    this.sources.set(sourcesOf(caught, said, answers, new Set(accounts.map(a => a.id))));
+  }
+
+  account(id: number | null): AccountRow | null {
+    return id === null ? null : this.accounts().find(a => a.id === id) ?? null;
+  }
+
+  /** "3 mensajes · el último hoy 10:42". */
+  seen(source: IphoneSource): string {
+    return this.i18n.t(source.count === 1 ? 'ui.iphone.bank.seen.one' : 'ui.iphone.bank.seen',
+      { count: source.count, when: this.when(source.last) });
+  }
+
+  /** "¿De qué cuenta es?" answered: remembered, and its waiting messages take it. */
+  async assign(accountId: number): Promise<void> {
+    const source = this.picking();
+    this.picking.set(null);
+    if (!source || this.database.status() !== 'ready') return;
+    await new ProposalsRepository(this.database.driver).assignSource(source.key, accountId);
+    this.database.dataChanged();
+    await this.load();
   }
 
   /** "Funcionando · último mensaje hoy 10:42", or how long it takes to set up. */

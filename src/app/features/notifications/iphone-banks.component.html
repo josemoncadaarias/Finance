@@ -27,6 +27,36 @@
     </div>
   }
 
+  @if (sources().length > 0) {
+    <h3 class="ui-h banks-h">{{ 'ui.notifications.sec.banks' | t }}</h3>
+    <div class="ui-list">
+      @for (source of sources(); track source.key) {
+        <button type="button" class="ui-row" (click)="picking.set(source)">
+          @if (account(source.accountId); as acc) {
+            <app-badge shape="ci" [size]="38" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id" [tone]="acc.color" [seed]="acc.id"></app-badge>
+          } @else if (source.several) {
+            <app-badge shape="ci" [size]="38" builtin="layers-outline" fixed="#6378ff"></app-badge>
+          } @else {
+            <app-badge shape="ci" [size]="38" builtin="help" fixed="#f6b93b"></app-badge>
+          }
+          <span class="ui-tx">
+            <b class="ui-one">{{ source.name || ('ui.iphone.bank.applePay' | t) }}@if (source.name) {<span class="chan">{{ (source.door === 'sms' ? 'ui.notifications.chip.sms' : 'ui.iphone.bank.applePay') | t }}</span>}</b>
+            @if (account(source.accountId); as acc) {
+              <small class="ui-one">{{ acc.name }}</small>
+            } @else if (source.several) {
+              <small class="ui-one">{{ 'ui.notifications.several' | t }}</small>
+            } @else {
+              <small class="wrap ui-y">{{ 'ui.notifications.whichAccount' | t }}</small>
+            }
+            <small class="ui-one">{{ seen(source) }}</small>
+          </span>
+          <ion-icon class="ui-chev" name="chevron-forward"></ion-icon>
+        </button>
+      }
+    </div>
+    <p class="safe hint">{{ 'ui.iphone.banks.hint' | t }}</p>
+  }
+
   <button type="button" class="ui-row review" (click)="goReview()">
     <app-badge shape="ci" [size]="38" builtin="file-tray-full" fixed="#f6b93b"></app-badge>
     <span class="ui-tx"><b>{{ 'ui.notifications.toReview' | t }}</b>
@@ -35,6 +65,14 @@
   </button>
   <p class="safe"><ion-icon name="shield-checkmark-outline"></ion-icon>{{ 'ui.iphone.safe' | t }}</p>
 </div>
+
+<!-- Which account a sender or a card is (Android's "¿De qué cuenta es?"). -->
+<app-account-picker [open]="picking() !== null" [accounts]="accounts()"
+                    [selectedId]="picking()?.several ? null : picking()?.accountId ?? -1"
+                    [heading]="'ui.notifications.whichAccount' | t" detail="kind"
+                    [showAll]="picking()?.door === 'sms'" [allLabel]="'ui.notifications.several' | t"
+                    [allDetail]="'ui.notifications.several.hint' | t"
+                    (chosenAll)="assign(several)" (chosen)="assign($event.id)" (closed)="picking.set(null)"></app-account-picker>
 
 <!-- The guide, one step at a time (60b-60f). -->
 <ion-modal class="entry-sheet" [isOpen]="guide() !== null" (didDismiss)="close()">
