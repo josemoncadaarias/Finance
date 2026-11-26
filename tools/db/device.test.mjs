@@ -90,3 +90,25 @@ test('a tapped iPhone notice opens its movement as Android\'s does', () => {
   assert.equal((intents.match(/open: open\)/g) ?? []).length, 2);
   assert.match(bridge, /NotificationTaps\.shared\.standInFront\(\)/);
 });
+
+test('the iPhone app carries what App Store Connect asks before an upload', () => {
+  const root = join(APP, '..', '..');
+  const app = join(root, 'ios', 'App', 'App');
+  const plist = readFileSync(join(app, 'Info.plist'), 'utf8');
+  const manifest = readFileSync(join(app, 'PrivacyInfo.xcprivacy'), 'utf8');
+  const project = readFileSync(join(root, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj'), 'utf8');
+  // No export-compliance question on every build: only Apple's own encryption (HTTPS).
+  assert.match(plist, /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/);
+  // A 64-bit app; armv7 would be refused.
+  assert.doesNotMatch(plist, /armv7/);
+  // Every permission the app asks for says why, as Apple requires.
+  for (const key of ['NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription', 'NSCameraUsageDescription']) {
+    assert.match(plist, new RegExp(`<key>${key}</key>\\s*<string>[^<]{20,}</string>`), key);
+  }
+  // The privacy manifest is in the build and declares UserDefaults, which MessageInbox uses.
+  assert.match(project, /PrivacyInfo\.xcprivacy in Resources/);
+  assert.match(manifest, /NSPrivacyAccessedAPICategoryUserDefaults/);
+  assert.match(manifest, /<key>NSPrivacyTracking<\/key>\s*<false\/>/);
+  // iPhone only, so the store asks for no iPad screenshots.
+  assert.doesNotMatch(project, /TARGETED_DEVICE_FAMILY = "1,2"/);
+});

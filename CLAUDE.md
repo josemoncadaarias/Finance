@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1308 on 2026-11-26, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1309 on 2026-11-26, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1860,6 +1860,27 @@ and invented senders. Checked: the tests (1308)
 and the web build; the Swift is compiled by the "iOS simulator" workflow.
 Running the intents needs a real iPhone (Shortcuts cannot be driven in the
 simulator by the workflow).
+
+**Step 5, ready up to Apple's keys (2026-11-26, Jose: "deja todo listo para
+probar en iPhone")**: `.github/workflows/ios-testflight.yml` ("iOS
+TestFlight", by hand) builds the app for a real iPhone in Release; without the
+four secrets (`APPLE_TEAM_ID`, `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID`,
+`APPSTORE_API_KEY_P8`) it archives unsigned to prove the phone build compiles
+and uploads nothing, with them Xcode signs automatically
+(`-allowProvisioningUpdates` with the App Store Connect API key, Admin role;
+no certificate kept) and `-exportArchive` with `destination: upload` sends it
+to App Store Connect for TestFlight; the build number is the run number.
+What an upload is checked for is in the project: `PrivacyInfo.xcprivacy`
+(no tracking, nothing collected, UserDefaults CA92.1 for `MessageInbox`),
+`ITSAppUsesNonExemptEncryption` false, `arm64` (was the template's `armv7`),
+iPhone only (`TARGETED_DEVICE_FAMILY = 1`, so no iPad screenshots), Spanish
+as the development region; `device.test.mjs` holds them. The privacy policy
+has "En iPhone" (Apple's Speech and Vision, Shortcuts). What Jose does -
+joining the Developer Program, the App ID, the app in App Store Connect, the
+API key, the secrets, TestFlight - is listed in
+`docs/09-iphone-testflight.md`, to be given to him one step at a time. Not
+verified: that the signed path works (no keys exist); only the unsigned
+Release archive was run.
 
 Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
 2026-10-30), and is not paying for now. The
@@ -8678,6 +8699,8 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Bolsa de valores: a free, licensed source of daily price history,
       so the return chart follows the market between purchases - to look
       for together.
+- [ ] iPhone on TestFlight: when he decides to pay the Apple Developer
+      Program, go through `docs/09-iphone-testflight.md` one step at a time.
 - [ ] The home-screen widget (2026-11-25): add it (hold an empty space on
       the home screen → Widgets → Finance) and say whether the figure matches
       Inicio's "Puedes gastar hoy" with all accounts, whether Gasto, Ingreso
@@ -8696,5 +8719,6 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
+- `docs/09-iphone-testflight.md` — what is ready for a real iPhone and the steps Jose takes for TestFlight
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
 - `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket), `55*` (follow-up questions in the assistant, built 2026-11-06), `57*` (banks found by themselves, built 2026-11-11). `58*` (the phone held sideways: a rail instead of the floating bar, every screen in columns, what is tapped opening beside its list; drawn 2026-11-18 after a video of Lukas, waiting for Jose's word). `59*` (a widget on the phone's home screen: "Hoy puedes gastar" with Gasto, Ingreso and the assistant, in three sizes; drawn 2026-11-25 after Lukas's post on going native; option A built the same day). The stock market module (2026-11-12) was built without mockups, at Jose's word
