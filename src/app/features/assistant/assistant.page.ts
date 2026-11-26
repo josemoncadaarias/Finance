@@ -798,7 +798,7 @@ export class AssistantPage {
       loans = (await new LoansRepository(this.database.driver).all())
         .filter(l => !l.account.archived).map(l => ({ id: l.account.id, name: l.account.name }));
     } catch { /* No loans read: the button goes to Deudas y tarjetas. */ }
-    return { cards, loans, photos: DEVICE.readsImages, notices: DEVICE.readsNotifications };
+    return { cards, loans, photos: DEVICE.readsImages, notices: DEVICE.readsNotifications, shortcuts: DEVICE.shortcutMessages };
   }
 
   /** The account a sentence named, with its name. */

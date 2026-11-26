@@ -84,7 +84,8 @@ test('a tapped iPhone notice opens its movement as Android\'s does', () => {
   const intents = readFileSync(join(app, 'FinanceIntents.swift'), 'utf8');
   const bridge = readFileSync(join(app, 'FinanceBridgeViewController.swift'), 'utf8');
   // The same {source, text, at} Por revisar matches Android's notice by.
-  assert.match(inbox, /\["source": package, "text": words, "at": now\]/);
+  assert.match(inbox, /\["source": source, "text": words, "at": now\]/);
+  assert.match(inbox, /"\\\(package\)\|\\\(sender!\)"/);
   // Both intents ring with what to open, and the taps are heard.
   assert.equal((intents.match(/open: open\)/g) ?? []).length, 2);
   assert.match(bridge, /NotificationTaps\.shared\.standInFront\(\)/);

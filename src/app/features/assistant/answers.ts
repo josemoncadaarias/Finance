@@ -1272,6 +1272,11 @@ export interface GuideFacts {
   photos: boolean;
   /** Whether this phone reads other apps' notifications - `DEVICE.readsNotifications`. */
   notices: boolean;
+  /**
+   * Whether a bank's messages come through the Shortcuts app instead - an
+   * iPhone, `DEVICE.shortcutMessages`: the notices' guide is its own steps.
+   */
+  shortcuts?: boolean;
 }
 
 /** Each topic: how many steps it has, whether a note follows them, and the topics to offer next. */
@@ -1308,13 +1313,15 @@ export function guide(s: Speech, topic: GuideTopic | 'any', facts: GuideFacts): 
       ask: GUIDE_TOPICS.map(t => guideQuestion(s, t)) };
   }
   const shape = GUIDE_SHAPE[topic];
-  const key = (end: string) => `ai.guide.${topic}.${end}` as TranslationKey;
+  // On an iPhone a bank's messages come through the Shortcuts app: its own steps.
+  const iphone = topic === 'notices' && !facts.notices && !!facts.shortcuts;
+  const key = (end: string) => `ai.guide.${iphone ? 'noticesIphone' : topic}.${end}` as TranslationKey;
   const blocks: RichBlock[] = [];
   for (let n = 1; n <= shape.steps; n++) {
     blocks.push({ step: { n, color: STEP_COLORS[(n - 1) % STEP_COLORS.length], title: s.t(key(String(n))), lines: [] } });
   }
   if (shape.note) blocks.push({ note: s.t(key('note')) });
-  const phoneOnly = (topic === 'receipt' && !facts.photos) || (topic === 'notices' && !facts.notices);
+  const phoneOnly = (topic === 'receipt' && !facts.photos) || (topic === 'notices' && !facts.notices && !iphone);
   if (phoneOnly) blocks.push({ note: s.t('ai.guide.androidOnly') });
   return {
     said: { key: key('said'), values: {} },

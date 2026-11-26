@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1306 on 2026-11-26, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1308 on 2026-11-26, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1842,10 +1842,21 @@ passes every notice on unchanged (reminders, a card's payment day);
 `MessageInboxPlugin.takeOpen` hands it to `NoticeInboxService` as Android's
 `takeOpen` does, and an "asked" event (kept until heard) covers a tap that
 lands after the app came back. Por revisar then opens it by its exact words
-and moment. Not tried on a device: needs a real iPhone. Not done: the
-assistant's guide still calls the
-bank notices Android only; the sources' list ("Tus bancos") stays empty on
-iOS (the account is asked in Revisar movimiento). Checked: the tests (1306)
+and moment (the open's `source` is the key Por revisar keeps, `sms|{sender}`
+or `applepay|{card}`, as `noticeSource` writes it). Not tried on a device:
+needs a real iPhone. **The assistant's guide and "Tus bancos" on iPhone**
+(2026-11-26, Jose: "sigue con la 1 y luego la 2"): "¿cómo conecto mi
+banco?" on an iPhone answers the Shortcuts steps (`ai.guide.noticesIphone.*`,
+`GuideFacts.shortcuts` = `DEVICE.shortcutMessages`) instead of "solo
+Android"; and Notificaciones del teléfono lists, under the two doors, each
+sender and card the automations handed over (`sourcesOf` in
+`core/notices/iphone-sources.ts`, pure, `iphone-steps.test.mjs`): its
+account - the one said, else the one its saved messages went to
+(`noticeAnswers`) -, "Varias cuentas", or "¿De qué cuenta es?", with how
+many messages and the last one; a tap opens the one account list
+(`assignSource`, "Varias cuentas" for an SMS sender), so its waiting
+messages take that account. Checked in a browser with the iPhone forced
+and invented senders. Checked: the tests (1308)
 and the web build; the Swift is compiled by the "iOS simulator" workflow.
 Running the intents needs a real iPhone (Shortcuts cannot be driven in the
 simulator by the workflow).

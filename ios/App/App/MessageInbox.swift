@@ -42,7 +42,10 @@ enum MessageInbox {
         all.append(one)
         if all.count > keepAtMost { all.removeFirst(all.count - keepAtMost) }
         UserDefaults.standard.set(all, forKey: key)
-        let open: [String: Any] = ["source": package, "text": words, "at": now]
+        // The source as `noticeSource` writes it ("sms|899999"), the key Por
+        // revisar matches a tapped notice's message by.
+        let source = (sender?.isEmpty == false) ? "\(package)|\(sender!)" : package
+        let open: [String: Any] = ["source": source, "text": words, "at": now]
         guard let data = try? JSONSerialization.data(withJSONObject: open) else { return nil }
         return String(data: data, encoding: .utf8)
     }
