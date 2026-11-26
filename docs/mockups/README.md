@@ -297,3 +297,13 @@ Un cuadrito de Finance entre los íconos del celular: dice "Hoy puedes gastar" s
 - `59c` Opción C: grande, además el próximo pago y los dos últimos movimientos.
 - `59d` con los montos ocultos. `59e` cuando el mes ya no alcanza, en rojo.
 - `59f` cómo se pone: la lista de widgets de Android.
+
+## 60 - Cómo un iPhone conecta sus bancos, rediseñado (2026-11-26, propuesta para Jose)
+
+La pantalla "Notificaciones del teléfono" en iPhone, después de ver su primera foto en el simulador: menos espacio vacío, menos texto, y cada paso con un dibujo de lo que se ve en la app Atajos (bocetos propios, sin imágenes de Apple).
+
+- `60a` Opción A (recomendada): arriba una línea y el camino en tres íconos (SMS o Apple Pay → Atajos → Por revisar); dos tarjetas, cada una con su estado y "Configurar paso a paso".
+- `60b`-`60e` la guía paso a paso, un paso por pantalla con su dibujo: Automatización, Mensaje, el número del banco y "Ejecutar inmediatamente", la acción de Finance.
+- `60f` al terminar: qué va a pasar y "Configurar otro banco".
+- `60g` cuando ya llegó un mensaje: la tarjeta dice "Funcionando" y la hora del último.
+- `60h` Opción B: todos los pasos en la misma pantalla, numerados con un dibujo pequeño al lado, SMS y Apple Pay en dos pestañas.
