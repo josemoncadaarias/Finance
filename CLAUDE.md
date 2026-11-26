@@ -7537,7 +7537,8 @@ with testers runs; the paywall is finished after them.
   a transfer), category · account · day, the figure in its colour; a green bar
   that runs out in 5 s (`SAVED_BANNER_MS`) and stops while the finger is on
   it. A tap opens that movement in the one form (closing a form still open
-  with "Registrar otro" first); swiped up or left alone it goes and the
+  with "Registrar otro" first); swiped up, to the left or to the right (70px aside, fading as it goes;
+  Jose, 2026-11-26) or left alone it goes and the
   movement stays. **"Deshacer"** removes it as the form deletes it (the
   movement or the transfer and its legs, its halves on a product, the cover
   from a pocket; `deleteWithSnapshot` in `core/database/repositories/
