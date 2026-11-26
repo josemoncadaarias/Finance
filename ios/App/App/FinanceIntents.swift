@@ -27,8 +27,8 @@ struct RecordMessageIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        MessageInbox.keep(package: MessageInbox.smsPackage, app: "Mensajes", sender: sender, text: message)
-        MessageInbox.ring(title: "Movimiento detectado", body: "Revísalo en Movimientos por revisar de Finance.")
+        let open = MessageInbox.keep(package: MessageInbox.smsPackage, app: "Mensajes", sender: sender, text: message)
+        MessageInbox.ring(title: "Movimiento detectado", body: "Revísalo en Movimientos por revisar de Finance.", open: open)
         return .result(dialog: "Listo. Quedó en Movimientos por revisar de Finance.")
     }
 }
@@ -54,8 +54,8 @@ struct RecordPaymentIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = PaymentWords.sentence(merchant: merchant, amount: amount, card: card)
-        MessageInbox.keep(package: MessageInbox.payPackage, app: "Apple Pay", sender: card, text: text)
-        MessageInbox.ring(title: "Gasto detectado", body: "\(merchant) · \(amount). Revísalo en Movimientos por revisar de Finance.")
+        let open = MessageInbox.keep(package: MessageInbox.payPackage, app: "Apple Pay", sender: card, text: text)
+        MessageInbox.ring(title: "Gasto detectado", body: "\(merchant) · \(amount). Revísalo en Movimientos por revisar de Finance.", open: open)
         return .result(dialog: "Listo. Quedó en Movimientos por revisar de Finance.")
     }
 }

@@ -13,7 +13,7 @@
  * nothing else in the app may depend on this existing.
  */
 
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 
 /** An app the phone has been seen posting notifications from. */
 export interface SeenApp {
@@ -248,15 +248,20 @@ const nothing: BankNotificationsPlugin = {
 interface MessageInboxPlugin {
   caught(): Promise<{ caught: CaughtNotification[] }>;
   forget(): Promise<void>;
+  /** What a tapped "Movimiento detectado" asked to open, once. */
+  takeOpen(): Promise<{ open: string }>;
+  /** "asked": such a notice was tapped while the app was running. */
+  addListener(event: 'asked', listener: () => void): Promise<PluginListenerHandle>;
 }
 
-const MessageInbox = registerPlugin<MessageInboxPlugin>('MessageInbox');
+export const MessageInbox = registerPlugin<MessageInboxPlugin>('MessageInbox');
 
 const iphone: BankNotificationsPlugin = {
   ...nothing,
   caught: () => MessageInbox.caught(),
   forgetCaught: () => MessageInbox.forget(),
   forgetEverything: () => MessageInbox.forget(),
+  takeOpen: () => MessageInbox.takeOpen(),
 };
 
 export const BankNotifications = registerPlugin<BankNotificationsPlugin>(

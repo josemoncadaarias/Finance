@@ -53,7 +53,7 @@ test('what an iPhone says it can do has its Swift plugin, registered and built',
     assert.match(project, new RegExp(`${plugin}\\.swift in Sources \\*/,`), `${plugin} in the build`);
   }
   // The Shortcuts' intents and the inbox they write to are built too.
-  for (const file of ['MessageInbox', 'FinanceIntents']) {
+  for (const file of ['MessageInbox', 'FinanceIntents', 'NotificationTaps']) {
     assert.match(project, new RegExp(`${file}\\.swift in Sources \\*/,`), `${file} in the build`);
   }
 });
@@ -76,4 +76,16 @@ test('no screen asks Capacitor for the platform itself', () => {
   };
   walk(APP);
   assert.deepEqual(found, [], 'ask DEVICE (core/device/device.ts) instead');
+});
+
+test('a tapped iPhone notice opens its movement as Android\'s does', () => {
+  const app = join(dirname(fileURLToPath(import.meta.url)), '../../ios/App/App');
+  const inbox = readFileSync(join(app, 'MessageInbox.swift'), 'utf8');
+  const intents = readFileSync(join(app, 'FinanceIntents.swift'), 'utf8');
+  const bridge = readFileSync(join(app, 'FinanceBridgeViewController.swift'), 'utf8');
+  // The same {source, text, at} Por revisar matches Android's notice by.
+  assert.match(inbox, /\["source": package, "text": words, "at": now\]/);
+  // Both intents ring with what to open, and the taps are heard.
+  assert.equal((intents.match(/open: open\)/g) ?? []).length, 2);
+  assert.match(bridge, /NotificationTaps\.shared\.standInFront\(\)/);
 });
