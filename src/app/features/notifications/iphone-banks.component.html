@@ -1,0 +1,138 @@
+<!-- Notificaciones del teléfono on an iPhone (mockups 60a, 60g). -->
+<div class="iphone">
+  <div class="ui-card intro">
+    <b class="title">{{ 'ui.iphone.title' | t }}</b>
+    <p class="lead">{{ 'ui.iphone.lead' | t }}</p>
+    <div class="flow">
+      <div class="node"><app-badge shape="ci" [size]="44" builtin="chatbubble-ellipses" fixed="#4cb8f5"></app-badge><span>{{ 'ui.iphone.flow.message' | t }}</span></div>
+      <ion-icon class="arrow" name="arrow-forward-outline"></ion-icon>
+      <div class="node"><app-badge shape="ci" [size]="44" builtin="layers" fixed="#9b7bff"></app-badge><span>{{ 'ui.iphone.flow.shortcuts' | t }}</span></div>
+      <ion-icon class="arrow" name="arrow-forward-outline"></ion-icon>
+      <div class="node"><app-badge shape="ci" [size]="44" builtin="wallet" fixed="#6378ff"></app-badge><span>{{ 'ui.iphone.flow.review' | t }}</span></div>
+    </div>
+  </div>
+
+  @for (door of ['sms', 'pay']; track door) {
+    <div class="ui-card door">
+      <div class="head">
+        <app-badge shape="ci" [size]="42" [builtin]="door === 'sms' ? 'chatbubble-ellipses' : 'card'" [fixed]="door === 'sms' ? '#4cb8f5' : '#d07bf0'"></app-badge>
+        <div class="what">
+          <b>{{ (door === 'sms' ? 'ui.iphone.sms' : 'ui.iphone.pay') | t }}</b>
+          <span class="state" [class.on]="working($any(door))"><span class="dot"></span>{{ state($any(door)) }}</span>
+        </div>
+      </div>
+      <button type="button" class="ui-btn" [class.ghost]="working($any(door))" (click)="open($any(door))">
+        {{ (working($any(door)) ? (door === 'sms' ? 'ui.iphone.sms.another' : 'ui.iphone.pay.again') : 'ui.iphone.setup') | t }}
+      </button>
+    </div>
+  }
+
+  <button type="button" class="ui-row review" (click)="goReview()">
+    <app-badge shape="ci" [size]="38" builtin="file-tray-full" fixed="#f6b93b"></app-badge>
+    <span class="ui-tx"><b>{{ 'ui.notifications.toReview' | t }}</b>
+      <small>{{ (waiting() === 0 ? 'ui.notif2.review.none' : waiting() === 1 ? 'ui.notif2.review.one' : 'ui.notif2.review') | t:{ count: waiting() } }}</small></span>
+    <ion-icon class="chev" name="chevron-forward"></ion-icon>
+  </button>
+  <p class="safe"><ion-icon name="shield-checkmark-outline"></ion-icon>{{ 'ui.iphone.safe' | t }}</p>
+</div>
+
+<!-- The guide, one step at a time (60b-60f). -->
+<ion-modal class="entry-sheet" [isOpen]="guide() !== null" (didDismiss)="close()">
+  <ng-template>
+    <ion-content>
+      <header class="ui-titlebar">
+        <button type="button" class="back" (click)="close()" [attr.aria-label]="'entry.cancel' | t">
+          <ion-icon name="close"></ion-icon>
+        </button>
+        <h1>{{ (guide() === 'pay' ? 'ui.iphone.pay' : 'ui.iphone.sms') | t }}</h1>
+      </header>
+      <div class="ui-main guide">
+        @if (!done()) {
+          <div class="dots">
+            @for (n of dots; track n) { <span [class.past]="n <= step()" [class.now]="n === step()"></span> }
+          </div>
+          <div class="count">{{ 'ui.iphone.stepOf' | t:{ n: step(), total: dots.length } }}</div>
+          <h2>{{ words('title') }}</h2>
+
+          <!-- A sketch of what the Shortcuts app shows on this step. -->
+          <div class="phone">
+            @switch (step()) {
+              @case (1) {
+                <div class="ios-title">{{ 'ui.iphone.sk.automation' | t }}</div>
+                <p class="ios-empty">{{ 'ui.iphone.sk.empty' | t }}</p>
+                <div class="ios-button">{{ 'ui.iphone.sk.new' | t }}</div>
+                <div class="ios-tabs">
+                  <span><ion-icon name="albums-outline"></ion-icon>{{ 'ui.iphone.sk.shortcuts' | t }}</span>
+                  <span class="on"><ion-icon name="time-outline"></ion-icon>{{ 'ui.iphone.sk.automation' | t }}</span>
+                  <span><ion-icon name="grid-outline"></ion-icon>{{ 'ui.iphone.sk.gallery' | t }}</span>
+                </div>
+              }
+              @case (2) {
+                <div class="ios-title">{{ 'ui.iphone.sk.when' | t }}</div>
+                <div class="ios-list">
+                  @for (t of [['time-outline', 'ui.iphone.sk.time'], ['alarm-outline', 'ui.iphone.sk.alarm'], ['mail-outline', 'ui.iphone.sk.mail'], ['chatbubble-outline', 'ui.iphone.sk.message'], ['card-outline', 'ui.iphone.sk.transaction'], ['wifi-outline', 'ui.iphone.sk.wifi']]; track t[1]) {
+                    <div class="ios-row" [class.on]="(guide() === 'sms' && t[1] === 'ui.iphone.sk.message') || (guide() === 'pay' && t[1] === 'ui.iphone.sk.transaction')">
+                      <span class="ios-icon"><ion-icon [name]="t[0]"></ion-icon></span>{{ $any(t[1]) | t }}
+                      <ion-icon class="hand" name="hand-left-outline"></ion-icon>
+                    </div>
+                  }
+                </div>
+              }
+              @case (3) {
+                @if (guide() === 'sms') {
+                  <div class="ios-title">{{ 'ui.iphone.sk.message' | t }}</div>
+                  <div class="ios-group">
+                    <div class="ios-field on"><small>{{ 'ui.iphone.sk.sender' | t }}</small><b>899999</b></div>
+                    <div class="ios-field muted">{{ 'ui.iphone.sk.contains' | t }}</div>
+                  </div>
+                } @else {
+                  <div class="ios-title">{{ 'ui.iphone.sk.transaction' | t }}</div>
+                  <div class="ios-group on">
+                    <div class="ios-field check"><ion-icon name="card-outline"></ion-icon>{{ 'ui.iphone.sk.card1' | t }}<ion-icon class="tick" name="checkmark"></ion-icon></div>
+                    <div class="ios-field check"><ion-icon name="card-outline"></ion-icon>{{ 'ui.iphone.sk.card2' | t }}<ion-icon class="tick" name="checkmark"></ion-icon></div>
+                  </div>
+                }
+                <div class="ios-group on toggle-row"><span>{{ 'ui.iphone.sk.immediately' | t }}</span><span class="ios-switch"></span></div>
+              }
+              @case (4) {
+                <div class="ios-title">{{ 'ui.iphone.sk.action' | t }}</div>
+                <div class="ios-group on action">
+                  <div class="action-name"><span class="fin"><ion-icon name="wallet-outline"></ion-icon></span>
+                    <b>{{ shown().title }}</b></div>
+                  <p>@for (part of shown().summary; track $index) {@if (part.blank) {<span class="token">{{ part.text }}</span>} @else {{{ part.text }}}}</p>
+                </div>
+                <p class="ios-caption">{{ (guide() === 'pay' ? 'ui.iphone.sk.payBlanks' : 'ui.iphone.sk.smsBlanks') | t }}</p>
+              }
+            }
+          </div>
+
+          <p class="words">{{ words('text') }}</p>
+          <div class="foot">
+            @if (step() === 1) {
+              <button type="button" class="ui-btn ghost" (click)="openShortcuts()"><ion-icon name="open-outline"></ion-icon>{{ 'ui.iphone.openShortcuts' | t }}</button>
+            } @else {
+              <button type="button" class="ui-btn ghost" (click)="back()">{{ 'ui.iphone.previous' | t }}</button>
+            }
+            <button type="button" class="ui-btn" (click)="next()">{{ (step() === dots.length ? 'ui.iphone.finish' : 'ui.iphone.next') | t }}</button>
+          </div>
+        } @else {
+          <div class="ready">
+            <app-badge shape="ci" [size]="72" builtin="checkmark-circle" fixed="#34c98b"></app-badge>
+            <h2>{{ 'ui.iphone.ready' | t }}</h2>
+            <p class="words">{{ (guide() === 'pay' ? 'ui.iphone.pay.ready' : 'ui.iphone.sms.ready') | t }}</p>
+            <div class="ui-card tip">
+              <app-badge shape="ci" [size]="38" [builtin]="guide() === 'pay' ? 'information-circle' : 'repeat'" fixed="#f6b93b"></app-badge>
+              <span>{{ (guide() === 'pay' ? 'ui.iphone.pay.tip' : 'ui.iphone.sms.tip') | t }}</span>
+            </div>
+          </div>
+          <div class="foot">
+            @if (guide() === 'sms') {
+              <button type="button" class="ui-btn ghost" (click)="again()">{{ 'ui.iphone.sms.another' | t }}</button>
+            }
+            <button type="button" class="ui-btn" (click)="close()">{{ 'ui.iphone.back' | t }}</button>
+          </div>
+        }
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

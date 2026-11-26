@@ -786,7 +786,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1303 on 2026-11-26, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1305 on 2026-11-26, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -1820,12 +1820,22 @@ detectado" when Finance's notices are allowed; nothing is saved (rule 22).
 browser's `nothing` with `caught`/`forgetCaught`/`forgetEverything` taken from
 it, and `NoticeInboxService.pass` runs when `DEVICE.shortcutMessages` (iOS
 only) - so molds, accounts learned, the word book and Por revisar work as on
-Android. Notificaciones del teléfono on an iPhone shows the steps to make both
-automations, "Abrir la app Atajos" (`shortcuts://`) and "Ver Movimientos por
-revisar" (`ui.notifications.iphone.*`). Not done: a tap on the notice opens
+Android. Notificaciones del teléfono on an iPhone is `app-iphone-banks`
+(`features/notifications/iphone-banks.component.*`, mockups `60a`-`60h`,
+option A chosen by Jose on 2026-11-26 after the first version read as "texto
+muy burdo" with blank space on top): one card saying it with three icons
+(message -> Atajos -> Por revisar), a card per door (SMS de tu banco, Pagos
+con Apple Pay) with its state - "Funcionando · último mensaje hoy 10:42" once
+`MessageInbox` handed one over - and "Configurar paso a paso", a guide of four
+steps, each with a light sketch of what the Shortcuts app shows (our own
+drawing, no Apple artwork), "Abrir la app Atajos" (`shortcuts://`) on the
+first, then "¡Listo!" with a tip. Words `ui.iphone.*`; the action's title and
+blanks are the iPhone's own Spanish, held to `FinanceIntents.swift` by
+`iphone-steps.test.mjs`. Checked in a browser with the iPhone forced (both
+guides, every step). Not done: a tap on the notice opens
 the app but not the movement itself; the assistant's guide still calls the
 bank notices Android only; the sources' list ("Tus bancos") stays empty on
-iOS (the account is asked in Revisar movimiento). Checked: the tests (1303)
+iOS (the account is asked in Revisar movimiento). Checked: the tests (1305)
 and the web build; the Swift is compiled by the "iOS simulator" workflow.
 Running the intents needs a real iPhone (Shortcuts cannot be driven in the
 simulator by the workflow).

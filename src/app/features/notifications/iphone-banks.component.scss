@@ -1,0 +1,195 @@
+/* Notificaciones del teléfono on an iPhone (mockups 60a-60g). */
+.iphone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.intro {
+  padding: 14px 14px 12px;
+  text-align: center;
+  .title { display: block; font-size: 17px; line-height: 1.3; }
+  .lead { margin: 6px 6px 12px; font-size: 13px; line-height: 1.4; color: var(--app-mu); }
+}
+
+.flow {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  .node {
+    width: 82px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    span { font-size: 11.5px; line-height: 1.2; color: var(--app-mu); text-align: center; }
+  }
+  .arrow { width: 18px; height: 18px; margin-top: 13px; color: var(--app-mu); flex: none; }
+}
+
+.door {
+  padding: 14px 16px;
+  .head { display: flex; align-items: center; gap: 12px; }
+  .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  b { font-size: 16px; }
+  .state {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--app-mu);
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+    &.on { color: var(--app-grn); }
+  }
+  .ui-btn { width: 100%; margin-top: 12px; }
+}
+
+.review { width: 100%; text-align: left; }
+.review .chev { flex: none; opacity: 0.6; }
+
+.safe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 4px;
+  font-size: 12.8px;
+  color: var(--app-mu);
+  ion-icon { color: var(--app-grn); flex: none; }
+}
+
+/* The guide. */
+.guide {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100% - 64px);
+  padding-bottom: calc(16px + var(--ion-safe-area-bottom, 0px));
+  h2 { text-align: center; font-size: 19px; line-height: 1.3; margin: 4px 10px 10px; }
+  .words { text-align: center; font-size: 13.5px; line-height: 1.45; margin: 12px 10px 0; color: var(--app-mu); }
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+  span { height: 6px; width: 6px; border-radius: 3px; background: var(--app-line); transition: width 0.2s; }
+  span.past { background: var(--app-pr); }
+  span.now { width: 22px; }
+}
+.count { text-align: center; font-size: 12.5px; color: var(--app-mu); }
+
+.foot {
+  margin-top: auto;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .ui-btn { width: 100%; }
+  ion-icon { margin-right: 6px; }
+}
+
+.ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 32px;
+  h2 { margin: 14px 0 0; font-size: 21px; }
+  .tip {
+    margin-top: 22px;
+    padding: 14px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: left;
+    color: var(--app-mu);
+  }
+}
+
+/* A sketch of the Shortcuts app: light, as iOS draws it, whatever the theme. */
+.phone {
+  position: relative;
+  width: 250px;
+  height: 300px;
+  margin: 6px auto 0;
+  flex: none;
+  border-radius: 30px;
+  border: 6px solid #2a3550;
+  background: #f2f2f7;
+  color: #111;
+  font-size: 13px;
+  overflow: hidden;
+  .ios-title { padding: 16px 16px 6px; font-size: 22px; font-weight: 700; }
+  .ios-empty { text-align: center; color: #6e6e73; margin: 46px 20px 0; line-height: 1.35; }
+  .ios-button {
+    margin: 18px auto 0;
+    width: 180px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--app-pr);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+  }
+  .ios-tabs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-around;
+    background: #f9f9fb;
+    border-top: 1px solid #d8d8de;
+    padding: 8px 0 12px;
+    span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #8e8e93; padding: 3px 8px; }
+    ion-icon { width: 20px; height: 20px; }
+    span.on { color: var(--app-pr); background: rgba(var(--app-pr-rgb), 0.14); border-radius: 10px; box-shadow: 0 0 0 2px var(--app-pr); }
+  }
+  .ios-list { margin: 0 10px; border-radius: 12px; overflow: hidden; }
+  .ios-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    padding: 7px 12px;
+    border-bottom: 1px solid #e5e5ea;
+    .ios-icon { width: 28px; height: 28px; border-radius: 7px; background: #8e8e93; display: grid; place-items: center; color: #fff; flex: none; }
+    .hand { display: none; margin-left: auto; width: 20px; height: 20px; color: var(--app-pr); transform: rotate(-20deg); }
+    &.on { font-weight: 700; box-shadow: inset 0 0 0 2px var(--app-pr); border-radius: 10px; .ios-icon { background: var(--app-pr); } .hand { display: block; } }
+  }
+  .ios-group {
+    margin: 0 10px 14px;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    &.on { box-shadow: inset 0 0 0 2px var(--app-pr); }
+  }
+  .ios-field {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e5ea;
+    small { display: block; font-size: 11px; color: #6e6e73; }
+    &.on { box-shadow: inset 0 0 0 2px var(--app-pr); border-radius: 12px 12px 0 0; }
+    &.muted { color: #6e6e73; }
+    &.check { display: flex; align-items: center; gap: 8px; .tick { margin-left: auto; color: var(--app-pr); } }
+  }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; }
+  .ios-switch {
+    width: 40px;
+    height: 24px;
+    border-radius: 12px;
+    background: #34c759;
+    position: relative;
+    flex: none;
+    &::after { content: ''; position: absolute; right: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+  }
+  .action { padding: 10px 12px; p { margin: 10px 0 0; line-height: 1.9; } }
+  .action-name { display: flex; align-items: center; gap: 8px; b { font-size: 12.5px; line-height: 1.3; } }
+  .fin { width: 26px; height: 26px; border-radius: 7px; background: var(--app-pr); display: grid; place-items: center; color: #fff; flex: none; }
+  .token { background: rgba(var(--app-pr-rgb), 0.16); color: var(--app-pr); border-radius: 6px; padding: 1px 6px; font-weight: 600; }
+  .ios-caption { text-align: center; color: #6e6e73; margin: 0 16px; font-size: 12px; line-height: 1.35; }
+}
