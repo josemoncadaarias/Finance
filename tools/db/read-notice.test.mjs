@@ -140,6 +140,17 @@ test('an advert is never a movement, even naming a price', () => {
   }
 });
 
+test('a reward or a promo code is never a movement, not even when learned (2026-11-27)', () => {
+  // Invented bank; the shape of the SMS that rang as a spending.
+  const promo = 'banco!: Ana, por tus compras podras redimir: Bono de supermercado de $50.000. Sigue usando tu Tarjeta '
+    + 'Debito y desbloquea uno de los premios que tenemos para ti. Ingresa con tu codigo: BAN501922. AplicaTyC https://x.co/a';
+  assert.equal(readNotice(promo, '', ON).kind, 'none');
+  assert.equal(readNotice(promo, '', ON, true).kind, 'none');
+  assert.equal(readNotice('Paga con tu tarjeta $20.000 o mas. Aplican T y C', '', ON).kind, 'none');
+  // A bonus that did arrive is still money in.
+  assert.equal(readNotice('Recibiste un bono de $50.000 en tu cuenta', '', ON).kind, 'movement');
+});
+
 test('money that did move stays a movement beside advert words', () => {
   const got = readNotice('Compraste $30.000 en TIENDA AZUL con 20% de descuento', '', ON);
   assert.equal(got.kind, 'movement');
