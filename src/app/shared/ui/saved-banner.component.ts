@@ -20,7 +20,7 @@ import { SAVED_BANNER_MS, SavedBannerService } from '../../core/ui/saved-banner.
     @if (banner.notice(); as n) {
       @for (k of [n.key]; track k) {
         <div class="saved-banner" role="status" [class.pressed]="pressed()"
-             [style.transform]="lift() ? 'translateY(' + lift() + 'px)' : null"
+             [style.transform]="drag()" [style.opacity]="fade()"
              (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="up($event)" (pointercancel)="cancel()">
           <img class="logo" src="assets/icon/saved-logo.png" alt="" draggable="false">
             <div class="line">
@@ -127,8 +127,11 @@ export class SavedBannerComponent {
   readonly banner = inject(SavedBannerService);
   readonly ms = SAVED_BANNER_MS;
   readonly pressed = signal(false);
+  /** How far the finger dragged it: up, or to either side. */
   readonly lift = signal(0);
+  readonly slide = signal(0);
   private startY: number | null = null;
+  private startX = 0;
   private moved = false;
 
   kindKey(side: string, mode: string): TranslationKey {
@@ -138,9 +141,22 @@ export class SavedBannerComponent {
   }
 
 
+  /** The banner follows the finger: up, or aside. */
+  drag(): string | null {
+    const x = this.slide(), y = this.lift();
+    return x || y ? `translate(${x}px, ${y}px)` : null;
+  }
+
+  /** Fades as it is pushed aside, so letting go reads as throwing it away. */
+  fade(): number | null {
+    const x = Math.abs(this.slide());
+    return x ? Math.max(0.3, 1 - x / 260) : null;
+  }
+
   down(event: PointerEvent): void {
     if ((event.target as HTMLElement).closest('[data-act]')) return;
     this.startY = event.clientY;
+    this.startX = event.clientX;
     this.moved = false;
     this.pressed.set(true);
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
@@ -149,17 +165,27 @@ export class SavedBannerComponent {
   move(event: PointerEvent): void {
     if (this.startY === null) return;
     const dy = event.clientY - this.startY;
-    if (Math.abs(dy) > 8) this.moved = true;
-    this.lift.set(Math.min(0, dy));
+    const dx = event.clientX - this.startX;
+    if (Math.abs(dy) > 8 || Math.abs(dx) > 8) this.moved = true;
+    // One direction at a time: whichever the finger went more.
+    if (Math.abs(dx) > Math.abs(dy)) {
+      this.slide.set(dx);
+      this.lift.set(0);
+    } else {
+      this.slide.set(0);
+      this.lift.set(Math.min(0, dy));
+    }
   }
 
   up(event: PointerEvent): void {
     if (this.startY === null) return;
     const dy = event.clientY - this.startY;
+    const dx = event.clientX - this.startX;
     this.startY = null;
     this.pressed.set(false);
     this.lift.set(0);
-    if (dy < -30) this.banner.close();
+    this.slide.set(0);
+    if (dy < -30 || Math.abs(dx) > 70) this.banner.close();
     else if (!this.moved) void this.banner.edit();
   }
 
@@ -167,5 +193,6 @@ export class SavedBannerComponent {
     this.startY = null;
     this.pressed.set(false);
     this.lift.set(0);
+    this.slide.set(0);
   }
 }
