@@ -191,10 +191,31 @@ const HAPPENED = [
   'transaccion aprobada', 'realizada con exito', 'realizado con exito', 'was successful', 'was approved',
 ];
 
+/**
+ * A reward, a promo code or the small print: never said of money that moved,
+ * so not even what the word book learned of a source lets it through - only
+ * a HAPPENED word does (Jose, 2026-11-27: a bank's SMS "por tus compras
+ * podras redimir: Bono de supermercado de $50.000 ... Ingresa con tu codigo
+ * ... AplicaTyC" rang as a spending: "compras" read as money out). Generic
+ * words, no bank named.
+ */
+const PROMO = [
+  'redimir', 'redime', 'redimelo', 'redimela', 'desbloquea', 'premios', 'tu premio', 'bono de', 'bono por',
+  'con tu codigo', 'con el codigo', 'codigo promocional', 'codigo de descuento', 'redeem', 'promo code', 'unlock',
+];
+/** The small print, also written run together: "AplicaTyC", "Aplican T y C". */
+const SMALL_PRINT = /(^|[^a-z])aplica\s?n?\s?(t\s?&\s?c|t\s?y\s?c\b|terminos|condiciones|restricciones)/;
+
+/** Whether a message offers a reward or a code rather than telling of money that moved. */
+function isPromo(folded: string): boolean {
+  if (hasAny(folded, HAPPENED)) return false;
+  return firstOf(folded, PROMO) !== null || SMALL_PRINT.test(folded);
+}
+
 /** Whether a message is an advert rather than news of money that moved. */
 function isAdvert(folded: string): boolean {
   if (hasAny(folded, HAPPENED)) return false;
-  return hasAny(folded, ADVERT) || PRICE_BEFORE.test(folded) || OFFER.test(folded);
+  return isPromo(folded) || hasAny(folded, ADVERT) || PRICE_BEFORE.test(folded) || OFFER.test(folded);
 }
 
 /**
@@ -350,7 +371,7 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
 
   if (hasAny(folded, REMINDER)) return { ...empty, balanceMinor, digits };
   // What the person's own answers say is a movement is not taken for an advert.
-  if (!learnedMovement && isAdvert(folded)) return empty;
+  if (isPromo(folded) || (!learnedMovement && isAdvert(folded))) return empty;
 
   const outAt = firstOf(folded, OUT);
   const inAt = firstOf(folded, IN);

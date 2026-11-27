@@ -618,6 +618,19 @@ could not prove.
   `word-book.test.mjs` (invented shop; fails on the code before). Assumed, not
   read from his phone: that the book's verdict was the cause (his word book
   was not in the session). Only messages read after the update change.
+- **A reward or a promo code never rings, not even from a learned bank**
+  (Jose, 2026-11-27, a screenshot: a bank's SMS "por tus compras podras
+  redimir: Bono de supermercado de $50.000 ... Ingresa con tu codigo ...
+  AplicaTyC" rang as "Gasto detectado · −$ 50.000"). "compras" read as money
+  out, "AplicaTyC" run together missed "aplica tyc", and a direction let the
+  word book's "movement" override the advert words. Now `PROMO` (redimir,
+  desbloquea, premios, bono de, con tu codigo...; each must start a word, so
+  "abono de" is no "bono de") and `SMALL_PRINT` ("aplica(n) T&C/TyC/T y C",
+  spaces optional) mark a message as no movement whatever was learned - only
+  a HAPPENED word ("recibiste un bono") lets it through (`isPromo` in
+  `read-notice.ts` and `MovementAlert.java`, kept in step). Test in
+  `read-notice.test.mjs` (invented bank); the Java checked with the JDK on
+  the same texts. Only messages read after the update change.
 - **A fixed payment saved another way still counts as paid** (Jose,
   2026-11-11, two screenshots: "Mercado OR", usually paid from Ualá, saved
   from another account with the note "Mercado OR mas impuesto 4x1000", still
@@ -786,7 +799,7 @@ could not prove.
   worked out, dim what is on show (`.refreshing` in `report.page.scss`)
   instead of swapping it for a spinner. Checked in a browser on the sample
   data with a MutationObserver logging each state; not yet seen on the phone.
-- Tests: `node tools/db/run-tests.mjs` (1309 on 2026-11-26, all must pass; a fresh cloud
+- Tests: `node tools/db/run-tests.mjs` (1310 on 2026-11-27, all must pass; a fresh cloud
   session needs `npm ci` first, or the PDF and icon tests fail for lack of `node_modules`). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say

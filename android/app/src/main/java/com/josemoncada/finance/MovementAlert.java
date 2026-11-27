@@ -133,10 +133,35 @@ final class MovementAlert {
         return has(folded, HAPPENED) && !has(folded, DECLINED);
     }
 
+    /** A reward, a promo code or the small print; kept in step with PROMO in read-notice.ts. */
+    private static final String[] PROMO = {
+            "redimir", "redime", "redimelo", "redimela", "desbloquea", "premios", "tu premio", "bono de", "bono por",
+            "con tu codigo", "con el codigo", "codigo promocional", "codigo de descuento", "redeem", "promo code", "unlock" };
+    /** The small print, also run together ("AplicaTyC"); kept in step with SMALL_PRINT in read-notice.ts. */
+    private static final Pattern SMALL_PRINT = Pattern.compile(
+            "(^|[^a-z])aplica\\s?n?\\s?(t\\s?&\\s?c|t\\s?y\\s?c\\b|terminos|condiciones|restricciones)");
+
+    /**
+     * Never said of money that moved, so not even the word book lets it ring
+     * (Jose, 2026-11-27: "por tus compras podras redimir: Bono ... AplicaTyC"
+     * rang as a spending). Each word must start a word: "abono de" is no "bono de".
+     */
+    static boolean isPromo(String folded) {
+        if (happened(folded)) return false;
+        for (String word : PROMO) {
+            int at = folded.indexOf(word);
+            while (at >= 0) {
+                if (at == 0 || !Character.isLetter(folded.charAt(at - 1))) return true;
+                at = folded.indexOf(word, at + 1);
+            }
+        }
+        return SMALL_PRINT.matcher(folded).find();
+    }
+
     /** An advert names a price, never money that moved (Jose, 2026-10-13). */
     static boolean isAdvert(String folded) {
         if (happened(folded)) return false;
-        return has(folded, ADVERT) || PRICE_BEFORE.matcher(folded).find() || OFFER.matcher(folded).find();
+        return isPromo(folded) || has(folded, ADVERT) || PRICE_BEFORE.matcher(folded).find() || OFFER.matcher(folded).find();
     }
 
     /** A currency beside the figure: "$", "COP", "USD", "EUR". */
@@ -367,7 +392,7 @@ final class MovementAlert {
         String learned = happened(folded) ? null : verdict(quiet(context), source, text, direction != 0);
         // A learned "movement" overrides advert words only when the message names a
         // direction itself; kept in step with notice-proposals.ts (2026-11-24).
-        if (!("movement".equals(learned) && direction != 0) && isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
+        if (isPromo(folded) || (!("movement".equals(learned) && direction != 0) && isAdvert(folded))) { note(context, source, at, "notMovement", null); return; }
         String taught = silenced(context, source, text, folded);
         if (taught != null) { note(context, source, at, taught, null); return; }
         if ("advert".equals(learned)) { note(context, source, at, "learned", null); return; }
